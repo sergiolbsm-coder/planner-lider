@@ -1,0 +1,10 @@
+{
+  "spreadsheetId": "1YqfGN18QDR1xENf2auQCFEd_y6sHefw7dudYd3rt7nI",
+  "spreadsheetUrl": "https://docs.google.com/spreadsheets/d/1YqfGN18QDR1xENf2auQCFEd_y6sHefw7dudYd3rt7nI/edit",
+  "sheets": {
+    "Diagnostico": {"sheetId": 1839629494, "index": 0},
+    "PlanejamentoAnual": {"sheetId": 1102822356, "index": 1},
+    "AcompanhamentoIndividual": {"sheetId": 275588435, "index": 2},
+    "Resultados": {"sheetId": 1969901273, "index": 3}
+  }
+}

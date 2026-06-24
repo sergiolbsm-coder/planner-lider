@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagnóstico do Líder — Impact Leader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header class="site-header">
+    <div class="container">
+      <div class="header-inner">
+        <div class="logo-area">
+          <div class="logo-icon">IL</div>
+          <div>
+            <div class="logo-title">Impact Leader</div>
+            <div class="logo-sub">Instituto da Liderança</div>
+          </div>
+        </div>
+        <nav class="nav-tabs">
+          <button class="nav-btn active" data-section="diagnostico">Diagnóstico</button>
+          <button class="nav-btn" data-section="planejamento">Planejamento</button>
+          <button class="nav-btn" data-section="acompanhamento">Acompanhamento</button>
+        </nav>
+      </div>
+    </div>
+  </header>
+
+  <main class="container">
+
+    <!-- =============================================
+         SEÇÃO 1: DIAGNÓSTICO DO LÍDER
+    ============================================= -->
+    <section id="section-diagnostico" class="section active">
+
+      <div class="section-hero">
+        <h1>Diagnóstico do Líder</h1>
+        <p>Avalie seu nível de desenvolvimento em cada dimensão da liderança. Atribua uma nota de <strong>1 a 5</strong> para cada item, sendo 1 = muito baixo e 5 = excelente.</p>
+      </div>
+
+      <form id="form-diagnostico" novalidate>
+
+        <!-- Identificação -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">👤</span>
+            <h2>Identificação</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="d-nome">Nome do Líder <span class="required">*</span></label>
+                <input type="text" id="d-nome" name="nome" placeholder="Seu nome completo" required />
+              </div>
+              <div class="form-group">
+                <label for="d-area">Área / Setor <span class="required">*</span></label>
+                <input type="text" id="d-area" name="area" placeholder="Ex: Comunicação, Produção..." required />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dimensões de avaliação -->
+        <div id="dimensoes-container"></div>
+
+        <!-- Observações -->
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📝</span>
+            <h2>Observações e Reflexões</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="d-obs">Comentários adicionais, pontos de atenção ou reflexões pessoais</label>
+              <textarea id="d-obs" name="observacoes" rows="4" placeholder="Escreva aqui suas reflexões sobre o diagnóstico..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <!-- Pontuação e envio -->
+        <div class="score-panel" id="score-panel">
+          <div class="score-summary">
+            <div class="score-total">
+              <span class="score-label">Pontuação Total</span>
+              <span class="score-value" id="score-total">0 / 200</span>
+            </div>
+            <div class="score-bar-wrap">
+              <div class="score-bar" id="score-bar"></div>
+            </div>
+            <div class="score-level" id="score-level">Preencha o formulário para ver seu resultado</div>
+          </div>
+          <div class="dimension-scores" id="dimension-scores"></div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="btn-limpar">Limpar Formulário</button>
+          <button type="submit" class="btn btn-primary" id="btn-enviar">
+            <span class="btn-icon">📊</span> Salvar Diagnóstico
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- =============================================
+         SEÇÃO 2: PLANEJAMENTO ANUAL
+    ============================================= -->
+    <section id="section-planejamento" class="section">
+
+      <div class="section-hero">
+        <h1>Planejamento Anual</h1>
+        <p>Defina as expectativas, pontos fortes da equipe, visão, missão, metas e os combinados para este ano.</p>
+      </div>
+
+      <form id="form-planejamento" novalidate>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">👤</span>
+            <h2>Identificação</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="p-nome">Nome do Líder <span class="required">*</span></label>
+                <input type="text" id="p-nome" name="nome" placeholder="Seu nome completo" required />
+              </div>
+              <div class="form-group">
+                <label for="p-area">Área / Setor <span class="required">*</span></label>
+                <input type="text" id="p-area" name="area" placeholder="Ex: Comunicação, Produção..." required />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">🎯</span>
+            <h2>Expectativas para esse ano</h2>
+          </div>
+          <div class="card-body">
+            <div class="list-inputs" id="expectativas-list">
+              <div class="list-item">
+                <span class="list-num">01</span>
+                <input type="text" name="expectativa_1" placeholder="Expectativa 1" />
+              </div>
+              <div class="list-item">
+                <span class="list-num">02</span>
+                <input type="text" name="expectativa_2" placeholder="Expectativa 2" />
+              </div>
+              <div class="list-item">
+                <span class="list-num">03</span>
+                <input type="text" name="expectativa_3" placeholder="Expectativa 3" />
+              </div>
+              <div class="list-item">
+                <span class="list-num">04</span>
+                <input type="text" name="expectativa_4" placeholder="Expectativa 4" />
+              </div>
+              <div class="list-item">
+                <span class="list-num">05</span>
+                <input type="text" name="expectativa_5" placeholder="Expectativa 5" />
+              </div>
+              <div class="list-item">
+                <span class="list-num">06</span>
+                <input type="text" name="expectativa_6" placeholder="Expectativa 6" />
+              </div>
+              <div class="list-item">
+                <span class="list-num">07</span>
+                <input type="text" name="expectativa_7" placeholder="Expectativa 7" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">💪</span>
+            <h2>3 Pontos Fortes da Equipe</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="p-forte1">Ponto Forte 1</label>
+              <input type="text" id="p-forte1" name="forte_1" placeholder="Descreva o primeiro ponto forte" />
+            </div>
+            <div class="form-group">
+              <label for="p-forte2">Ponto Forte 2</label>
+              <input type="text" id="p-forte2" name="forte_2" placeholder="Descreva o segundo ponto forte" />
+            </div>
+            <div class="form-group">
+              <label for="p-forte3">Ponto Forte 3</label>
+              <input type="text" id="p-forte3" name="forte_3" placeholder="Descreva o terceiro ponto forte" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">🔭</span>
+            <h2>Visão e Missão</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="p-visao">Visão e Missão da equipe para este ano</label>
+              <textarea id="p-visao" name="visao_missao" rows="4" placeholder="Descreva a visão e missão da sua equipe..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📈</span>
+            <h2>Metas e Objetivos</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="p-meta-desemp">Meta de Desempenho</label>
+                <textarea id="p-meta-desemp" name="meta_desempenho" rows="3" placeholder="Quais são as metas de desempenho?"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="p-meta-proc">Meta de Processos</label>
+                <textarea id="p-meta-proc" name="meta_processos" rows="3" placeholder="Quais processos precisam melhorar?"></textarea>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="p-lema">Lema do Ano</label>
+              <input type="text" id="p-lema" name="lema_ano" placeholder="Ex: Excelência com propósito" />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">🤝</span>
+            <h2>Combinados da Equipe</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="p-combinados">Liste os combinados acordados com a equipe</label>
+              <textarea id="p-combinados" name="combinados" rows="5" placeholder="01. &#10;02. &#10;03. &#10;04. &#10;05. "></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="btn-limpar-plan">Limpar Formulário</button>
+          <button type="submit" class="btn btn-primary">
+            <span class="btn-icon">💾</span> Salvar Planejamento
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+    <!-- =============================================
+         SEÇÃO 3: ACOMPANHAMENTO INDIVIDUAL
+    ============================================= -->
+    <section id="section-acompanhamento" class="section">
+
+      <div class="section-hero">
+        <h1>Acompanhamento Individual</h1>
+        <p>Registre o acompanhamento de cada membro da equipe, identificando habilidades, expectativas, metas e diferenciais.</p>
+      </div>
+
+      <form id="form-acompanhamento" novalidate>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">👥</span>
+            <h2>Identificação</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-row">
+              <div class="form-group">
+                <label for="a-lider">Nome do Líder <span class="required">*</span></label>
+                <input type="text" id="a-lider" name="lider" placeholder="Seu nome completo" required />
+              </div>
+              <div class="form-group">
+                <label for="a-liderado">Nome do Liderado <span class="required">*</span></label>
+                <input type="text" id="a-liderado" name="liderado" placeholder="Nome do colaborador" required />
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="a-area">Área / Setor</label>
+              <input type="text" id="a-area" name="area" placeholder="Ex: Comunicação, Produção..." />
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">🌟</span>
+            <h2>Habilidades a Potencializar</h2>
+          </div>
+          <div class="card-body">
+            <div class="list-inputs">
+              <div class="list-item">
+                <span class="list-num">01</span>
+                <input type="text" name="habilidade_1" placeholder="Habilidade 1" />
+              </div>
+              <div class="list-item">
+                <span class="list-num">02</span>
+                <input type="text" name="habilidade_2" placeholder="Habilidade 2" />
+              </div>
+              <div class="list-item">
+                <span class="list-num">03</span>
+                <input type="text" name="habilidade_3" placeholder="Habilidade 3" />
+              </div>
+              <div class="list-item">
+                <span class="list-num">04</span>
+                <input type="text" name="habilidade_4" placeholder="Habilidade 4" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">✅</span>
+            <h2>Avaliação de Expectativas</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="a-atende">No que atende as expectativas</label>
+              <textarea id="a-atende" name="atende_expectativas" rows="3" placeholder="Descreva os pontos positivos e onde o liderado supera as expectativas..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="a-nao-atende">No que não atende as expectativas</label>
+              <textarea id="a-nao-atende" name="nao_atende_expectativas" rows="3" placeholder="Descreva os pontos de melhoria e onde há lacunas..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">🎯</span>
+            <h2>Metas e Projetos</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="a-metas">Metas acordadas</label>
+              <textarea id="a-metas" name="metas" rows="3" placeholder="Quais metas foram definidas para este colaborador?"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="a-projetos">Principais atividades e projetos</label>
+              <textarea id="a-projetos" name="projetos" rows="3" placeholder="Liste as principais atividades e projetos sob responsabilidade deste colaborador..."></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">💎</span>
+            <h2>Diferencial e Próximos Passos</h2>
+          </div>
+          <div class="card-body">
+            <div class="form-group">
+              <label for="a-diferencial">Diferencial do liderado</label>
+              <textarea id="a-diferencial" name="diferencial" rows="3" placeholder="O que torna este colaborador único e valioso para a equipe?"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="a-proximos">Próximos passos</label>
+              <textarea id="a-proximos" name="proximos_passos" rows="3" placeholder="Quais são os próximos passos acordados?"></textarea>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" id="btn-limpar-acomp">Limpar Formulário</button>
+          <button type="submit" class="btn btn-primary">
+            <span class="btn-icon">💾</span> Salvar Acompanhamento
+          </button>
+        </div>
+
+      </form>
+    </section>
+
+  </main>
+
+  <!-- MODAL DE SUCESSO -->
+  <div class="modal-overlay" id="modal-overlay">
+    <div class="modal">
+      <div class="modal-icon">✅</div>
+      <h2 class="modal-title">Salvo com sucesso!</h2>
+      <p class="modal-text" id="modal-text">Seus dados foram registrados na planilha Google Sheets.</p>
+      <div class="modal-actions">
+        <a href="https://docs.google.com/spreadsheets/d/1YqfGN18QDR1xENf2auQCFEd_y6sHefw7dudYd3rt7nI/edit" target="_blank" class="btn btn-secondary">Ver na Planilha</a>
+        <button class="btn btn-primary" id="modal-close">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST DE ERRO -->
+  <div class="toast" id="toast"></div>
+
+  <footer class="site-footer">
+    <div class="container">
+      <p>© 2025 Instituto da Liderança · <a href="https://www.institutodalideranca.com.br" target="_blank">www.institutodalideranca.com.br</a></p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
