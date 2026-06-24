@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Planner do Líder — Impact Leader</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo-area">
+        <div class="logo-icon">IL</div>
+        <div>
+          <div class="logo-title">Planner do Líder</div>
+          <div class="logo-sub">Instituto da Liderança</div>
+        </div>
+      </div>
+      <nav class="nav-tabs">
+        <button class="nav-btn active" data-section="liderados">👥 Liderados</button>
+        <button class="nav-btn" data-section="atividades">📋 Atividades</button>
+        <button class="nav-btn" data-section="matriz">🎯 Prioridades</button>
+      </nav>
+    </div>
+  </header>
+
+  <main class="main-content">
+
+    <!-- ============================================
+         MÓDULO 1 — PAINEL DE LIDERADOS
+    ============================================ -->
+    <section id="section-liderados" class="section active">
+
+      <div class="section-hero">
+        <h1>Painel de Liderados</h1>
+        <p>Cadastre e acompanhe cada membro da sua equipe — habilidades, metas, expectativas e desenvolvimento individual.</p>
+      </div>
+
+      <!-- Formulário de cadastro de liderado -->
+      <div class="card form-card">
+        <div class="card-header">
+          <span class="card-icon">➕</span>
+          <h2 id="liderado-form-title">Cadastrar Liderado</h2>
+        </div>
+        <form id="form-liderado" novalidate>
+          <input type="hidden" id="l-id" value="" />
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="l-nome">Nome completo *</label>
+              <input type="text" id="l-nome" placeholder="Nome do liderado" required />
+            </div>
+            <div class="form-group">
+              <label for="l-cargo">Cargo / Função *</label>
+              <input type="text" id="l-cargo" placeholder="Ex: Analista, Coordenador..." required />
+            </div>
+            <div class="form-group">
+              <label for="l-tempo">Tempo na equipe</label>
+              <input type="text" id="l-tempo" placeholder="Ex: 6 meses, 2 anos..." />
+            </div>
+            <div class="form-group">
+              <label for="l-perfil">Perfil comportamental</label>
+              <select id="l-perfil">
+                <option value="">Selecione...</option>
+                <option>Executor</option>
+                <option>Analítico</option>
+                <option>Comunicador</option>
+                <option>Planejador</option>
+                <option>Líder Natural</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="l-habilidades">Principais habilidades</label>
+            <textarea id="l-habilidades" rows="2" placeholder="Liste as principais habilidades e pontos fortes..."></textarea>
+          </div>
+          <div class="form-group">
+            <label for="l-expectativas">Expectativas do líder sobre este liderado</label>
+            <textarea id="l-expectativas" rows="2" placeholder="O que você espera deste profissional?"></textarea>
+          </div>
+          <div class="form-group">
+            <label for="l-metas">Metas individuais</label>
+            <textarea id="l-metas" rows="2" placeholder="Metas e objetivos definidos para este liderado..."></textarea>
+          </div>
+          <div class="form-group">
+            <label for="l-desenvolvimento">Plano de desenvolvimento</label>
+            <textarea id="l-desenvolvimento" rows="2" placeholder="Ações de desenvolvimento, treinamentos, feedbacks planejados..."></textarea>
+          </div>
+          <div class="form-group">
+            <label for="l-obs">Observações</label>
+            <textarea id="l-obs" rows="2" placeholder="Pontos de atenção, contexto adicional..."></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="btn-cancelar-liderado" class="btn-secondary" style="display:none">Cancelar</button>
+            <button type="submit" class="btn-primary">💾 Salvar Liderado</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Painel com cards dos liderados -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">👥</span>
+          <h2>Minha Equipe</h2>
+          <span class="badge" id="badge-total-liderados">0</span>
+        </div>
+        <div id="lista-liderados" class="liderados-grid">
+          <div class="empty-state">
+            <div class="empty-icon">👤</div>
+            <p>Nenhum liderado cadastrado ainda.<br>Use o formulário acima para começar.</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================
+         MÓDULO 2 — GESTÃO DE ATIVIDADES
+    ============================================ -->
+    <section id="section-atividades" class="section">
+
+      <div class="section-hero">
+        <h1>Gestão de Atividades</h1>
+        <p>Lance suas atividades, classifique por resultado e tipo. Tenha clareza sobre o que gera mais impacto.</p>
+      </div>
+
+      <!-- Formulário de cadastro de atividade -->
+      <div class="card form-card">
+        <div class="card-header">
+          <span class="card-icon">➕</span>
+          <h2 id="atividade-form-title">Nova Atividade</h2>
+        </div>
+        <form id="form-atividade" novalidate>
+          <input type="hidden" id="a-id" value="" />
+          <div class="form-group">
+            <label for="a-titulo">Descrição da atividade *</label>
+            <input type="text" id="a-titulo" placeholder="Descreva a atividade..." required />
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Classificação por resultado *</label>
+              <div class="btn-group" id="grupo-resultado">
+                <button type="button" class="tag-btn" data-group="resultado" data-value="alto">🔥 Alto Resultado</button>
+                <button type="button" class="tag-btn" data-group="resultado" data-value="medio">📊 Médio Resultado</button>
+                <button type="button" class="tag-btn" data-group="resultado" data-value="baixo">📉 Baixo Resultado</button>
+                <button type="button" class="tag-btn" data-group="resultado" data-value="delegavel">🤝 Delegável</button>
+                <button type="button" class="tag-btn" data-group="resultado" data-value="eliminavel">🗑️ Eliminável</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Classificação por tipo *</label>
+              <div class="btn-group" id="grupo-tipo">
+                <button type="button" class="tag-btn" data-group="tipo" data-value="estrategico">🏆 Estratégico</button>
+                <button type="button" class="tag-btn" data-group="tipo" data-value="tatico">⚙️ Tático</button>
+                <button type="button" class="tag-btn" data-group="tipo" data-value="operacional">🔧 Operacional</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="a-prazo">Prazo</label>
+              <input type="date" id="a-prazo" />
+            </div>
+            <div class="form-group">
+              <label for="a-responsavel">Responsável</label>
+              <input type="text" id="a-responsavel" placeholder="Você ou nome do liderado..." />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="a-obs">Observações</label>
+            <textarea id="a-obs" rows="2" placeholder="Contexto, dependências, recursos necessários..."></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="btn-cancelar-atividade" class="btn-secondary" style="display:none">Cancelar</button>
+            <button type="submit" class="btn-primary">💾 Salvar Atividade</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Filtros -->
+      <div class="card filtros-card">
+        <div class="filtros-row">
+          <div class="filtro-grupo">
+            <span class="filtro-label">Resultado:</span>
+            <button class="filtro-btn active" data-filtro-resultado="todos">Todos</button>
+            <button class="filtro-btn" data-filtro-resultado="alto">🔥 Alto</button>
+            <button class="filtro-btn" data-filtro-resultado="medio">📊 Médio</button>
+            <button class="filtro-btn" data-filtro-resultado="baixo">📉 Baixo</button>
+            <button class="filtro-btn" data-filtro-resultado="delegavel">🤝 Delegável</button>
+            <button class="filtro-btn" data-filtro-resultado="eliminavel">🗑️ Eliminável</button>
+          </div>
+          <div class="filtro-grupo">
+            <span class="filtro-label">Tipo:</span>
+            <button class="filtro-btn active" data-filtro-tipo="todos">Todos</button>
+            <button class="filtro-btn" data-filtro-tipo="estrategico">🏆 Estratégico</button>
+            <button class="filtro-btn" data-filtro-tipo="tatico">⚙️ Tático</button>
+            <button class="filtro-btn" data-filtro-tipo="operacional">🔧 Operacional</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resumo visual -->
+      <div class="stats-grid" id="stats-atividades">
+        <div class="stat-card stat-alto"><div class="stat-num" id="stat-alto">0</div><div class="stat-label">🔥 Alto Resultado</div></div>
+        <div class="stat-card stat-medio"><div class="stat-num" id="stat-medio">0</div><div class="stat-label">📊 Médio Resultado</div></div>
+        <div class="stat-card stat-baixo"><div class="stat-num" id="stat-baixo">0</div><div class="stat-label">📉 Baixo Resultado</div></div>
+        <div class="stat-card stat-delegavel"><div class="stat-num" id="stat-delegavel">0</div><div class="stat-label">🤝 Delegável</div></div>
+        <div class="stat-card stat-eliminavel"><div class="stat-num" id="stat-eliminavel">0</div><div class="stat-label">🗑️ Eliminável</div></div>
+        <div class="stat-card stat-estrategico"><div class="stat-num" id="stat-estrategico">0</div><div class="stat-label">🏆 Estratégico</div></div>
+        <div class="stat-card stat-tatico"><div class="stat-num" id="stat-tatico">0</div><div class="stat-label">⚙️ Tático</div></div>
+        <div class="stat-card stat-operacional"><div class="stat-num" id="stat-operacional">0</div><div class="stat-label">🔧 Operacional</div></div>
+      </div>
+
+      <!-- Lista de atividades -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📋</span>
+          <h2>Lista de Atividades</h2>
+          <span class="badge" id="badge-total-atividades">0</span>
+        </div>
+        <div id="lista-atividades">
+          <div class="empty-state">
+            <div class="empty-icon">📋</div>
+            <p>Nenhuma atividade cadastrada ainda.<br>Use o formulário acima para começar.</p>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================
+         MÓDULO 3 — MATRIZ DE PRIORIDADE
+    ============================================ -->
+    <section id="section-matriz" class="section">
+
+      <div class="section-hero">
+        <h1>Matriz de Prioridade</h1>
+        <p>Visualize suas atividades organizadas por impacto e esforço. Foque no que realmente importa.</p>
+      </div>
+
+      <!-- Legenda -->
+      <div class="card legenda-card">
+        <div class="legenda-grid">
+          <div class="legenda-item legenda-q1">
+            <div class="legenda-titulo">🚀 FAZER AGORA</div>
+            <div class="legenda-desc">Alto resultado + Fácil de fazer</div>
+          </div>
+          <div class="legenda-item legenda-q2">
+            <div class="legenda-titulo">📅 PLANEJAR</div>
+            <div class="legenda-desc">Alto resultado + Difícil de fazer</div>
+          </div>
+          <div class="legenda-item legenda-q3">
+            <div class="legenda-titulo">🤝 DELEGAR</div>
+            <div class="legenda-desc">Baixo resultado + Fácil de fazer</div>
+          </div>
+          <div class="legenda-item legenda-q4">
+            <div class="legenda-titulo">🗑️ ELIMINAR</div>
+            <div class="legenda-desc">Baixo resultado + Difícil de fazer</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Formulário para adicionar à matriz -->
+      <div class="card form-card">
+        <div class="card-header">
+          <span class="card-icon">➕</span>
+          <h2 id="matriz-form-title">Adicionar à Matriz</h2>
+        </div>
+        <form id="form-matriz" novalidate>
+          <input type="hidden" id="m-id" value="" />
+          <div class="form-group">
+            <label for="m-titulo">Descrição da atividade / decisão *</label>
+            <input type="text" id="m-titulo" placeholder="O que precisa ser feito ou decidido?" required />
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Nível de resultado *</label>
+              <div class="btn-group">
+                <button type="button" class="tag-btn tag-large" data-group="m-resultado" data-value="alto">🔥 Alto Resultado</button>
+                <button type="button" class="tag-btn tag-large" data-group="m-resultado" data-value="baixo">📉 Baixo Resultado</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>Nível de esforço *</label>
+              <div class="btn-group">
+                <button type="button" class="tag-btn tag-large" data-group="m-esforco" data-value="facil">⚡ Fácil de fazer</button>
+                <button type="button" class="tag-btn tag-large" data-group="m-esforco" data-value="dificil">🧱 Difícil de fazer</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="m-obs">Observação</label>
+            <input type="text" id="m-obs" placeholder="Contexto ou próximo passo..." />
+          </div>
+          <div class="form-actions">
+            <button type="button" id="btn-cancelar-matriz" class="btn-secondary" style="display:none">Cancelar</button>
+            <button type="submit" class="btn-primary">💾 Adicionar à Matriz</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Matriz visual 2x2 -->
+      <div class="matriz-container">
+
+        <div class="matriz-eixo-y">
+          <span>🔥 ALTO RESULTADO</span>
+          <div class="eixo-seta">▲</div>
+          <span>📉 BAIXO RESULTADO</span>
+        </div>
+
+        <div class="matriz-grid">
+
+          <!-- Q1: Alto resultado + Fácil -->
+          <div class="quadrante q1">
+            <div class="quadrante-header">
+              <span class="q-icon">🚀</span>
+              <div>
+                <div class="q-titulo">FAZER AGORA</div>
+                <div class="q-sub">Alto resultado · Fácil de fazer</div>
+              </div>
+              <span class="badge q-badge" id="badge-q1">0</span>
+            </div>
+            <div class="quadrante-items" id="q1-items">
+              <div class="q-empty">Nenhum item ainda</div>
+            </div>
+          </div>
+
+          <!-- Q2: Alto resultado + Difícil -->
+          <div class="quadrante q2">
+            <div class="quadrante-header">
+              <span class="q-icon">📅</span>
+              <div>
+                <div class="q-titulo">PLANEJAR</div>
+                <div class="q-sub">Alto resultado · Difícil de fazer</div>
+              </div>
+              <span class="badge q-badge" id="badge-q2">0</span>
+            </div>
+            <div class="quadrante-items" id="q2-items">
+              <div class="q-empty">Nenhum item ainda</div>
+            </div>
+          </div>
+
+          <!-- Q3: Baixo resultado + Fácil -->
+          <div class="quadrante q3">
+            <div class="quadrante-header">
+              <span class="q-icon">🤝</span>
+              <div>
+                <div class="q-titulo">DELEGAR</div>
+                <div class="q-sub">Baixo resultado · Fácil de fazer</div>
+              </div>
+              <span class="badge q-badge" id="badge-q3">0</span>
+            </div>
+            <div class="quadrante-items" id="q3-items">
+              <div class="q-empty">Nenhum item ainda</div>
+            </div>
+          </div>
+
+          <!-- Q4: Baixo resultado + Difícil -->
+          <div class="quadrante q4">
+            <div class="quadrante-header">
+              <span class="q-icon">🗑️</span>
+              <div>
+                <div class="q-titulo">ELIMINAR</div>
+                <div class="q-sub">Baixo resultado · Difícil de fazer</div>
+              </div>
+              <span class="badge q-badge" id="badge-q4">0</span>
+            </div>
+            <div class="quadrante-items" id="q4-items">
+              <div class="q-empty">Nenhum item ainda</div>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="matriz-eixo-x">
+          <span>⚡ FÁCIL DE FAZER</span>
+          <div class="eixo-linha">→</div>
+          <span>🧱 DIFÍCIL DE FAZER</span>
+        </div>
+
+      </div>
+
+    </section>
+
+  </main>
+
+  <!-- Modal de detalhe do liderado -->
+  <div id="modal-liderado" class="modal" style="display:none">
+    <div class="modal-overlay" id="modal-overlay-liderado"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3 id="modal-liderado-nome">Nome do Liderado</h3>
+        <button class="modal-close" id="modal-liderado-close">✕</button>
+      </div>
+      <div class="modal-body" id="modal-liderado-body"></div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="modal-liderado-editar">✏️ Editar</button>
+        <button class="btn-danger" id="modal-liderado-excluir">🗑️ Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de notificação -->
+  <div id="toast" class="toast" style="display:none"></div>
+
+  <footer class="footer">
+    <p>© 2025 Instituto da Liderança · <a href="https://www.institutodalideranca.com.br" target="_blank">www.institutodalideranca.com.br</a></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
