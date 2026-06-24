@@ -1,4 +1,4 @@
-# Diagnóstico do Líder — Impact Leader
+# Planner do Líder — Impact Leader
 
 > Sistema digital de autoavaliação e planejamento para líderes, baseado no **Planner Impact Leader 2025** do Instituto da Liderança.
 
@@ -6,7 +6,7 @@
 
 ## Visão Geral
 
-Este sistema permite que o líder realize seu **diagnóstico pessoal de liderança**, registre seu **planejamento anual** e acompanhe o **desenvolvimento individual** de cada membro da equipe — tudo de forma simples, intuitiva e integrada ao Google Sheets.
+O **Planner do Líder** permite que o líder realize seu **diagnóstico pessoal de liderança**, registre seu **planejamento anual** e acompanhe o **desenvolvimento individual** de cada membro da equipe — tudo de forma simples, intuitiva e integrada ao Google Sheets.
 
 ---
 
@@ -59,7 +59,7 @@ A planilha já foi criada e configurada com 4 abas:
 - **Resultados** — Painel resumido de pontuações
 
 **Link da planilha:**
-[Diagnóstico do Líder - Impact Leader](https://docs.google.com/spreadsheets/d/1YqfGN18QDR1xENf2auQCFEd_y6sHefw7dudYd3rt7nI/edit)
+[Planner do Líder - Impact Leader](https://docs.google.com/spreadsheets/d/1YqfGN18QDR1xENf2auQCFEd_y6sHefw7dudYd3rt7nI/edit)
 
 ---
 

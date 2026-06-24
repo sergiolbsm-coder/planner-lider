@@ -1,5 +1,5 @@
 /* ============================================================
-   DIAGNÓSTICO DO LÍDER — Impact Leader
+   PLANNER DO LÍDER — Impact Leader
    app.js — Lógica principal do formulário
 ============================================================ */
 

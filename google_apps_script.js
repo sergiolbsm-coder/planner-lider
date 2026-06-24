@@ -1,5 +1,5 @@
 /**
- * Google Apps Script — Diagnóstico do Líder
+ * Google Apps Script — Planner do Líder
  * Instituto da Liderança · Impact Leader
  *
  * INSTRUÇÕES DE CONFIGURAÇÃO:
@@ -45,6 +45,6 @@ function doPost(e) {
 
 function doGet(e) {
   return ContentService
-    .createTextOutput(JSON.stringify({ status: "ok", message: "Diagnóstico do Líder API ativa" }))
+    .createTextOutput(JSON.stringify({ status: "ok", message: "Planner do Líder API ativa" }))
     .setMimeType(ContentService.MimeType.JSON);
 }
