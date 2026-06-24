@@ -283,6 +283,113 @@ const TIPO_CONFIG = {
   operacional: { label: '🔧 Operacional', cor: '#27ae60', bg: '#eafaf1' },
 };
 
+// Instâncias dos gráficos Chart.js
+let chartTipo = null;
+let chartResultado = null;
+
+function renderGraficos() {
+  const total = STATE.atividades.length;
+
+  // --- Gráfico por TIPO ---
+  const tipoData = [
+    STATE.atividades.filter(a => a.tipo === 'estrategico').length,
+    STATE.atividades.filter(a => a.tipo === 'tatico').length,
+    STATE.atividades.filter(a => a.tipo === 'operacional').length,
+  ];
+  const tipoLabels = ['Estratégico', 'Tático', 'Operacional'];
+  const tipoCores = ['#9b59b6', '#2980b9', '#27ae60'];
+
+  // --- Gráfico por RESULTADO ---
+  const resultData = [
+    STATE.atividades.filter(a => a.resultado === 'alto').length,
+    STATE.atividades.filter(a => a.resultado === 'medio').length,
+    STATE.atividades.filter(a => a.resultado === 'baixo').length,
+    STATE.atividades.filter(a => a.resultado === 'delegavel').length,
+    STATE.atividades.filter(a => a.resultado === 'eliminavel').length,
+  ];
+  const resultLabels = ['Alto Resultado', 'Médio Resultado', 'Baixo Resultado', 'Delegável', 'Eliminável'];
+  const resultCores = ['#e74c3c', '#f39c12', '#95a5a6', '#3498db', '#7f8c8d'];
+
+  const opcoesBase = {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => {
+            const val = ctx.parsed;
+            const pct = total > 0 ? Math.round((val / total) * 100) : 0;
+            return ` ${val} atividade${val !== 1 ? 's' : ''} (${pct}%)`;
+          }
+        }
+      }
+    },
+    cutout: '55%',
+  };
+
+  // Criar/atualizar gráfico de TIPO
+  const ctxTipo = document.getElementById('grafico-tipo').getContext('2d');
+  if (chartTipo) chartTipo.destroy();
+  chartTipo = new Chart(ctxTipo, {
+    type: 'doughnut',
+    data: {
+      labels: tipoLabels,
+      datasets: [{ data: tipoData, backgroundColor: tipoCores, borderWidth: 2, borderColor: '#fff', hoverOffset: 8 }]
+    },
+    options: opcoesBase
+  });
+
+  // Criar/atualizar gráfico de RESULTADO
+  const ctxRes = document.getElementById('grafico-resultado').getContext('2d');
+  if (chartResultado) chartResultado.destroy();
+  chartResultado = new Chart(ctxRes, {
+    type: 'doughnut',
+    data: {
+      labels: resultLabels,
+      datasets: [{ data: resultData, backgroundColor: resultCores, borderWidth: 2, borderColor: '#fff', hoverOffset: 8 }]
+    },
+    options: opcoesBase
+  });
+
+  // Legendas customizadas
+  function gerarLegenda(containerId, labels, cores, dados) {
+    const el = document.getElementById(containerId);
+    el.innerHTML = labels.map((l, i) => {
+      const pct = total > 0 ? Math.round((dados[i] / total) * 100) : 0;
+      return `<div class="legenda-item-grafico">
+        <span class="legenda-cor" style="background:${cores[i]}"></span>
+        <span class="legenda-nome">${l}</span>
+        <span class="legenda-pct">${dados[i]} (${pct}%)</span>
+      </div>`;
+    }).join('');
+  }
+  gerarLegenda('legenda-tipo', tipoLabels, tipoCores, tipoData);
+  gerarLegenda('legenda-resultado', resultLabels, resultCores, resultData);
+
+  // Insight de energia
+  const insightEl = document.getElementById('insight-texto');
+  if (total === 0) {
+    insightEl.textContent = 'Cadastre atividades para ver a análise da sua energia.';
+    return;
+  }
+  const maxTipo = tipoLabels[tipoData.indexOf(Math.max(...tipoData))];
+  const pctMaxTipo = Math.round((Math.max(...tipoData) / total) * 100);
+  const pctEstrategico = Math.round((tipoData[0] / total) * 100);
+  const pctOperacional = Math.round((tipoData[2] / total) * 100);
+
+  let insight = `Você tem ${total} atividade${total !== 1 ? 's' : ''} registrada${total !== 1 ? 's' : ''}. `;
+  insight += `A maior parte da sua energia está em atividades <strong>${maxTipo}s</strong> (${pctMaxTipo}%). `;
+  if (pctOperacional > 60) {
+    insight += `⚠️ Atenção: mais de 60% das suas atividades são operacionais — considere delegar para liberar espaço estratégico.`;
+  } else if (pctEstrategico >= 40) {
+    insight += `✅ Ótimo equilíbrio! Você está dedicando energia significativa a atividades estratégicas.`;
+  } else {
+    insight += `💡 Dica: tente aumentar o percentual de atividades estratégicas para ampliar seu impacto como líder.`;
+  }
+  insightEl.innerHTML = insight;
+}
+
 function renderAtividades() {
   const container = document.getElementById('lista-atividades');
   const badge = document.getElementById('badge-total-atividades');
@@ -303,6 +410,9 @@ function renderAtividades() {
   ['estrategico','tatico','operacional'].forEach(k => {
     document.getElementById('stat-' + k).textContent = STATE.atividades.filter(a => a.tipo === k).length;
   });
+
+  // Atualizar gráficos
+  renderGraficos();
 
   if (lista.length === 0) {
     container.innerHTML = `
@@ -329,7 +439,7 @@ function renderAtividades() {
         ${a.obs ? `<div class="atividade-obs">${a.obs}</div>` : ''}
       </div>
       <div class="atividade-acoes">
-        <button class="btn-icon" title="Editar" onclick="editarAtividade('${a.id}')">✏️</button>
+        <button class="btn-icon btn-icon-edit" title="Editar rapidamente" onclick="abrirModalAtividade('${a.id}')">✏️</button>
         <button class="btn-icon btn-icon-danger" title="Excluir" onclick="excluirAtividade('${a.id}')">🗑️</button>
       </div>
     </div>`;
@@ -399,6 +509,62 @@ function editarAtividade(id) {
   document.getElementById('atividade-form-title').textContent = 'Editar Atividade';
   document.getElementById('btn-cancelar-atividade').style.display = 'inline-flex';
   document.querySelector('#section-atividades .form-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+// Modal de edição rápida de atividade
+function abrirModalAtividade(id) {
+  const a = STATE.atividades.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('ma-id').value = a.id;
+  document.getElementById('ma-titulo').value = a.titulo;
+  document.getElementById('ma-prazo').value = a.prazo || '';
+  document.getElementById('ma-responsavel').value = a.responsavel || '';
+  document.getElementById('ma-obs').value = a.obs || '';
+  setTagValue('ma-resultado', a.resultado);
+  setTagValue('ma-tipo', a.tipo);
+  document.getElementById('modal-atividade').style.display = 'flex';
+}
+
+function fecharModalAtividade() {
+  document.getElementById('modal-atividade').style.display = 'none';
+  document.getElementById('ma-id').value = '';
+  clearTagGroup('ma-resultado');
+  clearTagGroup('ma-tipo');
+}
+
+function initModalAtividade() {
+  document.getElementById('modal-atividade-close').addEventListener('click', fecharModalAtividade);
+  document.getElementById('modal-overlay-atividade').addEventListener('click', fecharModalAtividade);
+  document.getElementById('modal-atividade-cancelar').addEventListener('click', fecharModalAtividade);
+
+  document.getElementById('modal-atividade-salvar').addEventListener('click', () => {
+    const id = document.getElementById('ma-id').value;
+    const titulo = document.getElementById('ma-titulo').value.trim();
+    if (!titulo) { mostrarToast('Descreva a atividade.', 'error'); return; }
+
+    const resultado = getTagValue('ma-resultado');
+    const tipo = getTagValue('ma-tipo');
+    if (!resultado) { mostrarToast('Selecione a classificação por resultado.', 'error'); return; }
+    if (!tipo) { mostrarToast('Selecione a classificação por tipo.', 'error'); return; }
+
+    const idx = STATE.atividades.findIndex(a => a.id === id);
+    if (idx === -1) return;
+
+    STATE.atividades[idx] = {
+      ...STATE.atividades[idx],
+      titulo,
+      resultado,
+      tipo,
+      prazo: document.getElementById('ma-prazo').value,
+      responsavel: document.getElementById('ma-responsavel').value.trim(),
+      obs: document.getElementById('ma-obs').value.trim(),
+    };
+
+    salvarDados();
+    renderAtividades();
+    fecharModalAtividade();
+    mostrarToast('Atividade atualizada com sucesso!');
+  });
 }
 
 function excluirAtividade(id) {
@@ -560,6 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // Atividades
   initFormAtividade();
   initFiltrosAtividades();
+  initModalAtividade();
   renderAtividades();
 
   // Matriz

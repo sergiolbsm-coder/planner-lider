@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="style.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -214,6 +215,35 @@
         <div class="stat-card stat-operacional"><div class="stat-num" id="stat-operacional">0</div><div class="stat-label">🔧 Operacional</div></div>
       </div>
 
+      <!-- Gráficos de distribuição de energia -->
+      <div class="card graficos-card">
+        <div class="card-header">
+          <span class="card-icon">📊</span>
+          <h2>Onde está sua energia?</h2>
+          <span class="graficos-subtitle">Distribuição das suas atividades por categoria</span>
+        </div>
+        <div class="graficos-grid">
+          <div class="grafico-container">
+            <div class="grafico-titulo">Por Tipo de Atividade</div>
+            <div class="grafico-wrap">
+              <canvas id="grafico-tipo"></canvas>
+            </div>
+            <div class="grafico-legenda" id="legenda-tipo"></div>
+          </div>
+          <div class="grafico-container">
+            <div class="grafico-titulo">Por Nível de Resultado</div>
+            <div class="grafico-wrap">
+              <canvas id="grafico-resultado"></canvas>
+            </div>
+            <div class="grafico-legenda" id="legenda-resultado"></div>
+          </div>
+        </div>
+        <div class="grafico-insight" id="grafico-insight">
+          <span class="insight-icon">💡</span>
+          <span id="insight-texto">Cadastre atividades para ver a análise da sua energia.</span>
+        </div>
+      </div>
+
       <!-- Lista de atividades -->
       <div class="card">
         <div class="card-header">
@@ -399,6 +429,62 @@
       <div class="modal-footer">
         <button class="btn-secondary" id="modal-liderado-editar">✏️ Editar</button>
         <button class="btn-danger" id="modal-liderado-excluir">🗑️ Excluir</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de edição rápida de atividade -->
+  <div id="modal-atividade" class="modal" style="display:none">
+    <div class="modal-overlay" id="modal-overlay-atividade"></div>
+    <div class="modal-box modal-box-atividade">
+      <div class="modal-header">
+        <h3>Editar Atividade</h3>
+        <button class="modal-close" id="modal-atividade-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="ma-id" value="" />
+        <div class="form-group">
+          <label for="ma-titulo">Descrição da atividade *</label>
+          <input type="text" id="ma-titulo" placeholder="Descreva a atividade..." />
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label>Classificação por resultado *</label>
+            <div class="btn-group">
+              <button type="button" class="tag-btn" data-group="ma-resultado" data-value="alto">🔥 Alto</button>
+              <button type="button" class="tag-btn" data-group="ma-resultado" data-value="medio">📊 Médio</button>
+              <button type="button" class="tag-btn" data-group="ma-resultado" data-value="baixo">📉 Baixo</button>
+              <button type="button" class="tag-btn" data-group="ma-resultado" data-value="delegavel">🤝 Delegável</button>
+              <button type="button" class="tag-btn" data-group="ma-resultado" data-value="eliminavel">🗑️ Eliminável</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Classificação por tipo *</label>
+            <div class="btn-group">
+              <button type="button" class="tag-btn" data-group="ma-tipo" data-value="estrategico">🏆 Estratégico</button>
+              <button type="button" class="tag-btn" data-group="ma-tipo" data-value="tatico">⚙️ Tático</button>
+              <button type="button" class="tag-btn" data-group="ma-tipo" data-value="operacional">🔧 Operacional</button>
+            </div>
+          </div>
+        </div>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label for="ma-prazo">Prazo</label>
+            <input type="date" id="ma-prazo" />
+          </div>
+          <div class="form-group">
+            <label for="ma-responsavel">Responsável</label>
+            <input type="text" id="ma-responsavel" placeholder="Você ou nome do liderado..." />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="ma-obs">Observações</label>
+          <textarea id="ma-obs" rows="2" placeholder="Contexto, dependências..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="modal-atividade-cancelar">Cancelar</button>
+        <button class="btn-primary" id="modal-atividade-salvar">💾 Salvar Alterações</button>
       </div>
     </div>
   </div>
