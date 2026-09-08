@@ -294,6 +294,21 @@ function formatarData(iso) {
   return `${d}/${m}/${y}`;
 }
 
+function tempoNaEmpresa(dataInicio) {
+  if (!dataInicio) return '';
+  const inicio = new Date(dataInicio + 'T00:00:00');
+  const hoje = new Date();
+  let meses = (hoje.getFullYear() - inicio.getFullYear()) * 12 + (hoje.getMonth() - inicio.getMonth());
+  if (hoje.getDate() < inicio.getDate()) meses--;
+  if (meses <= 0) return 'Menos de 1 mês';
+  const anos = Math.floor(meses / 12);
+  const mesesRestantes = meses % 12;
+  const partes = [];
+  if (anos > 0) partes.push(`${anos} ano${anos !== 1 ? 's' : ''}`);
+  if (mesesRestantes > 0) partes.push(`${mesesRestantes} ${mesesRestantes !== 1 ? 'meses' : 'mês'}`);
+  return partes.join(' e ');
+}
+
 function mostrarToast(msg, tipo = 'success') {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
@@ -310,6 +325,19 @@ function irParaSecao(secao) {
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelector(`.nav-btn[data-section="${secao}"]`).classList.add('active');
   document.getElementById('section-' + secao).classList.add('active');
+  document.body.classList.remove('sidebar-open');
+}
+
+// ============================================================
+// MENU LATERAL (sidebar) — abrir/fechar em telas estreitas
+// ============================================================
+function initSidebarToggle() {
+  document.getElementById('btn-sidebar-toggle').addEventListener('click', () => {
+    document.body.classList.toggle('sidebar-open');
+  });
+  document.getElementById('sidebar-overlay').addEventListener('click', () => {
+    document.body.classList.remove('sidebar-open');
+  });
 }
 
 function initNavegacao() {
@@ -406,7 +434,7 @@ function renderLiderados() {
           <div class="liderado-nome">${l.nome}</div>
           <div class="liderado-cargo">${l.cargo}</div>
           ${l.perfil ? `<span class="liderado-perfil-tag" style="background:${PERFIL_CORES[l.perfil]}20;color:${PERFIL_CORES[l.perfil]}">${l.perfil}</span>` : ''}
-          ${l.tempo ? `<span class="liderado-tempo">⏱ ${l.tempo}</span>` : ''}
+          ${l.dataInicio ? `<span class="liderado-tempo">⏱ ${tempoNaEmpresa(l.dataInicio)}</span>` : ''}
         </div>
         <div class="liderado-acoes">
           <button class="btn-icon" title="Diário de Bordo" onclick="irParaDiario('${l.id}')">📓</button>
@@ -420,6 +448,7 @@ function renderLiderados() {
 
   popularSelectsResponsavel();
   renderDiarioSeletor();
+  renderDiarioEquipe();
 }
 
 function initFormLiderado() {
@@ -436,7 +465,7 @@ function initFormLiderado() {
       id: id || gerarId(),
       nome,
       cargo,
-      tempo: document.getElementById('l-tempo').value.trim(),
+      dataInicio: document.getElementById('l-data-inicio').value,
       perfil: document.getElementById('l-perfil').value,
       habilidades: document.getElementById('l-habilidades').value.trim(),
       expectativas: document.getElementById('l-expectativas').value.trim(),
@@ -480,7 +509,7 @@ function editarLiderado(id) {
   document.getElementById('l-id').value = l.id;
   document.getElementById('l-nome').value = l.nome;
   document.getElementById('l-cargo').value = l.cargo;
-  document.getElementById('l-tempo').value = l.tempo || '';
+  document.getElementById('l-data-inicio').value = l.dataInicio || '';
   document.getElementById('l-perfil').value = l.perfil || '';
   document.getElementById('l-habilidades').value = l.habilidades || '';
   document.getElementById('l-expectativas').value = l.expectativas || '';
@@ -515,7 +544,7 @@ function verLiderado(id) {
     <div class="modal-detalhe-grid">
       <div class="detalhe-item"><span class="detalhe-label">Cargo</span><span class="detalhe-valor">${l.cargo || '—'}</span></div>
       <div class="detalhe-item"><span class="detalhe-label">Perfil</span><span class="detalhe-valor">${l.perfil || '—'}</span></div>
-      <div class="detalhe-item"><span class="detalhe-label">Tempo na equipe</span><span class="detalhe-valor">${l.tempo || '—'}</span></div>
+      <div class="detalhe-item"><span class="detalhe-label">Tempo na empresa</span><span class="detalhe-valor">${l.dataInicio ? tempoNaEmpresa(l.dataInicio) + ' (desde ' + formatarData(l.dataInicio) + ')' : '—'}</span></div>
       <div class="detalhe-item"><span class="detalhe-label">Cadastrado em</span><span class="detalhe-valor">${formatarData(l.criadoEm?.split('T')[0])}</span></div>
     </div>
     ${l.habilidades ? `<div class="detalhe-secao"><div class="detalhe-secao-titulo">💡 Principais Habilidades</div><p>${l.habilidades}</p></div>` : ''}
@@ -581,6 +610,17 @@ function selecionarLideradoDiario(id) {
   renderDiarioConteudo();
 }
 
+function ultimoFeedback(lideradoId) {
+  return STATE.diario
+    .filter(d => d.lideradoId === lideradoId && d.tipo === 'feedback')
+    .sort((a, b) => (b.data || '').localeCompare(a.data || ''))[0] || null;
+}
+
+function truncar(texto, n = 60) {
+  if (!texto) return '';
+  return texto.length > n ? texto.slice(0, n).trim() + '…' : texto;
+}
+
 function renderDiarioConteudo() {
   const l = STATE.liderados.find(x => x.id === STATE.diarioSelecionadoId);
   const conteudo = document.getElementById('diario-conteudo');
@@ -593,8 +633,14 @@ function renderDiarioConteudo() {
   document.getElementById('dc-comportamentos').value = l.comportamentos || '';
   document.getElementById('dc-sentimentos').value = l.sentimentos || '';
 
+  const ultFeedback = ultimoFeedback(l.id);
+  document.getElementById('diario-ultimo-feedback').textContent = ultFeedback
+    ? `🗣️ Último feedback: ${formatarData(ultFeedback.data)}`
+    : '🗣️ Sem feedback formal ainda';
+
   document.getElementById('rd-data').value = hojeISO();
   clearMultiGroup('riscos');
+  setTagValue('registro-tipo', 'observacao');
 
   renderTimelineDiario();
 }
@@ -609,6 +655,7 @@ function initFormConhecer() {
     STATE.liderados[idx].comportamentos = document.getElementById('dc-comportamentos').value.trim();
     STATE.liderados[idx].sentimentos = document.getElementById('dc-sentimentos').value.trim();
     salvarDadosLider();
+    renderDiarioEquipe();
     mostrarToast('Perfil do liderado atualizado!');
   });
 }
@@ -627,8 +674,8 @@ function renderTimelineDiario() {
   }
 
   container.innerHTML = registros.map(r => `
-    <div class="diario-timeline-item">
-      <div class="diario-timeline-data">📅 ${formatarData(r.data)}</div>
+    <div class="diario-timeline-item ${r.tipo === 'feedback' ? 'feedback' : ''}">
+      <div class="diario-timeline-data">${r.tipo === 'feedback' ? '🗣️ Feedback formal — ' : '📅 '}${formatarData(r.data)}</div>
       ${(r.riscos && r.riscos.length) ? `<div class="atividade-tags">${r.riscos.map(v => `<span class="tag-pill tag-risco">${RISCOS_LABELS[v] || v}</span>`).join('')}</div>` : ''}
       ${r.sinais ? `<div class="diario-timeline-campo"><strong>👁️ Sinais observados:</strong> ${r.sinais}</div>` : ''}
       ${r.conversa ? `<div class="diario-timeline-campo"><strong>💬 Conversa:</strong> ${r.conversa}</div>` : ''}
@@ -652,9 +699,12 @@ function initFormRegistroDiario() {
       return;
     }
 
+    const tipo = getTagValue('registro-tipo') || 'observacao';
+
     STATE.diario.push({
       id: gerarId(),
       lideradoId: STATE.diarioSelecionadoId,
+      tipo,
       data: document.getElementById('rd-data').value || hojeISO(),
       riscos, sinais, conversa, plano,
       criadoEm: new Date().toISOString(),
@@ -662,10 +712,16 @@ function initFormRegistroDiario() {
 
     salvarDadosLider();
     renderTimelineDiario();
+    renderDiarioEquipe();
     document.getElementById('form-registro-diario').reset();
     document.getElementById('rd-data').value = hojeISO();
     clearMultiGroup('riscos');
-    mostrarToast('Registro adicionado ao diário de bordo!');
+    setTagValue('registro-tipo', 'observacao');
+    const ultFeedback = ultimoFeedback(STATE.diarioSelecionadoId);
+    document.getElementById('diario-ultimo-feedback').textContent = ultFeedback
+      ? `🗣️ Último feedback: ${formatarData(ultFeedback.data)}`
+      : '🗣️ Sem feedback formal ainda';
+    mostrarToast(tipo === 'feedback' ? 'Feedback lançado com sucesso!' : 'Registro adicionado ao diário de bordo!');
   });
 }
 
@@ -674,7 +730,52 @@ function excluirRegistroDiario(id) {
   STATE.diario = STATE.diario.filter(d => d.id !== id);
   salvarDadosLider();
   renderTimelineDiario();
+  renderDiarioEquipe();
   mostrarToast('Registro removido.', 'info');
+}
+
+function renderDiarioEquipe() {
+  const corpo = document.getElementById('tabela-diario-equipe-body');
+  if (!corpo) return;
+
+  if (STATE.liderados.length === 0) {
+    corpo.innerHTML = `<tr><td colspan="10" class="celula-vazia">Cadastre liderados na aba Liderados para ver a equipe aqui.</td></tr>`;
+    return;
+  }
+
+  corpo.innerHTML = STATE.liderados.map(l => {
+    const registros = STATE.diario.filter(d => d.lideradoId === l.id).sort((a, b) => (b.data || '').localeCompare(a.data || ''));
+    const ultimoRisco = registros.find(r => r.riscos && r.riscos.length);
+    const ultimoSinal = registros.find(r => r.sinais);
+    const ultimoPlano = registros.find(r => r.plano);
+    const feedback = ultimoFeedback(l.id);
+    const vazio = '<span class="celula-vazia">—</span>';
+
+    return `
+      <tr>
+        <td>
+          <div class="equipe-nome">${l.nome}</div>
+          <div class="equipe-cargo">${l.cargo || ''}</div>
+        </td>
+        <td>${l.aspiracoes ? truncar(l.aspiracoes, 70) : vazio}</td>
+        <td>${l.habilidades ? truncar(l.habilidades, 70) : vazio}</td>
+        <td>${l.comportamentos ? truncar(l.comportamentos, 70) : vazio}</td>
+        <td>${l.sentimentos ? truncar(l.sentimentos, 70) : vazio}</td>
+        <td>${ultimoRisco ? ultimoRisco.riscos.map(v => `<span class="tag-pill tag-risco">${RISCOS_LABELS[v] || v}</span>`).join(' ') : vazio}</td>
+        <td>${ultimoSinal ? truncar(ultimoSinal.sinais, 60) : vazio}</td>
+        <td>${feedback ? `<span class="tag-pill tag-ultimo-feedback" style="margin-left:0">${formatarData(feedback.data)}</span>` : vazio}</td>
+        <td>${ultimoPlano ? truncar(ultimoPlano.plano, 60) : vazio}</td>
+        <td><button class="btn-icon btn-icon-sm" title="Ver linha do tempo" onclick="irParaDiarioIndividual('${l.id}')">👁️</button></td>
+      </tr>`;
+  }).join('');
+}
+
+function irParaDiarioIndividual(lideradoId) {
+  STATE.diarioSelecionadoId = lideradoId;
+  salvarDadosLider();
+  document.querySelector('.subtab-btn[data-subview="individual"]').click();
+  renderDiarioSeletor();
+  renderDiarioConteudo();
 }
 
 function initResumoFeedback() {
@@ -710,7 +811,7 @@ function gerarResumoFeedback() {
   const html = `
     <div class="resumo-cabecalho">
       <h2>${l.nome}</h2>
-      <p>${l.cargo || ''}${l.tempo ? ' · ' + l.tempo + ' na equipe' : ''}</p>
+      <p>${l.cargo || ''}${l.dataInicio ? ' · ' + tempoNaEmpresa(l.dataInicio) + ' na empresa' : ''}</p>
       <p class="resumo-periodo-label">Período: ${periodoLabel} · Gerado em ${formatarData(hojeISO())}</p>
     </div>
 
@@ -731,9 +832,10 @@ function gerarResumoFeedback() {
 
     <div class="detalhe-secao">
       <div class="detalhe-secao-titulo">📜 Registros do Diário de Bordo (${registros.length})</div>
+      ${registros.length > 0 ? `<p>🗣️ ${registros.filter(r => r.tipo === 'feedback').length} feedback(s) formal(is) · 📝 ${registros.filter(r => r.tipo !== 'feedback').length} observação(ões).</p>` : ''}
       ${registros.length === 0 ? '<p>Nenhum registro no período selecionado.</p>' : registros.map(r => `
         <div class="resumo-registro">
-          <div class="resumo-registro-data">📅 ${formatarData(r.data)}</div>
+          <div class="resumo-registro-data">${r.tipo === 'feedback' ? '🗣️ Feedback formal — ' : '📅 '}${formatarData(r.data)}</div>
           ${(r.riscos && r.riscos.length) ? `<p><strong>Riscos observados:</strong> ${r.riscos.map(v => RISCOS_LABELS[v] || v).join(', ')}</p>` : ''}
           ${r.sinais ? `<p><strong>Sinais:</strong> ${r.sinais}</p>` : ''}
           ${r.conversa ? `<p><strong>Conversa:</strong> ${r.conversa}</p>` : ''}
@@ -1048,13 +1150,16 @@ function initKanbanDrop() {
   });
 }
 
-function initSubtabsAtividades() {
+// Sub-abas genéricas (Kanban/Lista em Atividades, Individual/Equipe em Diário de Bordo)
+// — escopadas por .section pra não interferir entre módulos diferentes.
+function initSubtabs() {
   document.querySelectorAll('.subtab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.atividades-view').forEach(v => v.classList.remove('active'));
+      const secao = btn.closest('.section');
+      secao.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
+      secao.querySelectorAll('.subview').forEach(v => v.classList.remove('active'));
       btn.classList.add('active');
-      document.getElementById('view-' + btn.dataset.subview).classList.add('active');
+      secao.querySelector('#view-' + btn.dataset.subview).classList.add('active');
     });
   });
 }
@@ -1756,6 +1861,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTagButtons();
   initTagButtonsMulti();
   initTelaPerfil();
+  initSidebarToggle();
 
   // Liderados
   initFormLiderado();
@@ -1770,7 +1876,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initFormAtividade();
   initFiltrosAtividades();
   initModalAtividade();
-  initSubtabsAtividades();
+  initSubtabs();
   initKanbanDrop();
 
   // Metas

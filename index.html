@@ -39,32 +39,37 @@
     </div>
   </div>
 
-  <!-- ===== HEADER ===== -->
-  <header class="header">
-    <div class="header-inner">
-      <div class="logo-area">
+  <!-- ===== ESTRUTURA COM MENU LATERAL ===== -->
+  <button class="sidebar-toggle" id="btn-sidebar-toggle" aria-label="Abrir menu">☰</button>
+  <div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-brand">
         <div class="logo-icon">IL</div>
         <div>
           <div class="logo-title">Planner do Líder</div>
           <div class="logo-sub">Instituto da Liderança</div>
         </div>
       </div>
-      <nav class="nav-tabs">
-        <button class="nav-btn active" data-section="liderados">👥 Liderados</button>
-        <button class="nav-btn" data-section="diario">📓 Diário de Bordo</button>
-        <button class="nav-btn" data-section="atividades">🗂️ Atividades</button>
-        <button class="nav-btn" data-section="metas">🎯 Metas</button>
-        <button class="nav-btn" data-section="matriz">📐 Prioridades</button>
-        <button class="nav-btn" data-section="dashboard">📊 Dashboard</button>
+
+      <nav class="sidebar-nav">
+        <button class="nav-btn active" data-section="liderados"><span class="nav-icon">👥</span><span>Liderados</span></button>
+        <button class="nav-btn" data-section="diario"><span class="nav-icon">📓</span><span>Diário de Bordo</span></button>
+        <button class="nav-btn" data-section="atividades"><span class="nav-icon">🗂️</span><span>Atividades</span></button>
+        <button class="nav-btn" data-section="metas"><span class="nav-icon">🎯</span><span>Metas</span></button>
+        <button class="nav-btn" data-section="matriz"><span class="nav-icon">📐</span><span>Prioridades</span></button>
+        <button class="nav-btn" data-section="dashboard"><span class="nav-icon">📊</span><span>Dashboard</span></button>
       </nav>
+
       <div class="lider-ativo" id="lider-ativo-chip" title="Trocar de perfil">
         <span class="lider-ativo-avatar" id="lider-ativo-avatar">?</span>
         <span class="lider-ativo-nome" id="lider-ativo-nome">—</span>
         <button class="lider-ativo-trocar" id="btn-trocar-perfil" title="Trocar perfil">🔁</button>
       </div>
-    </div>
-  </header>
+    </aside>
 
+    <div class="app-main">
   <main class="main-content">
 
     <!-- ============================================
@@ -95,8 +100,8 @@
               <input type="text" id="l-cargo" placeholder="Ex: Analista, Coordenador..." required />
             </div>
             <div class="form-group">
-              <label for="l-tempo">Tempo na equipe</label>
-              <input type="text" id="l-tempo" placeholder="Ex: 6 meses, 2 anos..." />
+              <label for="l-data-inicio">Data de início na empresa</label>
+              <input type="date" id="l-data-inicio" />
             </div>
             <div class="form-group">
               <label for="l-perfil">Perfil comportamental</label>
@@ -164,6 +169,14 @@
         <p>Conhecer para liderar. Acompanhar para desenvolver. Registre o que observar no dia a dia de cada liderado para embasar feedbacks mensais, semestrais ou anuais.</p>
       </div>
 
+      <!-- Sub-abas: Individual / Equipe -->
+      <div class="subtabs">
+        <button class="subtab-btn active" data-subview="individual">👤 Individual</button>
+        <button class="subtab-btn" data-subview="equipe">👥 Visão da Equipe</button>
+      </div>
+
+      <div id="view-individual" class="subview active">
+
       <div class="card">
         <div class="card-header"><span class="card-icon">👤</span><h2>Selecione o liderado</h2></div>
         <div id="diario-seletor-liderados" class="diario-seletor">
@@ -174,7 +187,10 @@
       <div id="diario-conteudo" style="display:none">
 
         <div class="card">
-          <div class="card-header"><span class="card-icon">🧭</span><h2>Conhecer o Liderado — <span id="diario-nome-liderado">—</span></h2></div>
+          <div class="card-header">
+            <span class="card-icon">🧭</span><h2>Conhecer o Liderado — <span id="diario-nome-liderado">—</span></h2>
+            <span class="tag-pill tag-ultimo-feedback" id="diario-ultimo-feedback">🗣️ Sem feedback ainda</span>
+          </div>
           <form id="form-conhecer" novalidate>
             <div class="form-grid-2">
               <div class="form-group"><label for="dc-aspiracoes">🎯 Aspirações e objetivos</label><textarea id="dc-aspiracoes" rows="2" placeholder="O que ele(a) quer conquistar?"></textarea></div>
@@ -193,6 +209,13 @@
         <div class="card form-card">
           <div class="card-header"><span class="card-icon">➕</span><h2>Novo Registro do Dia</h2></div>
           <form id="form-registro-diario" novalidate>
+            <div class="form-group">
+              <label>Tipo de registro</label>
+              <div class="btn-group" id="grupo-registro-tipo">
+                <button type="button" class="tag-btn" data-group="registro-tipo" data-value="observacao">📝 Observação do dia</button>
+                <button type="button" class="tag-btn" data-group="registro-tipo" data-value="feedback">🗣️ Feedback formal</button>
+              </div>
+            </div>
             <div class="form-group">
               <label for="rd-data">Data</label>
               <input type="date" id="rd-data" />
@@ -235,6 +258,33 @@
           </div>
         </div>
 
+      </div>
+
+      </div><!-- /view-individual -->
+
+      <div id="view-equipe" class="subview">
+        <div class="card">
+          <div class="card-header"><span class="card-icon">👥</span><h2>Diário de Bordo — Visão da Equipe</h2></div>
+          <div class="tabela-wrap">
+            <table class="tabela-equipe" id="tabela-diario-equipe">
+              <thead>
+                <tr>
+                  <th>Liderado</th>
+                  <th>🎯 Aspirações</th>
+                  <th>⭐ Pontos Fortes</th>
+                  <th>🧑‍🤝‍🧑 Comportamentos</th>
+                  <th>❤️ Sentimentos</th>
+                  <th>🛡️ Riscos (recente)</th>
+                  <th>👁️ Sinais (recente)</th>
+                  <th>🗣️ Último Feedback</th>
+                  <th>📋 Plano de Ação (recente)</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="tabela-diario-equipe-body"></tbody>
+            </table>
+          </div>
+        </div>
       </div>
 
     </section>
@@ -403,7 +453,7 @@
       </div>
 
       <!-- Quadro Kanban -->
-      <div id="view-kanban" class="atividades-view active">
+      <div id="view-kanban" class="subview active">
         <div class="kanban-board">
           <div class="kanban-col" data-status="novo">
             <div class="kanban-col-header kanban-col-novo">
@@ -437,7 +487,7 @@
       </div>
 
       <!-- Lista de atividades -->
-      <div id="view-lista" class="atividades-view">
+      <div id="view-lista" class="subview">
         <div class="card">
           <div class="card-header">
             <span class="card-icon">📋</span>
@@ -771,6 +821,12 @@
 
   </main>
 
+  <footer class="footer">
+    <p>© 2025 Instituto da Liderança · <a href="https://www.institutodalideranca.com.br" target="_blank">www.institutodalideranca.com.br</a></p>
+  </footer>
+    </div>
+  </div>
+
   <!-- Modal de detalhe do liderado -->
   <div id="modal-liderado" class="modal" style="display:none">
     <div class="modal-overlay" id="modal-overlay-liderado"></div>
@@ -880,10 +936,6 @@
 
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
-
-  <footer class="footer">
-    <p>© 2025 Instituto da Liderança · <a href="https://www.institutodalideranca.com.br" target="_blank">www.institutodalideranca.com.br</a></p>
-  </footer>
 
   <script src="app.js"></script>
 </body>
