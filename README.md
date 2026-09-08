@@ -1,137 +1,69 @@
 # Planner do Líder — Impact Leader
 
-> Sistema digital de autoavaliação e planejamento para líderes, baseado no **Planner Impact Leader 2025** do Instituto da Liderança.
+> Sistema digital de planejamento, acompanhamento e diagnóstico para líderes — do chão de fábrica à alta liderança. Baseado no **Planner Impact Leader** do Instituto da Liderança.
 
 ---
 
 ## Visão Geral
 
-O **Planner do Líder** permite que o líder realize seu **diagnóstico pessoal de liderança**, registre seu **planejamento anual** e acompanhe o **desenvolvimento individual** de cada membro da equipe — tudo de forma simples, intuitiva e integrada ao Google Sheets.
+O **Planner do Líder** é um app web (sem instalação, sem backend) em que cada líder cria seu próprio perfil e passa a ter um quadro só seu: cadastro de liderados, diário de bordo, quadro Kanban de atividades vinculadas a metas organizacionais, matriz de prioridade e um dashboard de gestão do tempo.
+
+Todos os dados ficam salvos no navegador (localStorage), isolados por perfil de líder — várias pessoas podem usar o mesmo computador, cada uma com seu próprio quadro.
 
 ---
 
-## Funcionalidades
+## Módulos
 
 | Módulo | Descrição |
 |---|---|
-| **Diagnóstico do Líder** | Autoavaliação em 8 dimensões com escala de 1 a 5, pontuação automática e nível de liderança |
-| **Planejamento Anual** | Registro de expectativas, pontos fortes, visão/missão, metas e combinados |
-| **Acompanhamento Individual** | Registro de habilidades, expectativas, metas e diferenciais de cada liderado |
+| **👥 Liderados** | Cadastro de cada membro da equipe — habilidades, expectativas, metas individuais e plano de desenvolvimento. |
+| **📓 Diário de Bordo** | Conheça cada liderado (aspirações, pontos fortes, comportamentos, sentimentos) e registre observações do dia a dia (riscos psicossociais, sinais, conversas, plano de ação). Gera um **resumo pronto para feedback** mensal, semestral ou anual (com opção de impressão/PDF). |
+| **🗂️ Atividades** | Quadro **Kanban** (A Fazer · Em Andamento · Bloqueado · Concluído) com arrastar-e-soltar ou botões ◀▶. Cada atividade é classificada por resultado e por tipo (Estratégico/Tático/Operacional), pode ser atribuída a um responsável e vinculada a uma meta organizacional. Também disponível em lista. |
+| **🎯 Metas & Indicadores** | Cadastro de metas/indicadores organizacionais, com barra de progresso calculada automaticamente a partir das atividades do Kanban vinculadas a cada meta. |
+| **📐 Matriz de Prioridade** | Matriz 2×2 (resultado × esforço) para decidir o que fazer agora, planejar, delegar ou eliminar. |
+| **📊 Dashboard de Gestão do Tempo** | Registro da rotina diária (horários e atividades), identificação automática de gargalos, gráfico da categorização atual (Operacional/Tático/Estratégico) vs. alocação ideal (editável), plano de ação e os checklists de "erros de planejamento" e "líder eficiente". |
 
-### As 8 Dimensões do Diagnóstico
+### Perfis de líder (multiusuário)
 
-| Dimensão | Foco |
-|---|---|
-| 📅 Planejamento | Organização e visão estratégica |
-| 📈 Performance | Acompanhamento de resultados e KPIs |
-| 👥 Pessoas | Gestão e desenvolvimento de talentos |
-| ⚙️ Processos | Eficiência operacional e padronização |
-| 🚀 Projetos | Inovação, criatividade e entregas |
-| 🔥 Problemas | Resolução de conflitos e crises |
-| 🧘 Presença | Inteligência emocional e postura |
-| ⚡ Produtividade | Eficiência pessoal e da equipe |
+Ao abrir o app pela primeira vez (ou clicar em 🔁 no cabeçalho), você escolhe ou cria um perfil. Cada perfil tem seu próprio conjunto de liderados, quadro Kanban, metas, diário de bordo e dashboard — completamente isolado dos demais perfis no mesmo navegador.
 
 ---
 
 ## Estrutura do Projeto
 
 ```
-diagnostico-lider/
+planner-lider/
 ├── index.html              # Aplicação web principal
-├── style.css               # Estilos visuais
-├── app.js                  # Lógica do formulário e integração
-├── google_apps_script.js   # Script para integração com Google Sheets
-├── setup_sheets.py         # Script de configuração da planilha (Python)
-├── format_sheets.py        # Script de formatação da planilha (Python)
-├── sheets_config.json      # Configurações da planilha
+├── style.css               # Estilos visuais (design system do Instituto da Liderança)
+├── app.js                  # Lógica de todos os módulos
+├── google_apps_script.js   # Script opcional de integração com Google Sheets
+├── setup_sheets.py         # Script de configuração da planilha (Python, uso opcional)
+├── format_sheets.py        # Script de formatação da planilha (Python, uso opcional)
+├── sheets_config.json      # Configurações da planilha (uso opcional)
 └── README.md               # Esta documentação
 ```
 
 ---
 
-## Planilha Google Sheets
-
-A planilha já foi criada e configurada com 4 abas:
-
-- **Diagnóstico** — Registros de autoavaliação
-- **Planejamento Anual** — Planos anuais do líder
-- **Acompanhamento Individual** — Registros por liderado
-- **Resultados** — Painel resumido de pontuações
-
-**Link da planilha:**
-[Planner do Líder - Impact Leader](https://docs.google.com/spreadsheets/d/1YqfGN18QDR1xENf2auQCFEd_y6sHefw7dudYd3rt7nI/edit)
-
----
-
 ## Como Usar
 
-### Opção 1 — Uso Offline (Sem configuração adicional)
+1. Abra o arquivo `index.html` no navegador (ou publique a pasta em qualquer hospedagem estática — GitHub Pages, Netlify, etc.).
+2. Crie seu perfil de líder na tela inicial.
+3. Cadastre seus liderados, monte seu quadro Kanban, defina metas e comece a registrar sua rotina no dashboard.
+4. Os dados ficam salvos automaticamente no **localStorage** do navegador, por perfil. Para usar em outro computador, será necessário recriar o perfil e os dados nele (não há sincronização em nuvem nesta versão).
 
-1. Abra o arquivo `index.html` no navegador
-2. Preencha os formulários normalmente
-3. Os dados são salvos automaticamente no **localStorage** do navegador
-4. Para exportar, acesse o console do navegador (F12) e copie os dados
+### Integração opcional com Google Sheets
 
-### Opção 2 — Integração com Google Sheets (Recomendado)
-
-Para que os dados sejam enviados automaticamente para a planilha:
-
-**Passo 1 — Criar o Google Apps Script:**
-
-1. Acesse [script.google.com](https://script.google.com/)
-2. Clique em **Novo projeto**
-3. Cole o conteúdo do arquivo `google_apps_script.js`
-4. Salve o projeto (Ctrl+S)
-
-**Passo 2 — Publicar como Web App:**
-
-1. Clique em **Implantar** > **Nova implantação**
-2. Selecione o tipo: **Aplicativo da Web**
-3. Configure:
-   - **Executar como:** Eu
-   - **Quem tem acesso:** Qualquer pessoa
-4. Clique em **Implantar**
-5. Autorize as permissões solicitadas
-6. **Copie a URL gerada**
-
-**Passo 3 — Configurar no app.js:**
-
-Abra o arquivo `app.js` e substitua a linha:
-
-```javascript
-APPS_SCRIPT_URL: "",
-```
-
-Por:
-
-```javascript
-APPS_SCRIPT_URL: "https://script.google.com/macros/s/SEU_ID_AQUI/exec",
-```
-
-**Passo 4 — Testar:**
-
-Preencha e envie um formulário. Os dados devem aparecer na planilha em segundos.
-
----
-
-## Interpretação dos Resultados
-
-| Percentual | Nível |
-|---|---|
-| 85% a 100% | 🏆 Líder de Alto Impacto |
-| 70% a 84% | ⭐ Líder Avançado |
-| 55% a 69% | 📈 Líder em Desenvolvimento |
-| 40% a 54% | 🌱 Líder Iniciante |
-| Abaixo de 40% | 🔍 Diagnóstico inicial |
+Os arquivos `google_apps_script.js`, `setup_sheets.py`, `format_sheets.py` e `sheets_config.json` são um scaffold para, futuramente, sincronizar os dados com uma planilha Google como backup/consolidação entre líderes. Hoje eles não estão conectados aos módulos do app (que funcionam 100% localmente) — ficam disponíveis para quem quiser evoluir essa integração.
 
 ---
 
 ## Tecnologias Utilizadas
 
-- **HTML5 / CSS3 / JavaScript** — Interface web sem dependências externas
-- **Google Sheets API** — Armazenamento de dados via gws CLI
-- **Google Apps Script** — Integração web-to-sheets
-- **GitHub** — Versionamento e documentação
+- **HTML5 / CSS3 / JavaScript** — interface web sem dependências de build.
+- **Chart.js** — gráficos de distribuição de energia e do dashboard de gestão do tempo.
+- **localStorage** — persistência local por perfil de líder.
+- **Google Apps Script / Sheets** — scaffold opcional para integração futura.
 
 ---
 
@@ -141,4 +73,4 @@ Site: [www.institutodalideranca.com.br](https://www.institutodalideranca.com.br)
 
 ---
 
-*Planner Impact Leader 2025 · Todos os direitos reservados*
+*Planner Impact Leader · Todos os direitos reservados*
