@@ -11,6 +11,34 @@
 </head>
 <body>
 
+  <!-- ===== TELA DE PERFIL (seleção / criação de líder) ===== -->
+  <div id="tela-perfil" class="perfil-overlay" style="display:none">
+    <div class="perfil-box">
+      <button class="modal-close perfil-fechar" id="btn-fechar-tela-perfil" style="display:none" title="Cancelar">✕</button>
+      <div class="perfil-header">
+        <div class="logo-icon perfil-logo">IL</div>
+        <h1>Planner do Líder</h1>
+        <p>Cada líder tem seu próprio quadro. Selecione seu perfil ou crie um novo para começar.</p>
+      </div>
+      <div id="lista-perfis" class="perfis-grid"></div>
+      <div class="perfil-novo-card" id="btn-novo-perfil">
+        <span class="perfil-novo-icon">➕</span>
+        <span>Criar novo perfil de líder</span>
+      </div>
+      <form id="form-novo-perfil" class="form-novo-perfil" style="display:none" novalidate>
+        <div class="form-grid-2">
+          <div class="form-group"><label for="np-nome">Nome *</label><input type="text" id="np-nome" placeholder="Seu nome" required /></div>
+          <div class="form-group"><label for="np-area">Área / Equipe</label><input type="text" id="np-area" placeholder="Ex: Produção, Comercial..." /></div>
+        </div>
+        <div class="form-group"><label for="np-cargo">Cargo</label><input type="text" id="np-cargo" placeholder="Ex: Supervisor, Gerente..." /></div>
+        <div class="form-actions">
+          <button type="button" class="btn-secondary" id="btn-cancelar-novo-perfil">Cancelar</button>
+          <button type="submit" class="btn-primary">✅ Começar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- ===== HEADER ===== -->
   <header class="header">
     <div class="header-inner">
@@ -23,9 +51,17 @@
       </div>
       <nav class="nav-tabs">
         <button class="nav-btn active" data-section="liderados">👥 Liderados</button>
-        <button class="nav-btn" data-section="atividades">📋 Atividades</button>
-        <button class="nav-btn" data-section="matriz">🎯 Prioridades</button>
+        <button class="nav-btn" data-section="diario">📓 Diário de Bordo</button>
+        <button class="nav-btn" data-section="atividades">🗂️ Atividades</button>
+        <button class="nav-btn" data-section="metas">🎯 Metas</button>
+        <button class="nav-btn" data-section="matriz">📐 Prioridades</button>
+        <button class="nav-btn" data-section="dashboard">📊 Dashboard</button>
       </nav>
+      <div class="lider-ativo" id="lider-ativo-chip" title="Trocar de perfil">
+        <span class="lider-ativo-avatar" id="lider-ativo-avatar">?</span>
+        <span class="lider-ativo-nome" id="lider-ativo-nome">—</span>
+        <button class="lider-ativo-trocar" id="btn-trocar-perfil" title="Trocar perfil">🔁</button>
+      </div>
     </div>
   </header>
 
@@ -119,13 +155,98 @@
     </section>
 
     <!-- ============================================
-         MÓDULO 2 — GESTÃO DE ATIVIDADES
+         MÓDULO NOVO — DIÁRIO DE BORDO
+    ============================================ -->
+    <section id="section-diario" class="section">
+
+      <div class="section-hero">
+        <h1>Diário de Bordo do Líder</h1>
+        <p>Conhecer para liderar. Acompanhar para desenvolver. Registre o que observar no dia a dia de cada liderado para embasar feedbacks mensais, semestrais ou anuais.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-icon">👤</span><h2>Selecione o liderado</h2></div>
+        <div id="diario-seletor-liderados" class="diario-seletor">
+          <div class="empty-state"><div class="empty-icon">👤</div><p>Cadastre liderados na aba <strong>Liderados</strong> para começar o diário de bordo.</p></div>
+        </div>
+      </div>
+
+      <div id="diario-conteudo" style="display:none">
+
+        <div class="card">
+          <div class="card-header"><span class="card-icon">🧭</span><h2>Conhecer o Liderado — <span id="diario-nome-liderado">—</span></h2></div>
+          <form id="form-conhecer" novalidate>
+            <div class="form-grid-2">
+              <div class="form-group"><label for="dc-aspiracoes">🎯 Aspirações e objetivos</label><textarea id="dc-aspiracoes" rows="2" placeholder="O que ele(a) quer conquistar?"></textarea></div>
+              <div class="form-group"><label for="dc-pontosfortes">⭐ Pontos fortes e talentos</label><textarea id="dc-pontosfortes" rows="2" placeholder="Em que ele(a) mais se destaca?"></textarea></div>
+            </div>
+            <div class="form-grid-2">
+              <div class="form-group"><label for="dc-comportamentos">🧑‍🤝‍🧑 Comportamentos observados</label><textarea id="dc-comportamentos" rows="2" placeholder="Como costuma agir e se relacionar?"></textarea></div>
+              <div class="form-group"><label for="dc-sentimentos">❤️ Sentimentos e percepções</label><textarea id="dc-sentimentos" rows="2" placeholder="Como ele(a) tem se sentido ultimamente?"></textarea></div>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">💾 Salvar</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card form-card">
+          <div class="card-header"><span class="card-icon">➕</span><h2>Novo Registro do Dia</h2></div>
+          <form id="form-registro-diario" novalidate>
+            <div class="form-group">
+              <label for="rd-data">Data</label>
+              <input type="date" id="rd-data" />
+            </div>
+            <div class="form-group">
+              <label>🛡️ Checagem de riscos psicossociais <span class="label-hint">(marque o que se aplica)</span></label>
+              <div class="btn-group" id="grupo-riscos">
+                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="sobrecarga">😓 Sobrecarga</button>
+                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="isolamento">🚪 Isolamento</button>
+                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="desmotivacao">📉 Desmotivação</button>
+                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="conflito">⚡ Conflito</button>
+                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="mudanca">🔄 Mudança pessoal</button>
+                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="pressao">🧱 Pressão excessiva</button>
+              </div>
+            </div>
+            <div class="form-group"><label for="rd-sinais">👁️ Sinais observados</label><textarea id="rd-sinais" rows="2" placeholder="O que tenho observado?"></textarea></div>
+            <div class="form-group"><label for="rd-conversa">💬 Conversas realizadas</label><textarea id="rd-conversa" rows="2" placeholder="Resumo da conversa..."></textarea></div>
+            <div class="form-group"><label for="rd-plano">📋 Plano de ação e acompanhamento</label><textarea id="rd-plano" rows="2" placeholder="O que será feito, por quem e prazo..."></textarea></div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">💾 Registrar</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📜</span><h2>Linha do Tempo</h2>
+            <span class="badge" id="badge-total-diario">0</span>
+            <select id="resumo-periodo" class="resumo-periodo-select">
+              <option value="30">Últimos 30 dias</option>
+              <option value="90">Último trimestre</option>
+              <option value="180">Último semestre</option>
+              <option value="365">Último ano</option>
+              <option value="all">Tudo</option>
+            </select>
+            <button class="btn-secondary" id="btn-gerar-resumo">🖨️ Gerar Resumo p/ Feedback</button>
+          </div>
+          <div id="lista-diario">
+            <div class="empty-state"><div class="empty-icon">📜</div><p>Nenhum registro ainda para este liderado.</p></div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- ============================================
+         MÓDULO 2 — GESTÃO DE ATIVIDADES (KANBAN)
     ============================================ -->
     <section id="section-atividades" class="section">
 
       <div class="section-hero">
         <h1>Gestão de Atividades</h1>
-        <p>Lance suas atividades, classifique por resultado e tipo. Tenha clareza sobre o que gera mais impacto.</p>
+        <p>Planeje em formato de quadro, classifique por resultado e tipo, e vincule cada atividade a uma meta organizacional.</p>
       </div>
 
       <!-- Formulário de cadastro de atividade -->
@@ -138,7 +259,7 @@
           <input type="hidden" id="a-id" value="" />
           <div class="form-group">
             <label for="a-titulo">Descrição da atividade *</label>
-            <input type="text" id="a-titulo" placeholder="Descreva a atividade..." required />
+            <input type="text" id="a-titulo" placeholder="Descreva a atividade ou projeto..." required />
           </div>
           <div class="form-grid-2">
             <div class="form-group">
@@ -160,6 +281,15 @@
               </div>
             </div>
           </div>
+          <div class="form-group">
+            <label>Status no quadro</label>
+            <div class="btn-group" id="grupo-status">
+              <button type="button" class="tag-btn" data-group="status" data-value="novo">📥 A Fazer</button>
+              <button type="button" class="tag-btn" data-group="status" data-value="andamento">🔄 Em Andamento</button>
+              <button type="button" class="tag-btn" data-group="status" data-value="bloqueado">⏸️ Bloqueado</button>
+              <button type="button" class="tag-btn" data-group="status" data-value="concluido">✅ Concluído</button>
+            </div>
+          </div>
           <div class="form-grid-2">
             <div class="form-group">
               <label for="a-prazo">Prazo</label>
@@ -167,8 +297,17 @@
             </div>
             <div class="form-group">
               <label for="a-responsavel">Responsável</label>
-              <input type="text" id="a-responsavel" placeholder="Você ou nome do liderado..." />
+              <select id="a-responsavel">
+                <option value="">— Não atribuído —</option>
+                <option value="eu">👤 Eu (Líder)</option>
+              </select>
             </div>
+          </div>
+          <div class="form-group">
+            <label for="a-meta">Meta / Indicador vinculado</label>
+            <select id="a-meta">
+              <option value="">— Nenhuma —</option>
+            </select>
           </div>
           <div class="form-group">
             <label for="a-obs">Observações</label>
@@ -199,6 +338,19 @@
             <button class="filtro-btn" data-filtro-tipo="estrategico">🏆 Estratégico</button>
             <button class="filtro-btn" data-filtro-tipo="tatico">⚙️ Tático</button>
             <button class="filtro-btn" data-filtro-tipo="operacional">🔧 Operacional</button>
+          </div>
+          <div class="filtro-grupo">
+            <span class="filtro-label">Responsável:</span>
+            <select id="filtro-responsavel" class="filtro-select">
+              <option value="todos">Todos</option>
+              <option value="eu">👤 Eu (Líder)</option>
+            </select>
+          </div>
+          <div class="filtro-grupo">
+            <span class="filtro-label">Meta:</span>
+            <select id="filtro-meta" class="filtro-select">
+              <option value="todos">Todas</option>
+            </select>
           </div>
         </div>
       </div>
@@ -244,17 +396,131 @@
         </div>
       </div>
 
+      <!-- Sub-abas: Quadro Kanban / Lista -->
+      <div class="subtabs">
+        <button class="subtab-btn active" data-subview="kanban">🗂️ Quadro Kanban</button>
+        <button class="subtab-btn" data-subview="lista">📋 Lista</button>
+      </div>
+
+      <!-- Quadro Kanban -->
+      <div id="view-kanban" class="atividades-view active">
+        <div class="kanban-board">
+          <div class="kanban-col" data-status="novo">
+            <div class="kanban-col-header kanban-col-novo">
+              <span>📥 A Fazer</span>
+              <span class="badge" id="badge-kanban-novo">0</span>
+            </div>
+            <div class="kanban-col-items" id="kanban-novo" data-status="novo"></div>
+          </div>
+          <div class="kanban-col" data-status="andamento">
+            <div class="kanban-col-header kanban-col-andamento">
+              <span>🔄 Em Andamento</span>
+              <span class="badge" id="badge-kanban-andamento">0</span>
+            </div>
+            <div class="kanban-col-items" id="kanban-andamento" data-status="andamento"></div>
+          </div>
+          <div class="kanban-col" data-status="bloqueado">
+            <div class="kanban-col-header kanban-col-bloqueado">
+              <span>⏸️ Bloqueado</span>
+              <span class="badge" id="badge-kanban-bloqueado">0</span>
+            </div>
+            <div class="kanban-col-items" id="kanban-bloqueado" data-status="bloqueado"></div>
+          </div>
+          <div class="kanban-col" data-status="concluido">
+            <div class="kanban-col-header kanban-col-concluido">
+              <span>✅ Concluído</span>
+              <span class="badge" id="badge-kanban-concluido">0</span>
+            </div>
+            <div class="kanban-col-items" id="kanban-concluido" data-status="concluido"></div>
+          </div>
+        </div>
+      </div>
+
       <!-- Lista de atividades -->
+      <div id="view-lista" class="atividades-view">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📋</span>
+            <h2>Lista de Atividades</h2>
+            <span class="badge" id="badge-total-atividades">0</span>
+          </div>
+          <div id="lista-atividades">
+            <div class="empty-state">
+              <div class="empty-icon">📋</div>
+              <p>Nenhuma atividade cadastrada ainda.<br>Use o formulário acima para começar.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================
+         MÓDULO NOVO — METAS & INDICADORES
+    ============================================ -->
+    <section id="section-metas" class="section">
+
+      <div class="section-hero">
+        <h1>Metas & Indicadores</h1>
+        <p>Cadastre as metas organizacionais. Vincule atividades do quadro Kanban a cada uma para acompanhar o avanço.</p>
+      </div>
+
+      <div class="card form-card">
+        <div class="card-header">
+          <span class="card-icon">➕</span>
+          <h2 id="meta-form-title">Nova Meta / Indicador</h2>
+        </div>
+        <form id="form-meta" novalidate>
+          <input type="hidden" id="me-id" value="" />
+          <div class="form-group">
+            <label for="me-nome">Nome da meta *</label>
+            <input type="text" id="me-nome" placeholder="Ex: Reduzir retrabalho na linha 2" required />
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="me-indicador">Indicador (KPI)</label>
+              <input type="text" id="me-indicador" placeholder="Ex: % de retrabalho, NPS, prazo médio..." />
+            </div>
+            <div class="form-group">
+              <label>Categoria *</label>
+              <div class="btn-group" id="grupo-me-tipo">
+                <button type="button" class="tag-btn" data-group="me-tipo" data-value="estrategico">🏆 Estratégico</button>
+                <button type="button" class="tag-btn" data-group="me-tipo" data-value="tatico">⚙️ Tático</button>
+                <button type="button" class="tag-btn" data-group="me-tipo" data-value="operacional">🔧 Operacional</button>
+              </div>
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="me-valor">Valor da meta</label>
+              <input type="text" id="me-valor" placeholder="Ex: 95%, 10 dias, R$ 50 mil..." />
+            </div>
+            <div class="form-group">
+              <label for="me-prazo">Prazo</label>
+              <input type="date" id="me-prazo" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="me-desc">Descrição</label>
+            <textarea id="me-desc" rows="2" placeholder="Contexto da meta..."></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="button" id="btn-cancelar-meta" class="btn-secondary" style="display:none">Cancelar</button>
+            <button type="submit" class="btn-primary">💾 Salvar Meta</button>
+          </div>
+        </form>
+      </div>
+
       <div class="card">
         <div class="card-header">
-          <span class="card-icon">📋</span>
-          <h2>Lista de Atividades</h2>
-          <span class="badge" id="badge-total-atividades">0</span>
+          <span class="card-icon">🎯</span>
+          <h2>Metas Cadastradas</h2>
+          <span class="badge" id="badge-total-metas">0</span>
         </div>
-        <div id="lista-atividades">
+        <div id="lista-metas" class="metas-grid">
           <div class="empty-state">
-            <div class="empty-icon">📋</div>
-            <p>Nenhuma atividade cadastrada ainda.<br>Use o formulário acima para começar.</p>
+            <div class="empty-icon">🎯</div>
+            <p>Nenhuma meta cadastrada ainda.<br>Use o formulário acima para começar.</p>
           </div>
         </div>
       </div>
@@ -415,6 +681,94 @@
 
     </section>
 
+    <!-- ============================================
+         MÓDULO NOVO — DASHBOARD DE GESTÃO DO TEMPO
+    ============================================ -->
+    <section id="section-dashboard" class="section">
+
+      <div class="section-hero">
+        <h1>Dashboard de Gestão do Tempo</h1>
+        <p>Registre sua rotina, identifique gargalos e acompanhe sua evolução rumo a uma liderança mais estratégica.</p>
+      </div>
+
+      <div class="card form-card">
+        <div class="card-header">
+          <span class="card-icon">⏱️</span>
+          <h2>Registro da Rotina Diária</h2>
+          <input type="date" id="rt-data" class="rt-data-input" />
+        </div>
+        <form id="form-rotina" class="rotina-form-grid" novalidate>
+          <div class="form-group"><label for="rt-inicio">Início</label><input type="time" id="rt-inicio" required /></div>
+          <div class="form-group"><label for="rt-fim">Fim</label><input type="time" id="rt-fim" required /></div>
+          <div class="form-group form-group-wide"><label for="rt-atividade">Atividade realizada</label><input type="text" id="rt-atividade" placeholder="Ex: Reunião com a equipe..." required /></div>
+          <div class="form-group">
+            <label>Tipo *</label>
+            <div class="btn-group" id="grupo-rt-tipo">
+              <button type="button" class="tag-btn" data-group="rt-tipo" data-value="estrategico">🏆 Estratégico</button>
+              <button type="button" class="tag-btn" data-group="rt-tipo" data-value="tatico">⚙️ Tático</button>
+              <button type="button" class="tag-btn" data-group="rt-tipo" data-value="operacional">🔧 Operacional</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Impacto</label>
+            <div class="btn-group" id="grupo-rt-impacto">
+              <button type="button" class="tag-btn" data-group="rt-impacto" data-value="alto">🔥 Alto</button>
+              <button type="button" class="tag-btn" data-group="rt-impacto" data-value="medio">📊 Médio</button>
+              <button type="button" class="tag-btn" data-group="rt-impacto" data-value="baixo">📉 Baixo</button>
+            </div>
+          </div>
+          <div class="form-group">
+            <label>Energia</label>
+            <div class="btn-group" id="grupo-rt-energia">
+              <button type="button" class="tag-btn" data-group="rt-energia" data-value="alta">⬆️ Alta</button>
+              <button type="button" class="tag-btn" data-group="rt-energia" data-value="media">↔️ Média</button>
+              <button type="button" class="tag-btn" data-group="rt-energia" data-value="baixa">⬇️ Baixa</button>
+            </div>
+          </div>
+          <div class="form-actions form-actions-full">
+            <button type="submit" class="btn-primary">➕ Adicionar ao Registro</button>
+          </div>
+        </form>
+        <div id="tabela-rotina" class="tabela-rotina"></div>
+      </div>
+
+      <div class="dashboard-grid-3">
+        <div class="card dashboard-card-gargalos">
+          <div class="card-header"><span class="card-icon">⚠️</span><h2>Gargalos Identificados</h2></div>
+          <div id="gargalos-lista"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-icon">📊</span><h2>Categorização Atual</h2></div>
+          <div class="grafico-wrap-dash"><canvas id="grafico-dash-atual"></canvas></div>
+          <div class="grafico-legenda" id="legenda-dash-atual"></div>
+          <div class="diagnostico-box" id="diagnostico-dash"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-icon">🎯</span><h2>Alocação Ideal</h2></div>
+          <div class="grafico-wrap-dash"><canvas id="grafico-dash-ideal"></canvas></div>
+          <div class="ideal-inputs" id="ideal-inputs"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-icon">✅</span><h2>Plano de Ação para Melhorar a Gestão do Tempo</h2></div>
+        <div id="tabela-plano-acao" class="tabela-plano-acao"></div>
+        <button class="btn-secondary btn-add-linha" id="btn-add-plano-acao">➕ Adicionar ação</button>
+      </div>
+
+      <div class="dashboard-grid-2">
+        <div class="card">
+          <div class="card-header"><span class="card-icon">❌</span><h2>Erros de Planejamento</h2></div>
+          <div id="checklist-erros" class="checklist-lista"></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-icon">☑️</span><h2>Checklist do Líder Eficiente</h2></div>
+          <div id="checklist-lider" class="checklist-lista"></div>
+        </div>
+      </div>
+
+    </section>
+
   </main>
 
   <!-- Modal de detalhe do liderado -->
@@ -427,6 +781,7 @@
       </div>
       <div class="modal-body" id="modal-liderado-body"></div>
       <div class="modal-footer">
+        <button class="btn-secondary" id="modal-liderado-diario">📓 Diário de Bordo</button>
         <button class="btn-secondary" id="modal-liderado-editar">✏️ Editar</button>
         <button class="btn-danger" id="modal-liderado-excluir">🗑️ Excluir</button>
       </div>
@@ -467,6 +822,15 @@
             </div>
           </div>
         </div>
+        <div class="form-group">
+          <label>Status no quadro</label>
+          <div class="btn-group">
+            <button type="button" class="tag-btn" data-group="ma-status" data-value="novo">📥 A Fazer</button>
+            <button type="button" class="tag-btn" data-group="ma-status" data-value="andamento">🔄 Em Andamento</button>
+            <button type="button" class="tag-btn" data-group="ma-status" data-value="bloqueado">⏸️ Bloqueado</button>
+            <button type="button" class="tag-btn" data-group="ma-status" data-value="concluido">✅ Concluído</button>
+          </div>
+        </div>
         <div class="form-grid-2">
           <div class="form-group">
             <label for="ma-prazo">Prazo</label>
@@ -474,8 +838,17 @@
           </div>
           <div class="form-group">
             <label for="ma-responsavel">Responsável</label>
-            <input type="text" id="ma-responsavel" placeholder="Você ou nome do liderado..." />
+            <select id="ma-responsavel">
+              <option value="">— Não atribuído —</option>
+              <option value="eu">👤 Eu (Líder)</option>
+            </select>
           </div>
+        </div>
+        <div class="form-group">
+          <label for="ma-meta">Meta / Indicador vinculado</label>
+          <select id="ma-meta">
+            <option value="">— Nenhuma —</option>
+          </select>
         </div>
         <div class="form-group">
           <label for="ma-obs">Observações</label>
@@ -485,6 +858,22 @@
       <div class="modal-footer">
         <button class="btn-secondary" id="modal-atividade-cancelar">Cancelar</button>
         <button class="btn-primary" id="modal-atividade-salvar">💾 Salvar Alterações</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de resumo para feedback -->
+  <div id="modal-resumo" class="modal" style="display:none">
+    <div class="modal-overlay" id="modal-overlay-resumo"></div>
+    <div class="modal-box modal-box-resumo">
+      <div class="modal-header no-print">
+        <h3>Resumo para Feedback</h3>
+        <button class="modal-close" id="modal-resumo-close">✕</button>
+      </div>
+      <div class="modal-body" id="modal-resumo-body"></div>
+      <div class="modal-footer no-print">
+        <button class="btn-secondary" id="modal-resumo-fechar">Fechar</button>
+        <button class="btn-primary" id="modal-resumo-imprimir">🖨️ Imprimir / Salvar PDF</button>
       </div>
     </div>
   </div>
