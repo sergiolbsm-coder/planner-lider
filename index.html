@@ -11,31 +11,55 @@
 </head>
 <body>
 
-  <!-- ===== TELA DE PERFIL (seleção / criação de líder) ===== -->
-  <div id="tela-perfil" class="perfil-overlay" style="display:none">
+  <!-- ===== TELA DE CARREGAMENTO ===== -->
+  <div id="tela-carregando" class="perfil-overlay" style="display:none">
+    <div class="carregando-caixa">
+      <div class="spinner"></div>
+      <p>Carregando seus dados...</p>
+    </div>
+  </div>
+
+  <!-- ===== TELA DE LOGIN / CADASTRO ===== -->
+  <div id="tela-auth" class="perfil-overlay" style="display:none">
     <div class="perfil-box">
-      <button class="modal-close perfil-fechar" id="btn-fechar-tela-perfil" style="display:none" title="Cancelar">✕</button>
       <div class="perfil-header">
         <div class="logo-icon perfil-logo">IL</div>
         <h1>Planner do Líder</h1>
-        <p>Cada líder tem seu próprio quadro. Selecione seu perfil ou crie um novo para começar.</p>
+        <p>Líderes e liderados entram com sua própria conta. Cada líder tem seu quadro; cada liderado vê o que é seu.</p>
       </div>
-      <div id="lista-perfis" class="perfis-grid"></div>
-      <div class="perfil-novo-card" id="btn-novo-perfil">
-        <span class="perfil-novo-icon">➕</span>
-        <span>Criar novo perfil de líder</span>
+
+      <div class="subtabs auth-subtabs">
+        <button class="subtab-btn active" data-authview="entrar">Entrar</button>
+        <button class="subtab-btn" data-authview="criar">Criar conta de líder</button>
       </div>
-      <form id="form-novo-perfil" class="form-novo-perfil" style="display:none" novalidate>
-        <div class="form-grid-2">
-          <div class="form-group"><label for="np-nome">Nome *</label><input type="text" id="np-nome" placeholder="Seu nome" required /></div>
-          <div class="form-group"><label for="np-area">Área / Equipe</label><input type="text" id="np-area" placeholder="Ex: Produção, Comercial..." /></div>
-        </div>
-        <div class="form-group"><label for="np-cargo">Cargo</label><input type="text" id="np-cargo" placeholder="Ex: Supervisor, Gerente..." /></div>
-        <div class="form-actions">
-          <button type="button" class="btn-secondary" id="btn-cancelar-novo-perfil">Cancelar</button>
-          <button type="submit" class="btn-primary">✅ Começar</button>
-        </div>
-      </form>
+
+      <div id="auth-erro" class="auth-erro" style="display:none"></div>
+
+      <div id="view-entrar" class="subview active">
+        <form id="form-login" novalidate>
+          <div class="form-group"><label for="lg-email">E-mail</label><input type="email" id="lg-email" placeholder="voce@empresa.com" required /></div>
+          <div class="form-group"><label for="lg-senha">Senha</label><input type="password" id="lg-senha" required /></div>
+          <div class="form-actions" style="justify-content:stretch">
+            <button type="submit" class="btn-primary" style="width:100%;justify-content:center">Entrar</button>
+          </div>
+        </form>
+        <p class="auth-hint">É liderado e ainda não recebeu e-mail/senha? Peça ao seu líder — é ele quem cadastra o acesso da equipe.<br>Se demorar um pouco pra entrar, é normal: o servidor gratuito "acorda" no primeiro acesso do dia.</p>
+      </div>
+
+      <div id="view-criar" class="subview">
+        <form id="form-registrar-lider" novalidate>
+          <div class="form-grid-2">
+            <div class="form-group"><label for="rg-nome">Nome *</label><input type="text" id="rg-nome" required /></div>
+            <div class="form-group"><label for="rg-area">Área / Equipe</label><input type="text" id="rg-area" placeholder="Ex: Produção, Comercial..." /></div>
+          </div>
+          <div class="form-group"><label for="rg-cargo">Cargo</label><input type="text" id="rg-cargo" placeholder="Ex: Supervisor, Gerente..." /></div>
+          <div class="form-group"><label for="rg-email">E-mail *</label><input type="email" id="rg-email" required /></div>
+          <div class="form-group"><label for="rg-senha">Senha *</label><input type="password" id="rg-senha" minlength="6" placeholder="Mínimo 6 caracteres" required /></div>
+          <div class="form-actions" style="justify-content:stretch">
+            <button type="submit" class="btn-primary" style="width:100%;justify-content:center">✅ Criar minha conta</button>
+          </div>
+        </form>
+      </div>
     </div>
   </div>
 
@@ -43,7 +67,7 @@
   <button class="sidebar-toggle" id="btn-sidebar-toggle" aria-label="Abrir menu">☰</button>
   <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
-  <div class="app-shell">
+  <div class="app-shell" id="app-shell" style="display:none">
     <aside class="sidebar" id="sidebar">
       <div class="sidebar-brand">
         <div class="logo-icon">IL</div>
@@ -62,10 +86,10 @@
         <button class="nav-btn" data-section="dashboard"><span class="nav-icon">📊</span><span>Dashboard</span></button>
       </nav>
 
-      <div class="lider-ativo" id="lider-ativo-chip" title="Trocar de perfil">
+      <div class="lider-ativo" id="lider-ativo-chip">
         <span class="lider-ativo-avatar" id="lider-ativo-avatar">?</span>
         <span class="lider-ativo-nome" id="lider-ativo-nome">—</span>
-        <button class="lider-ativo-trocar" id="btn-trocar-perfil" title="Trocar perfil">🔁</button>
+        <button class="lider-ativo-trocar" id="btn-sair" title="Sair">🚪</button>
       </div>
     </aside>
 
@@ -98,6 +122,14 @@
             <div class="form-group">
               <label for="l-cargo">Cargo / Função *</label>
               <input type="text" id="l-cargo" placeholder="Ex: Analista, Coordenador..." required />
+            </div>
+            <div class="form-group">
+              <label for="l-email">E-mail de acesso *</label>
+              <input type="email" id="l-email" placeholder="liderado@empresa.com" required />
+            </div>
+            <div class="form-group" id="grupo-senha-liderado">
+              <label for="l-senha">Senha de acesso *</label>
+              <input type="password" id="l-senha" minlength="6" placeholder="Mínimo 6 caracteres — combine com o liderado" />
             </div>
             <div class="form-group">
               <label for="l-data-inicio">Data de início na empresa</label>
@@ -825,6 +857,56 @@
     <p>© 2025 Instituto da Liderança · <a href="https://www.institutodalideranca.com.br" target="_blank">www.institutodalideranca.com.br</a></p>
   </footer>
     </div>
+  </div>
+
+  <!-- ===== VISÃO DO LIDERADO (papel "liderado") ===== -->
+  <div id="app-liderado" class="app-liderado" style="display:none">
+    <header class="liderado-header">
+      <div class="sidebar-brand">
+        <div class="logo-icon">IL</div>
+        <div>
+          <div class="logo-title">Planner do Líder</div>
+          <div class="logo-sub">Instituto da Liderança</div>
+        </div>
+      </div>
+      <div class="lider-ativo lider-ativo-clara" id="liderado-chip">
+        <span class="lider-ativo-avatar" id="liderado-avatar">?</span>
+        <span class="lider-ativo-nome" id="liderado-nome-topo">—</span>
+        <button class="lider-ativo-trocar" id="btn-sair-liderado" title="Sair">🚪</button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div class="section-hero">
+        <h1>Minha Área</h1>
+        <p>Suas atividades, suas metas e os feedbacks que você recebeu do seu líder.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-icon">🗂️</span><h2>Minhas Atividades</h2><span class="badge" id="badge-minhas-atividades">0</span></div>
+        <div id="lista-minhas-atividades">
+          <div class="empty-state"><div class="empty-icon">🗂️</div><p>Nenhuma atividade atribuída a você ainda.</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-icon">🎯</span><h2>Minhas Metas</h2><span class="badge" id="badge-minhas-metas">0</span></div>
+        <div id="lista-minhas-metas" class="metas-grid">
+          <div class="empty-state"><div class="empty-icon">🎯</div><p>Nenhuma meta vinculada às suas atividades ainda.</p></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-icon">🗣️</span><h2>Meus Feedbacks</h2><span class="badge" id="badge-meus-feedbacks">0</span></div>
+        <div id="lista-meus-feedbacks">
+          <div class="empty-state"><div class="empty-icon">🗣️</div><p>Você ainda não recebeu nenhum feedback formal.</p></div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>© 2025 Instituto da Liderança · <a href="https://www.institutodalideranca.com.br" target="_blank">www.institutodalideranca.com.br</a></p>
+    </footer>
   </div>
 
   <!-- Modal de detalhe do liderado -->

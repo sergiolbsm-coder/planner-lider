@@ -1,20 +1,22 @@
 /* ============================================================
    PLANNER DO LÍDER — Impact Leader
    app.js — Lógica principal dos módulos
-   Módulos: Perfis · Liderados · Diário de Bordo · Atividades (Kanban)
-            · Metas & Indicadores · Matriz de Prioridade · Dashboard
+   Módulos: Auth (líder/liderado) · Liderados · Diário de Bordo
+            · Atividades (Kanban) · Metas & Indicadores
+            · Matriz de Prioridade · Dashboard
+   Dados persistidos na API (Postgres/Neon) — ver planner-lider-api.
 ============================================================ */
 
 // ============================================================
 // ESTADO GLOBAL
 // ============================================================
 const STATE = {
-  liderId: null,
   liderados: [],
   atividades: [],
   matriz: [],
   metas: [],
-  diario: [],
+  diario: [],              // histórico completo do liderado selecionado (visão individual)
+  diarioResumoEquipe: [],  // 1 registro "observacao" + 1 "feedback" mais recentes por liderado
   rotina: [],
   diarioSelecionadoId: null,
   metaIdeal: { operacional: 30, tatico: 40, estrategico: 30 },
@@ -26,6 +28,11 @@ const STATE = {
   filtroResponsavel: 'todos',
   filtroMeta: 'todos',
   lideradoSelecionado: null,
+  // Visão do liderado (papel "liderado")
+  meuPerfil: null,
+  minhasAtividades: [],
+  minhasMetas: [],
+  meusFeedbacks: [],
 };
 
 // ============================================================
@@ -61,220 +68,153 @@ const RISCOS_LABELS = {
 
 function planoAcaoPadrao() {
   return [
-    { id: gerarId(), acao: 'Bloquear tempo para o estratégico', comoFazer: 'Agendar 2 blocos diários sem interrupções.', impacto: 'Mais foco em projetos e desenvolvimento.', prazo: 'Imediato' },
-    { id: gerarId(), acao: 'Delegar com clareza', comoFazer: 'Definir responsáveis e acompanhar resultados.', impacto: 'Reduzir sobrecarga operacional.', prazo: 'Imediato' },
-    { id: gerarId(), acao: 'Padronizar processos', comoFazer: 'Criar checklists e templates para demandas recorrentes.', impacto: 'Menos retrabalho e mais eficiência.', prazo: 'Curto prazo (30 dias)' },
-    { id: gerarId(), acao: 'Reuniões com propósito', comoFazer: 'Pauta clara, objetivo e tempo definido.', impacto: 'Reuniões mais eficazes e rápidas.', prazo: 'Curto prazo (30 dias)' },
-    { id: gerarId(), acao: 'Acompanhar indicadores', comoFazer: 'Focar no que realmente importa.', impacto: 'Decisões melhores e mais rápidas.', prazo: 'Contínuo' },
-    { id: gerarId(), acao: 'Desenvolver pessoas', comoFazer: '1:1s semanais e feedback estruturado.', impacto: 'Equipe mais engajada e preparada.', prazo: 'Contínuo' },
+    { acao: 'Bloquear tempo para o estratégico', comoFazer: 'Agendar 2 blocos diários sem interrupções.', impacto: 'Mais foco em projetos e desenvolvimento.', prazo: 'Imediato' },
+    { acao: 'Delegar com clareza', comoFazer: 'Definir responsáveis e acompanhar resultados.', impacto: 'Reduzir sobrecarga operacional.', prazo: 'Imediato' },
+    { acao: 'Padronizar processos', comoFazer: 'Criar checklists e templates para demandas recorrentes.', impacto: 'Menos retrabalho e mais eficiência.', prazo: 'Curto prazo (30 dias)' },
+    { acao: 'Reuniões com propósito', comoFazer: 'Pauta clara, objetivo e tempo definido.', impacto: 'Reuniões mais eficazes e rápidas.', prazo: 'Curto prazo (30 dias)' },
+    { acao: 'Acompanhar indicadores', comoFazer: 'Focar no que realmente importa.', impacto: 'Decisões melhores e mais rápidas.', prazo: 'Contínuo' },
+    { acao: 'Desenvolver pessoas', comoFazer: '1:1s semanais e feedback estruturado.', impacto: 'Equipe mais engajada e preparada.', prazo: 'Contínuo' },
   ];
 }
 
-function estadoVazio() {
-  return {
-    liderados: [],
-    atividades: [],
-    matriz: [],
-    metas: [],
-    diario: [],
-    rotina: [],
-    diarioSelecionadoId: null,
-    metaIdeal: { operacional: 30, tatico: 40, estrategico: 30 },
-    planoAcao: planoAcaoPadrao(),
-    checklistErros: {},
-    checklistLider: {},
-  };
-}
-
 // ============================================================
-// PERFIS DE LÍDER (multiusuário — cada líder com seu próprio quadro)
+// API — autenticação e chamadas HTTP
 // ============================================================
-const PERFIS_KEY = 'pl_perfis';
-const PERFIL_ATIVO_KEY = 'pl_perfil_ativo';
+const API_BASE = 'https://planner-lider-api.onrender.com';
+const AUTH = { token: null, user: null };
 
-function carregarPerfis() {
-  try { return JSON.parse(localStorage.getItem(PERFIS_KEY) || '[]'); }
-  catch (e) { return []; }
-}
-function salvarPerfis(lista) {
-  localStorage.setItem(PERFIS_KEY, JSON.stringify(lista));
-}
-function getPerfilAtivoId() {
-  return localStorage.getItem(PERFIL_ATIVO_KEY) || '';
-}
-function setPerfilAtivoId(id) {
-  localStorage.setItem(PERFIL_ATIVO_KEY, id);
-}
-function dadosKey(liderId) {
-  return `planner_dados_${liderId}`;
-}
-
-// Migra dados de versões antigas (sem perfil) para o primeiro perfil criado
-function migrarDadosLegado() {
-  const perfis = carregarPerfis();
-  if (perfis.length > 0) return;
-
-  const legadoLiderados = localStorage.getItem('planner_liderados');
-  const legadoAtividades = localStorage.getItem('planner_atividades');
-  const legadoMatriz = localStorage.getItem('planner_matriz');
-  if (!legadoLiderados && !legadoAtividades && !legadoMatriz) return;
-
-  const id = 'default';
-  const dados = estadoVazio();
-  try { dados.liderados = JSON.parse(legadoLiderados || '[]'); } catch (e) {}
-  try { dados.atividades = JSON.parse(legadoAtividades || '[]'); } catch (e) {}
-  try { dados.matriz = JSON.parse(legadoMatriz || '[]'); } catch (e) {}
-  dados.atividades.forEach(a => { if (!a.status) a.status = 'novo'; });
-
-  localStorage.setItem(dadosKey(id), JSON.stringify(dados));
-  salvarPerfis([{ id, nome: 'Meu Perfil', area: '', cargo: '', criadoEm: new Date().toISOString() }]);
-  setPerfilAtivoId(id);
-}
-
-function carregarDadosLider(id) {
-  let dados = estadoVazio();
+function carregarAuth() {
   try {
-    const salvo = JSON.parse(localStorage.getItem(dadosKey(id)) || 'null');
-    if (salvo) dados = Object.assign(estadoVazio(), salvo);
-  } catch (e) { /* mantém vazio */ }
-
-  STATE.liderId = id;
-  STATE.liderados = dados.liderados || [];
-  STATE.atividades = dados.atividades || [];
-  STATE.matriz = dados.matriz || [];
-  STATE.metas = dados.metas || [];
-  STATE.diario = dados.diario || [];
-  STATE.rotina = dados.rotina || [];
-  STATE.diarioSelecionadoId = dados.diarioSelecionadoId || null;
-  STATE.metaIdeal = dados.metaIdeal || { operacional: 30, tatico: 40, estrategico: 30 };
-  STATE.planoAcao = (dados.planoAcao && dados.planoAcao.length) ? dados.planoAcao : planoAcaoPadrao();
-  STATE.checklistErros = dados.checklistErros || {};
-  STATE.checklistLider = dados.checklistLider || {};
-
-  // Migração leve de registros antigos sem campos novos
-  STATE.atividades.forEach(a => { if (!a.status) a.status = 'novo'; });
+    AUTH.token = localStorage.getItem('pl_token') || null;
+    AUTH.user = JSON.parse(localStorage.getItem('pl_user') || 'null');
+  } catch (e) { AUTH.token = null; AUTH.user = null; }
+}
+function salvarAuth(token, user) {
+  AUTH.token = token;
+  AUTH.user = user;
+  localStorage.setItem('pl_token', token);
+  localStorage.setItem('pl_user', JSON.stringify(user));
+}
+function limparAuth() {
+  AUTH.token = null;
+  AUTH.user = null;
+  localStorage.removeItem('pl_token');
+  localStorage.removeItem('pl_user');
 }
 
-function salvarDadosLider() {
-  if (!STATE.liderId) return;
-  const dados = {
-    liderados: STATE.liderados,
-    atividades: STATE.atividades,
-    matriz: STATE.matriz,
-    metas: STATE.metas,
-    diario: STATE.diario,
-    rotina: STATE.rotina,
-    diarioSelecionadoId: STATE.diarioSelecionadoId,
-    metaIdeal: STATE.metaIdeal,
-    planoAcao: STATE.planoAcao,
-    checklistErros: STATE.checklistErros,
-    checklistLider: STATE.checklistLider,
+async function api(caminho, opcoes = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(opcoes.headers || {}) };
+  if (AUTH.token) headers.Authorization = 'Bearer ' + AUTH.token;
+
+  let res;
+  try {
+    res = await fetch(API_BASE + caminho, { ...opcoes, headers });
+  } catch (e) {
+    throw new Error('Não foi possível falar com o servidor. Verifique sua internet e tente de novo.');
+  }
+
+  let corpo = null;
+  try { corpo = await res.json(); } catch (e) { /* resposta sem corpo, ex: 204 */ }
+
+  if (res.status === 401) {
+    limparAuth();
+    mostrarTela('auth');
+    throw new Error('Sessão expirada. Entre novamente.');
+  }
+  if (!res.ok) throw new Error((corpo && corpo.erro) || `Erro ${res.status}.`);
+  return corpo;
+}
+
+const Api = {
+  registrarLider: dados => api('/auth/registrar-lider', { method: 'POST', body: JSON.stringify(dados) }),
+  login: (email, senha) => api('/auth/login', { method: 'POST', body: JSON.stringify({ email, senha }) }),
+
+  meuPerfilLiderado: () => api('/liderados/me'),
+  listarLiderados: () => api('/liderados'),
+  criarLiderado: dados => api('/liderados', { method: 'POST', body: JSON.stringify(dados) }),
+  atualizarLiderado: (id, dados) => api('/liderados/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
+  excluirLiderado: id => api('/liderados/' + id, { method: 'DELETE' }),
+
+  listarAtividades: () => api('/atividades'),
+  minhasAtividades: () => api('/atividades/minhas'),
+  criarAtividade: dados => api('/atividades', { method: 'POST', body: JSON.stringify(dados) }),
+  atualizarAtividade: (id, dados) => api('/atividades/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
+  moverStatusAtividade: (id, status) => api(`/atividades/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
+  excluirAtividade: id => api('/atividades/' + id, { method: 'DELETE' }),
+
+  listarMetas: () => api('/metas'),
+  minhasMetas: () => api('/metas/minhas'),
+  criarMeta: dados => api('/metas', { method: 'POST', body: JSON.stringify(dados) }),
+  atualizarMeta: (id, dados) => api('/metas/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
+  excluirMeta: id => api('/metas/' + id, { method: 'DELETE' }),
+
+  listarMatriz: () => api('/matriz'),
+  criarMatriz: dados => api('/matriz', { method: 'POST', body: JSON.stringify(dados) }),
+  atualizarMatriz: (id, dados) => api('/matriz/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
+  excluirMatriz: id => api('/matriz/' + id, { method: 'DELETE' }),
+
+  diarioDoLiderado: id => api('/diario/liderado/' + id),
+  diarioResumoEquipe: () => api('/diario/resumo-equipe'),
+  criarRegistroDiario: dados => api('/diario', { method: 'POST', body: JSON.stringify(dados) }),
+  excluirRegistroDiario: id => api('/diario/' + id, { method: 'DELETE' }),
+  meusFeedbacks: () => api('/diario/meus-feedbacks'),
+
+  listarRotina: () => api('/rotina'),
+  criarRotina: dados => api('/rotina', { method: 'POST', body: JSON.stringify(dados) }),
+  excluirRotina: id => api('/rotina/' + id, { method: 'DELETE' }),
+
+  listarPlanoAcao: () => api('/plano-acao'),
+  criarPlanoAcao: dados => api('/plano-acao', { method: 'POST', body: JSON.stringify(dados) }),
+  atualizarPlanoAcao: (id, dados) => api('/plano-acao/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
+  excluirPlanoAcao: id => api('/plano-acao/' + id, { method: 'DELETE' }),
+
+  getDashboardConfig: () => api('/dashboard-config'),
+  atualizarDashboardConfig: dados => api('/dashboard-config', { method: 'PUT', body: JSON.stringify(dados) }),
+};
+
+// ---- mapeia linhas da API (snake_case) pro formato usado nas telas ----
+function mapLiderado(u) {
+  return {
+    id: u.id, nome: u.nome, cargo: u.cargo || '', email: u.email || '',
+    dataInicio: u.data_inicio ? String(u.data_inicio).slice(0, 10) : '',
+    perfil: u.perfil_comportamental || '',
+    habilidades: u.habilidades || '', expectativas: u.expectativas || '',
+    metas: u.metas_texto || '', desenvolvimento: u.desenvolvimento || '', obs: u.obs || '',
+    aspiracoes: u.aspiracoes || '', comportamentos: u.comportamentos || '', sentimentos: u.sentimentos || '',
+    criadoEm: u.criado_em,
   };
-  localStorage.setItem(dadosKey(STATE.liderId), JSON.stringify(dados));
 }
-
-function iniciaisNome(nome) {
-  return (nome || '?').trim().charAt(0).toUpperCase();
+function mapAtividade(a) {
+  return {
+    id: a.id, titulo: a.titulo, resultado: a.resultado, tipo: a.tipo, status: a.status,
+    prazo: a.prazo ? String(a.prazo).slice(0, 10) : '',
+    responsavelId: a.responsavel_eu ? 'eu' : (a.responsavel_id || ''),
+    metaId: a.meta_id || '', obs: a.obs || '', criadoEm: a.criado_em,
+  };
 }
-
-function renderHeaderPerfil() {
-  const perfis = carregarPerfis();
-  const p = perfis.find(x => x.id === STATE.liderId);
-  document.getElementById('lider-ativo-avatar').textContent = iniciaisNome(p ? p.nome : '?');
-  document.getElementById('lider-ativo-nome').textContent = p ? p.nome : '—';
+function mapMeta(m) {
+  return {
+    id: m.id, nome: m.nome, tipo: m.tipo, indicador: m.indicador || '', valor: m.valor || '',
+    prazo: m.prazo ? String(m.prazo).slice(0, 10) : '', descricao: m.descricao || '',
+    criadoEm: m.criado_em,
+    _totalAtividades: m.total_atividades !== undefined ? Number(m.total_atividades) : undefined,
+    _atividadesConcluidas: m.atividades_concluidas !== undefined ? Number(m.atividades_concluidas) : undefined,
+  };
 }
-
-function renderListaPerfis() {
-  const perfis = carregarPerfis();
-  const container = document.getElementById('lista-perfis');
-  if (perfis.length === 0) {
-    container.innerHTML = '';
-    return;
-  }
-  container.innerHTML = perfis.map(p => `
-    <div class="perfil-card" data-id="${p.id}">
-      <div class="perfil-card-avatar">${iniciaisNome(p.nome)}</div>
-      <div class="perfil-card-info">
-        <div class="perfil-card-nome">${p.nome}</div>
-        <div class="perfil-card-sub">${[p.cargo, p.area].filter(Boolean).join(' · ') || 'Sem área definida'}</div>
-      </div>
-      <div class="perfil-card-acoes">
-        <button class="btn-primary btn-entrar-perfil" data-id="${p.id}">Entrar</button>
-        <button class="btn-icon btn-icon-danger" title="Excluir perfil" data-excluir-perfil="${p.id}">🗑️</button>
-      </div>
-    </div>
-  `).join('');
+function mapMatriz(m) {
+  return { id: m.id, titulo: m.titulo, resultado: m.resultado, esforco: m.esforco, obs: m.obs || '', criadoEm: m.criado_em };
 }
-
-function abrirTelaPerfil() {
-  renderListaPerfis();
-  document.getElementById('btn-fechar-tela-perfil').style.display = getPerfilAtivoId() ? 'flex' : 'none';
-  document.getElementById('form-novo-perfil').style.display = 'none';
-  document.getElementById('btn-novo-perfil').style.display = 'flex';
-  document.getElementById('tela-perfil').style.display = 'flex';
+function mapRotina(r) {
+  return { id: r.id, data: String(r.data).slice(0, 10), inicio: r.inicio.slice(0, 5), fim: r.fim.slice(0, 5), atividade: r.atividade, tipo: r.tipo, impacto: r.impacto || '', energia: r.energia || '', criadoEm: r.criado_em };
 }
-
-function fecharTelaPerfil() {
-  document.getElementById('tela-perfil').style.display = 'none';
+function mapDiario(d) {
+  return { id: d.id, lideradoId: d.liderado_id, tipo: d.tipo, data: String(d.data).slice(0, 10), riscos: d.riscos || [], sinais: d.sinais || '', conversa: d.conversa || '', plano: d.plano || '', criadoEm: d.criado_em };
 }
-
-function entrarNoPerfil(id) {
-  setPerfilAtivoId(id);
-  carregarDadosLider(id);
-  fecharTelaPerfil();
-  renderHeaderPerfil();
-  renderTudo();
+function mapPlanoAcao(p) {
+  return { id: p.id, acao: p.acao || '', comoFazer: p.como_fazer || '', impacto: p.impacto || '', prazo: p.prazo || '' };
 }
-
-function excluirPerfil(id) {
-  if (!confirm('Excluir este perfil e TODOS os dados dele (liderados, quadro, diário, rotina)? Esta ação não pode ser desfeita.')) return;
-  const perfis = carregarPerfis().filter(p => p.id !== id);
-  salvarPerfis(perfis);
-  localStorage.removeItem(dadosKey(id));
-  if (getPerfilAtivoId() === id) {
-    localStorage.removeItem(PERFIL_ATIVO_KEY);
-  }
-  renderListaPerfis();
-  mostrarToast('Perfil removido.', 'info');
-}
-
-function initTelaPerfil() {
-  document.getElementById('btn-novo-perfil').addEventListener('click', () => {
-    document.getElementById('btn-novo-perfil').style.display = 'none';
-    document.getElementById('form-novo-perfil').style.display = 'block';
-    document.getElementById('np-nome').focus();
-  });
-  document.getElementById('btn-cancelar-novo-perfil').addEventListener('click', () => {
-    document.getElementById('form-novo-perfil').style.display = 'none';
-    document.getElementById('btn-novo-perfil').style.display = 'flex';
-    document.getElementById('form-novo-perfil').reset();
-  });
-  document.getElementById('form-novo-perfil').addEventListener('submit', e => {
-    e.preventDefault();
-    const nome = document.getElementById('np-nome').value.trim();
-    if (!nome) { mostrarToast('Informe seu nome.', 'error'); return; }
-    const id = gerarId();
-    const perfis = carregarPerfis();
-    perfis.push({
-      id, nome,
-      area: document.getElementById('np-area').value.trim(),
-      cargo: document.getElementById('np-cargo').value.trim(),
-      criadoEm: new Date().toISOString(),
-    });
-    salvarPerfis(perfis);
-    localStorage.setItem(dadosKey(id), JSON.stringify(estadoVazio()));
-    document.getElementById('form-novo-perfil').reset();
-    entrarNoPerfil(id);
-    mostrarToast(`Bem-vindo(a), ${nome}! Seu quadro foi criado.`);
-  });
-  document.getElementById('lista-perfis').addEventListener('click', e => {
-    const btnEntrar = e.target.closest('.btn-entrar-perfil');
-    if (btnEntrar) { entrarNoPerfil(btnEntrar.dataset.id); return; }
-    const btnExcluir = e.target.closest('[data-excluir-perfil]');
-    if (btnExcluir) { excluirPerfil(btnExcluir.dataset.excluirPerfil); }
-  });
-  document.getElementById('btn-trocar-perfil').addEventListener('click', abrirTelaPerfil);
-  document.getElementById('btn-fechar-tela-perfil').addEventListener('click', fecharTelaPerfil);
+function mapFeedback(f) {
+  return { id: f.id, data: String(f.data).slice(0, 10), conversa: f.conversa || '', plano: f.plano || '', criadoEm: f.criado_em };
 }
 
 // ============================================================
@@ -309,6 +249,15 @@ function tempoNaEmpresa(dataInicio) {
   return partes.join(' e ');
 }
 
+function iniciaisNome(nome) {
+  return (nome || '?').trim().charAt(0).toUpperCase();
+}
+
+function truncar(texto, n = 60) {
+  if (!texto) return '';
+  return texto.length > n ? texto.slice(0, n).trim() + '…' : texto;
+}
+
 function mostrarToast(msg, tipo = 'success') {
   const toast = document.getElementById('toast');
   toast.textContent = msg;
@@ -318,7 +267,221 @@ function mostrarToast(msg, tipo = 'success') {
 }
 
 // ============================================================
-// NAVEGAÇÃO ENTRE SEÇÕES
+// TELAS — auth / carregando / líder / liderado
+// ============================================================
+function mostrarTela(nome) {
+  document.getElementById('tela-carregando').style.display = nome === 'carregando' ? '' : 'none';
+  document.getElementById('tela-auth').style.display = nome === 'auth' ? '' : 'none';
+  document.getElementById('app-shell').style.display = nome === 'lider' ? '' : 'none';
+  document.getElementById('app-liderado').style.display = nome === 'liderado' ? '' : 'none';
+  document.getElementById('btn-sidebar-toggle').style.display = nome === 'lider' ? '' : 'none';
+  document.body.classList.remove('sidebar-open');
+}
+
+function initTelaAuth() {
+  document.querySelectorAll('#tela-auth .subtab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('#tela-auth .subtab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('#tela-auth .subview').forEach(v => v.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById('view-' + btn.dataset.authview).classList.add('active');
+      document.getElementById('auth-erro').style.display = 'none';
+    });
+  });
+
+  document.getElementById('form-login').addEventListener('submit', async e => {
+    e.preventDefault();
+    const email = document.getElementById('lg-email').value.trim();
+    const senha = document.getElementById('lg-senha').value;
+    await tentarAuth(document.querySelector('#form-login button[type=submit]'), () => Api.login(email, senha));
+  });
+
+  document.getElementById('form-registrar-lider').addEventListener('submit', async e => {
+    e.preventDefault();
+    const dados = {
+      nome: document.getElementById('rg-nome').value.trim(),
+      area: document.getElementById('rg-area').value.trim(),
+      cargo: document.getElementById('rg-cargo').value.trim(),
+      email: document.getElementById('rg-email').value.trim(),
+      senha: document.getElementById('rg-senha').value,
+    };
+    await tentarAuth(document.querySelector('#form-registrar-lider button[type=submit]'), () => Api.registrarLider(dados), true);
+  });
+
+  document.getElementById('btn-sair').addEventListener('click', sair);
+  document.getElementById('btn-sair-liderado').addEventListener('click', sair);
+}
+
+async function tentarAuth(botao, chamada, ehRegistroDeLider) {
+  const erroEl = document.getElementById('auth-erro');
+  erroEl.style.display = 'none';
+  const textoOriginal = botao.textContent;
+  botao.disabled = true;
+  botao.textContent = 'Só um instante...';
+  try {
+    const { token, user } = await chamada();
+    salvarAuth(token, user);
+    if (ehRegistroDeLider) {
+      for (const item of planoAcaoPadrao()) {
+        try { await Api.criarPlanoAcao(item); } catch (e) { /* não bloqueia o cadastro */ }
+      }
+    }
+    await entrarNaSessao();
+  } catch (err) {
+    erroEl.textContent = err.message;
+    erroEl.style.display = 'block';
+  } finally {
+    botao.disabled = false;
+    botao.textContent = textoOriginal;
+  }
+}
+
+async function entrarNaSessao() {
+  mostrarTela('carregando');
+  if (AUTH.user.role === 'lider') {
+    renderHeaderLider();
+    await carregarTudoLider();
+    mostrarTela('lider');
+    irParaSecao('liderados');
+  } else {
+    await carregarTudoLiderado();
+    mostrarTela('liderado');
+  }
+}
+
+function renderHeaderLider() {
+  document.getElementById('lider-ativo-avatar').textContent = iniciaisNome(AUTH.user.nome);
+  document.getElementById('lider-ativo-nome').textContent = AUTH.user.nome;
+}
+
+function sair() {
+  limparAuth();
+  STATE.liderados = []; STATE.atividades = []; STATE.matriz = []; STATE.metas = [];
+  STATE.diario = []; STATE.diarioResumoEquipe = []; STATE.rotina = []; STATE.planoAcao = [];
+  STATE.checklistErros = {}; STATE.checklistLider = {};
+  STATE.meuPerfil = null; STATE.minhasAtividades = []; STATE.minhasMetas = []; STATE.meusFeedbacks = [];
+  document.getElementById('form-login').reset();
+  document.getElementById('auth-erro').style.display = 'none';
+  mostrarTela('auth');
+}
+
+async function carregarTudoLider() {
+  try {
+    const [liderados, atividades, metas, matriz, rotina, planoAcao, config] = await Promise.all([
+      Api.listarLiderados(), Api.listarAtividades(), Api.listarMetas(), Api.listarMatriz(),
+      Api.listarRotina(), Api.listarPlanoAcao(), Api.getDashboardConfig(),
+    ]);
+    STATE.liderados = liderados.map(mapLiderado);
+    STATE.atividades = atividades.map(mapAtividade);
+    STATE.metas = metas.map(mapMeta);
+    STATE.matriz = matriz.map(mapMatriz);
+    STATE.rotina = rotina.map(mapRotina);
+    STATE.planoAcao = planoAcao.map(mapPlanoAcao);
+    STATE.metaIdeal = { operacional: config.ideal_operacional, tatico: config.ideal_tatico, estrategico: config.ideal_estrategico };
+    STATE.checklistErros = config.checklist_erros || {};
+    STATE.checklistLider = config.checklist_lider || {};
+    STATE.diario = [];
+    STATE.diarioSelecionadoId = null;
+
+    try { STATE.diarioResumoEquipe = (await Api.diarioResumoEquipe()).map(mapDiario); }
+    catch (e) { STATE.diarioResumoEquipe = []; }
+
+    renderTudo();
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
+}
+
+async function carregarTudoLiderado() {
+  try {
+    const [perfil, atividades, metas, feedbacks] = await Promise.all([
+      Api.meuPerfilLiderado(), Api.minhasAtividades(), Api.minhasMetas(), Api.meusFeedbacks(),
+    ]);
+    STATE.meuPerfil = mapLiderado(perfil);
+    STATE.minhasAtividades = atividades.map(mapAtividade);
+    STATE.minhasMetas = metas.map(mapMeta);
+    STATE.meusFeedbacks = feedbacks.map(mapFeedback);
+    renderVisaoLiderado();
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
+}
+
+function renderVisaoLiderado() {
+  const p = STATE.meuPerfil;
+  if (!p) return;
+  document.getElementById('liderado-avatar').textContent = iniciaisNome(p.nome);
+  document.getElementById('liderado-nome-topo').textContent = p.nome;
+
+  document.getElementById('badge-minhas-atividades').textContent = STATE.minhasAtividades.length;
+  const contAtiv = document.getElementById('lista-minhas-atividades');
+  if (STATE.minhasAtividades.length === 0) {
+    contAtiv.innerHTML = `<div class="empty-state"><div class="empty-icon">🗂️</div><p>Nenhuma atividade atribuída a você ainda.</p></div>`;
+  } else {
+    contAtiv.innerHTML = STATE.minhasAtividades.map(a => {
+      const rc = RESULTADO_CONFIG[a.resultado] || {};
+      const tc = TIPO_CONFIG[a.tipo] || {};
+      const sc = STATUS_CONFIG[a.status] || STATUS_CONFIG.novo;
+      const meta = STATE.minhasMetas.find(m => m.id === a.metaId);
+      return `
+      <div class="liderado-atividade-item">
+        <div>
+          <div class="atividade-titulo">${a.titulo}</div>
+          <div class="atividade-tags">
+            <span class="tag-pill" style="background:${sc.bg};color:${sc.cor}">${sc.label}</span>
+            ${a.resultado ? `<span class="tag-pill" style="background:${rc.bg};color:${rc.cor}">${rc.label}</span>` : ''}
+            ${a.tipo ? `<span class="tag-pill" style="background:${tc.bg};color:${tc.cor}">${tc.label}</span>` : ''}
+            ${a.prazo ? `<span class="tag-pill tag-prazo ${estaAtrasada(a) ? 'tag-prazo-atrasado' : ''}">📅 ${formatarData(a.prazo)}</span>` : ''}
+            ${meta ? `<span class="tag-pill tag-meta">🎯 ${meta.nome}</span>` : ''}
+          </div>
+          ${a.obs ? `<div class="atividade-obs">${a.obs}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('badge-minhas-metas').textContent = STATE.minhasMetas.length;
+  const contMetas = document.getElementById('lista-minhas-metas');
+  if (STATE.minhasMetas.length === 0) {
+    contMetas.innerHTML = `<div class="empty-state"><div class="empty-icon">🎯</div><p>Nenhuma meta vinculada às suas atividades ainda.</p></div>`;
+  } else {
+    contMetas.innerHTML = STATE.minhasMetas.map(m => {
+      const tc = TIPO_CONFIG[m.tipo] || {};
+      const vinculadas = STATE.minhasAtividades.filter(a => a.metaId === m.id);
+      const concluidas = vinculadas.filter(a => a.status === 'concluido');
+      const pct = vinculadas.length ? Math.round((concluidas.length / vinculadas.length) * 100) : 0;
+      return `
+      <div class="meta-card">
+        <div class="meta-card-topo"><span class="tag-pill" style="background:${tc.bg};color:${tc.cor}">${tc.label || ''}</span></div>
+        <div class="meta-card-nome">${m.nome}</div>
+        ${m.indicador ? `<div class="meta-card-indicador">📈 ${m.indicador}${m.valor ? ' · Meta: ' + m.valor : ''}</div>` : ''}
+        ${m.prazo ? `<div class="meta-card-prazo">📅 ${formatarData(m.prazo)}</div>` : ''}
+        <div class="meta-progresso">
+          <div class="meta-progresso-barra"><div class="meta-progresso-fill" style="width:${pct}%;background:${tc.cor || '#667eea'}"></div></div>
+          <div class="meta-progresso-texto">${concluidas.length}/${vinculadas.length} das suas atividades concluídas (${pct}%)</div>
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  document.getElementById('badge-meus-feedbacks').textContent = STATE.meusFeedbacks.length;
+  const contFb = document.getElementById('lista-meus-feedbacks');
+  if (STATE.meusFeedbacks.length === 0) {
+    contFb.innerHTML = `<div class="empty-state"><div class="empty-icon">🗣️</div><p>Você ainda não recebeu nenhum feedback formal.</p></div>`;
+  } else {
+    contFb.innerHTML = STATE.meusFeedbacks
+      .slice().sort((a, b) => (b.data || '').localeCompare(a.data || ''))
+      .map(f => `
+      <div class="liderado-feedback-item">
+        <div class="diario-timeline-data">🗣️ ${formatarData(f.data)}</div>
+        ${f.conversa ? `<div class="diario-timeline-campo"><strong>💬 Conversa:</strong> ${f.conversa}</div>` : ''}
+        ${f.plano ? `<div class="diario-timeline-campo"><strong>📋 Plano de ação:</strong> ${f.plano}</div>` : ''}
+      </div>`).join('');
+  }
+}
+
+// ============================================================
+// NAVEGAÇÃO ENTRE SEÇÕES (líder)
 // ============================================================
 function irParaSecao(secao) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
@@ -390,12 +553,6 @@ function getMultiValues(groupMulti) {
   return Array.from(document.querySelectorAll(`.tag-btn-multi[data-group-multi="${groupMulti}"].selected`)).map(b => b.dataset.value);
 }
 
-function setMultiValues(groupMulti, valores) {
-  document.querySelectorAll(`.tag-btn-multi[data-group-multi="${groupMulti}"]`).forEach(b => {
-    b.classList.toggle('selected', (valores || []).includes(b.dataset.value));
-  });
-}
-
 function clearMultiGroup(groupMulti) {
   document.querySelectorAll(`.tag-btn-multi[data-group-multi="${groupMulti}"]`).forEach(b => b.classList.remove('selected'));
 }
@@ -437,7 +594,7 @@ function renderLiderados() {
           ${l.dataInicio ? `<span class="liderado-tempo">⏱ ${tempoNaEmpresa(l.dataInicio)}</span>` : ''}
         </div>
         <div class="liderado-acoes">
-          <button class="btn-icon" title="Diário de Bordo" onclick="irParaDiario('${l.id}')">📓</button>
+          <button class="btn-icon" title="Diário de Bordo" onclick="abrirDiarioDoLiderado('${l.id}')">📓</button>
           <button class="btn-icon" title="Ver detalhes" onclick="verLiderado('${l.id}')">👁️</button>
           <button class="btn-icon" title="Editar" onclick="editarLiderado('${l.id}')">✏️</button>
           <button class="btn-icon btn-icon-danger" title="Excluir" onclick="excluirLiderado('${l.id}')">🗑️</button>
@@ -453,44 +610,43 @@ function renderLiderados() {
 
 function initFormLiderado() {
   const form = document.getElementById('form-liderado');
-  form.addEventListener('submit', e => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     const nome = document.getElementById('l-nome').value.trim();
     const cargo = document.getElementById('l-cargo').value.trim();
-    if (!nome || !cargo) { mostrarToast('Preencha nome e cargo.', 'error'); return; }
+    const email = document.getElementById('l-email').value.trim();
+    const senha = document.getElementById('l-senha').value;
+    if (!nome || !cargo || !email) { mostrarToast('Preencha nome, cargo e e-mail.', 'error'); return; }
 
-    const id = document.getElementById('l-id').value;
-    const existente = id ? STATE.liderados.find(l => l.id === id) : null;
-    const dados = {
-      id: id || gerarId(),
-      nome,
-      cargo,
+    const dadosComuns = {
+      nome, cargo,
       dataInicio: document.getElementById('l-data-inicio').value,
-      perfil: document.getElementById('l-perfil').value,
+      perfilComportamental: document.getElementById('l-perfil').value,
       habilidades: document.getElementById('l-habilidades').value.trim(),
       expectativas: document.getElementById('l-expectativas').value.trim(),
-      metas: document.getElementById('l-metas').value.trim(),
+      metasTexto: document.getElementById('l-metas').value.trim(),
       desenvolvimento: document.getElementById('l-desenvolvimento').value.trim(),
       obs: document.getElementById('l-obs').value.trim(),
-      // Campos do Diário de Bordo (preenchidos naquela seção)
-      aspiracoes: existente ? (existente.aspiracoes || '') : '',
-      comportamentos: existente ? (existente.comportamentos || '') : '',
-      sentimentos: existente ? (existente.sentimentos || '') : '',
-      criadoEm: existente ? existente.criadoEm : new Date().toISOString(),
     };
 
-    if (id) {
-      const idx = STATE.liderados.findIndex(l => l.id === id);
-      STATE.liderados[idx] = dados;
-      mostrarToast('Liderado atualizado com sucesso!');
-    } else {
-      STATE.liderados.push(dados);
-      mostrarToast('Liderado cadastrado com sucesso!');
+    const id = document.getElementById('l-id').value;
+    try {
+      if (id) {
+        const atualizado = mapLiderado(await Api.atualizarLiderado(id, dadosComuns));
+        const idx = STATE.liderados.findIndex(l => l.id === id);
+        STATE.liderados[idx] = atualizado;
+        mostrarToast('Liderado atualizado com sucesso!');
+      } else {
+        if (!senha || senha.length < 6) { mostrarToast('Defina uma senha de acesso com pelo menos 6 caracteres.', 'error'); return; }
+        const criado = mapLiderado(await Api.criarLiderado({ ...dadosComuns, email, senha }));
+        STATE.liderados.push(criado);
+        mostrarToast('Liderado cadastrado! Combine o e-mail e a senha de acesso com ele(a).');
+      }
+      renderLiderados();
+      resetFormLiderado();
+    } catch (err) {
+      mostrarToast(err.message, 'error');
     }
-
-    salvarDadosLider();
-    renderLiderados();
-    resetFormLiderado();
   });
 
   document.getElementById('btn-cancelar-liderado').addEventListener('click', resetFormLiderado);
@@ -499,6 +655,8 @@ function initFormLiderado() {
 function resetFormLiderado() {
   document.getElementById('l-id').value = '';
   document.getElementById('form-liderado').reset();
+  document.getElementById('l-email').readOnly = false;
+  document.getElementById('grupo-senha-liderado').style.display = 'block';
   document.getElementById('liderado-form-title').textContent = 'Cadastrar Liderado';
   document.getElementById('btn-cancelar-liderado').style.display = 'none';
 }
@@ -509,6 +667,9 @@ function editarLiderado(id) {
   document.getElementById('l-id').value = l.id;
   document.getElementById('l-nome').value = l.nome;
   document.getElementById('l-cargo').value = l.cargo;
+  document.getElementById('l-email').value = l.email || '';
+  document.getElementById('l-email').readOnly = true;
+  document.getElementById('grupo-senha-liderado').style.display = 'none';
   document.getElementById('l-data-inicio').value = l.dataInicio || '';
   document.getElementById('l-perfil').value = l.perfil || '';
   document.getElementById('l-habilidades').value = l.habilidades || '';
@@ -522,16 +683,20 @@ function editarLiderado(id) {
   document.querySelector('#section-liderados .form-card').scrollIntoView({ behavior: 'smooth' });
 }
 
-function excluirLiderado(id) {
-  if (!confirm('Deseja excluir este liderado? Os registros do diário de bordo dele também serão removidos.')) return;
-  STATE.liderados = STATE.liderados.filter(l => l.id !== id);
-  STATE.diario = STATE.diario.filter(d => d.lideradoId !== id);
-  if (STATE.diarioSelecionadoId === id) STATE.diarioSelecionadoId = null;
-  salvarDadosLider();
-  renderLiderados();
-  renderDiarioSeletor();
-  renderDiarioConteudo();
-  mostrarToast('Liderado removido.', 'info');
+async function excluirLiderado(id) {
+  if (!confirm('Deseja excluir este liderado? O acesso dele e os registros do diário de bordo também serão removidos.')) return;
+  try {
+    await Api.excluirLiderado(id);
+    STATE.liderados = STATE.liderados.filter(l => l.id !== id);
+    STATE.diarioResumoEquipe = STATE.diarioResumoEquipe.filter(d => d.lideradoId !== id);
+    if (STATE.diarioSelecionadoId === id) { STATE.diarioSelecionadoId = null; STATE.diario = []; }
+    renderLiderados();
+    renderDiarioSeletor();
+    renderDiarioConteudo();
+    mostrarToast('Liderado removido.', 'info');
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
 }
 
 function verLiderado(id) {
@@ -545,7 +710,7 @@ function verLiderado(id) {
       <div class="detalhe-item"><span class="detalhe-label">Cargo</span><span class="detalhe-valor">${l.cargo || '—'}</span></div>
       <div class="detalhe-item"><span class="detalhe-label">Perfil</span><span class="detalhe-valor">${l.perfil || '—'}</span></div>
       <div class="detalhe-item"><span class="detalhe-label">Tempo na empresa</span><span class="detalhe-valor">${l.dataInicio ? tempoNaEmpresa(l.dataInicio) + ' (desde ' + formatarData(l.dataInicio) + ')' : '—'}</span></div>
-      <div class="detalhe-item"><span class="detalhe-label">Cadastrado em</span><span class="detalhe-valor">${formatarData(l.criadoEm?.split('T')[0])}</span></div>
+      <div class="detalhe-item"><span class="detalhe-label">E-mail de acesso</span><span class="detalhe-valor">${l.email || '—'}</span></div>
     </div>
     ${l.habilidades ? `<div class="detalhe-secao"><div class="detalhe-secao-titulo">💡 Principais Habilidades</div><p>${l.habilidades}</p></div>` : ''}
     ${l.expectativas ? `<div class="detalhe-secao"><div class="detalhe-secao-titulo">🎯 Expectativas do Líder</div><p>${l.expectativas}</p></div>` : ''}
@@ -569,7 +734,7 @@ function initModalLiderado() {
   });
   document.getElementById('modal-liderado-diario').addEventListener('click', () => {
     document.getElementById('modal-liderado').style.display = 'none';
-    irParaDiario(STATE.lideradoSelecionado);
+    abrirDiarioDoLiderado(STATE.lideradoSelecionado);
   });
   document.getElementById('modal-liderado-excluir').addEventListener('click', () => {
     document.getElementById('modal-liderado').style.display = 'none';
@@ -581,11 +746,28 @@ function initModalLiderado() {
 // MÓDULO NOVO — DIÁRIO DE BORDO
 // ============================================================
 
-function irParaDiario(lideradoId) {
+async function abrirDiarioDoLiderado(lideradoId) {
   STATE.diarioSelecionadoId = lideradoId;
-  salvarDadosLider();
   irParaSecao('diario');
+  const btnIndividual = document.querySelector('#section-diario .subtab-btn[data-subview="individual"]');
+  if (btnIndividual && !btnIndividual.classList.contains('active')) btnIndividual.click();
   renderDiarioSeletor();
+  await carregarESelecionarDiario(lideradoId);
+}
+
+async function selecionarLideradoDiario(id) {
+  STATE.diarioSelecionadoId = id;
+  renderDiarioSeletor();
+  await carregarESelecionarDiario(id);
+}
+
+async function carregarESelecionarDiario(id) {
+  try {
+    STATE.diario = (await Api.diarioDoLiderado(id)).map(mapDiario);
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+    STATE.diario = [];
+  }
   renderDiarioConteudo();
 }
 
@@ -603,22 +785,15 @@ function renderDiarioSeletor() {
   `).join('');
 }
 
-function selecionarLideradoDiario(id) {
-  STATE.diarioSelecionadoId = id;
-  salvarDadosLider();
-  renderDiarioSeletor();
-  renderDiarioConteudo();
-}
-
 function ultimoFeedback(lideradoId) {
-  return STATE.diario
-    .filter(d => d.lideradoId === lideradoId && d.tipo === 'feedback')
-    .sort((a, b) => (b.data || '').localeCompare(a.data || ''))[0] || null;
+  return STATE.diarioResumoEquipe.find(d => d.lideradoId === lideradoId && d.tipo === 'feedback') || null;
 }
 
-function truncar(texto, n = 60) {
-  if (!texto) return '';
-  return texto.length > n ? texto.slice(0, n).trim() + '…' : texto;
+function atualizarPillUltimoFeedback(lideradoId) {
+  const ult = ultimoFeedback(lideradoId);
+  document.getElementById('diario-ultimo-feedback').textContent = ult
+    ? `🗣️ Último feedback: ${formatarData(ult.data)}`
+    : '🗣️ Sem feedback formal ainda';
 }
 
 function renderDiarioConteudo() {
@@ -633,10 +808,7 @@ function renderDiarioConteudo() {
   document.getElementById('dc-comportamentos').value = l.comportamentos || '';
   document.getElementById('dc-sentimentos').value = l.sentimentos || '';
 
-  const ultFeedback = ultimoFeedback(l.id);
-  document.getElementById('diario-ultimo-feedback').textContent = ultFeedback
-    ? `🗣️ Último feedback: ${formatarData(ultFeedback.data)}`
-    : '🗣️ Sem feedback formal ainda';
+  atualizarPillUltimoFeedback(l.id);
 
   document.getElementById('rd-data').value = hojeISO();
   clearMultiGroup('riscos');
@@ -646,17 +818,25 @@ function renderDiarioConteudo() {
 }
 
 function initFormConhecer() {
-  document.getElementById('form-conhecer').addEventListener('submit', e => {
+  document.getElementById('form-conhecer').addEventListener('submit', async e => {
     e.preventDefault();
-    const idx = STATE.liderados.findIndex(l => l.id === STATE.diarioSelecionadoId);
-    if (idx === -1) return;
-    STATE.liderados[idx].aspiracoes = document.getElementById('dc-aspiracoes').value.trim();
-    STATE.liderados[idx].habilidades = document.getElementById('dc-pontosfortes').value.trim();
-    STATE.liderados[idx].comportamentos = document.getElementById('dc-comportamentos').value.trim();
-    STATE.liderados[idx].sentimentos = document.getElementById('dc-sentimentos').value.trim();
-    salvarDadosLider();
-    renderDiarioEquipe();
-    mostrarToast('Perfil do liderado atualizado!');
+    const id = STATE.diarioSelecionadoId;
+    if (!id) return;
+    const dados = {
+      aspiracoes: document.getElementById('dc-aspiracoes').value.trim(),
+      habilidades: document.getElementById('dc-pontosfortes').value.trim(),
+      comportamentos: document.getElementById('dc-comportamentos').value.trim(),
+      sentimentos: document.getElementById('dc-sentimentos').value.trim(),
+    };
+    try {
+      const atualizado = mapLiderado(await Api.atualizarLiderado(id, dados));
+      const idx = STATE.liderados.findIndex(l => l.id === id);
+      if (idx !== -1) STATE.liderados[idx] = atualizado;
+      renderDiarioEquipe();
+      mostrarToast('Perfil do liderado atualizado!');
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    }
   });
 }
 
@@ -686,52 +866,58 @@ function renderTimelineDiario() {
 }
 
 function initFormRegistroDiario() {
-  document.getElementById('form-registro-diario').addEventListener('submit', e => {
+  document.getElementById('form-registro-diario').addEventListener('submit', async e => {
     e.preventDefault();
     if (!STATE.diarioSelecionadoId) return;
     const riscos = getMultiValues('riscos');
     const sinais = document.getElementById('rd-sinais').value.trim();
     const conversa = document.getElementById('rd-conversa').value.trim();
     const plano = document.getElementById('rd-plano').value.trim();
+    const tipo = getTagValue('registro-tipo') || 'observacao';
 
     if (!riscos.length && !sinais && !conversa && !plano) {
       mostrarToast('Preencha ao menos um campo do registro.', 'error');
       return;
     }
 
-    const tipo = getTagValue('registro-tipo') || 'observacao';
+    try {
+      const novo = mapDiario(await Api.criarRegistroDiario({
+        liderado_id: STATE.diarioSelecionadoId, tipo,
+        data: document.getElementById('rd-data').value || hojeISO(),
+        riscos, sinais, conversa, plano,
+      }));
+      STATE.diario.push(novo);
+      STATE.diarioResumoEquipe = STATE.diarioResumoEquipe.filter(d => !(d.lideradoId === novo.lideradoId && d.tipo === novo.tipo));
+      STATE.diarioResumoEquipe.push(novo);
 
-    STATE.diario.push({
-      id: gerarId(),
-      lideradoId: STATE.diarioSelecionadoId,
-      tipo,
-      data: document.getElementById('rd-data').value || hojeISO(),
-      riscos, sinais, conversa, plano,
-      criadoEm: new Date().toISOString(),
-    });
-
-    salvarDadosLider();
-    renderTimelineDiario();
-    renderDiarioEquipe();
-    document.getElementById('form-registro-diario').reset();
-    document.getElementById('rd-data').value = hojeISO();
-    clearMultiGroup('riscos');
-    setTagValue('registro-tipo', 'observacao');
-    const ultFeedback = ultimoFeedback(STATE.diarioSelecionadoId);
-    document.getElementById('diario-ultimo-feedback').textContent = ultFeedback
-      ? `🗣️ Último feedback: ${formatarData(ultFeedback.data)}`
-      : '🗣️ Sem feedback formal ainda';
-    mostrarToast(tipo === 'feedback' ? 'Feedback lançado com sucesso!' : 'Registro adicionado ao diário de bordo!');
+      renderTimelineDiario();
+      renderDiarioEquipe();
+      document.getElementById('form-registro-diario').reset();
+      document.getElementById('rd-data').value = hojeISO();
+      clearMultiGroup('riscos');
+      setTagValue('registro-tipo', 'observacao');
+      atualizarPillUltimoFeedback(STATE.diarioSelecionadoId);
+      mostrarToast(tipo === 'feedback' ? 'Feedback lançado com sucesso!' : 'Registro adicionado ao diário de bordo!');
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    }
   });
 }
 
-function excluirRegistroDiario(id) {
+async function excluirRegistroDiario(id) {
   if (!confirm('Excluir este registro do diário de bordo?')) return;
-  STATE.diario = STATE.diario.filter(d => d.id !== id);
-  salvarDadosLider();
-  renderTimelineDiario();
-  renderDiarioEquipe();
-  mostrarToast('Registro removido.', 'info');
+  try {
+    await Api.excluirRegistroDiario(id);
+    STATE.diario = STATE.diario.filter(d => d.id !== id);
+    // O registro apagado podia ser o "mais recente" do resumo da equipe — recarrega pra garantir consistência.
+    try { STATE.diarioResumoEquipe = (await Api.diarioResumoEquipe()).map(mapDiario); } catch (e) {}
+    renderTimelineDiario();
+    renderDiarioEquipe();
+    atualizarPillUltimoFeedback(STATE.diarioSelecionadoId);
+    mostrarToast('Registro removido.', 'info');
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
 }
 
 function renderDiarioEquipe() {
@@ -743,13 +929,10 @@ function renderDiarioEquipe() {
     return;
   }
 
+  const vazio = '<span class="celula-vazia">—</span>';
   corpo.innerHTML = STATE.liderados.map(l => {
-    const registros = STATE.diario.filter(d => d.lideradoId === l.id).sort((a, b) => (b.data || '').localeCompare(a.data || ''));
-    const ultimoRisco = registros.find(r => r.riscos && r.riscos.length);
-    const ultimoSinal = registros.find(r => r.sinais);
-    const ultimoPlano = registros.find(r => r.plano);
+    const obs = STATE.diarioResumoEquipe.find(d => d.lideradoId === l.id && d.tipo === 'observacao');
     const feedback = ultimoFeedback(l.id);
-    const vazio = '<span class="celula-vazia">—</span>';
 
     return `
       <tr>
@@ -761,21 +944,13 @@ function renderDiarioEquipe() {
         <td>${l.habilidades ? truncar(l.habilidades, 70) : vazio}</td>
         <td>${l.comportamentos ? truncar(l.comportamentos, 70) : vazio}</td>
         <td>${l.sentimentos ? truncar(l.sentimentos, 70) : vazio}</td>
-        <td>${ultimoRisco ? ultimoRisco.riscos.map(v => `<span class="tag-pill tag-risco">${RISCOS_LABELS[v] || v}</span>`).join(' ') : vazio}</td>
-        <td>${ultimoSinal ? truncar(ultimoSinal.sinais, 60) : vazio}</td>
+        <td>${obs && obs.riscos.length ? obs.riscos.map(v => `<span class="tag-pill tag-risco">${RISCOS_LABELS[v] || v}</span>`).join(' ') : vazio}</td>
+        <td>${obs && obs.sinais ? truncar(obs.sinais, 60) : vazio}</td>
         <td>${feedback ? `<span class="tag-pill tag-ultimo-feedback" style="margin-left:0">${formatarData(feedback.data)}</span>` : vazio}</td>
-        <td>${ultimoPlano ? truncar(ultimoPlano.plano, 60) : vazio}</td>
-        <td><button class="btn-icon btn-icon-sm" title="Ver linha do tempo" onclick="irParaDiarioIndividual('${l.id}')">👁️</button></td>
+        <td>${(obs && obs.plano) || (feedback && feedback.plano) ? truncar((obs && obs.plano) || feedback.plano, 60) : vazio}</td>
+        <td><button class="btn-icon btn-icon-sm" title="Ver linha do tempo" onclick="abrirDiarioDoLiderado('${l.id}')">👁️</button></td>
       </tr>`;
   }).join('');
-}
-
-function irParaDiarioIndividual(lideradoId) {
-  STATE.diarioSelecionadoId = lideradoId;
-  salvarDadosLider();
-  document.querySelector('.subtab-btn[data-subview="individual"]').click();
-  renderDiarioSeletor();
-  renderDiarioConteudo();
 }
 
 function initResumoFeedback() {
@@ -909,7 +1084,6 @@ function nomeResponsavel(a) {
     const l = STATE.liderados.find(x => x.id === a.responsavelId);
     if (l) return '👤 ' + l.nome;
   }
-  if (a.responsavel) return '👤 ' + a.responsavel; // compatibilidade com registros antigos
   return '';
 }
 
@@ -1084,7 +1258,6 @@ function renderAtividades() {
 
   renderKanban();
   popularSelectsMeta();
-  renderMetas();
 }
 
 function renderKanban() {
@@ -1123,12 +1296,20 @@ function onDragStartCard(e) {
   e.currentTarget.classList.add('dragging');
 }
 
-function atualizarStatusAtividade(id, status) {
+async function atualizarStatusAtividade(id, status) {
   const idx = STATE.atividades.findIndex(a => a.id === id);
   if (idx === -1) return;
+  const anterior = STATE.atividades[idx].status;
   STATE.atividades[idx].status = status;
-  salvarDadosLider();
   renderAtividades();
+  try {
+    await Api.moverStatusAtividade(id, status);
+    await refrescarMetas();
+  } catch (err) {
+    STATE.atividades[idx].status = anterior;
+    renderAtividades();
+    mostrarToast(err.message, 'error');
+  }
 }
 
 function moverStatus(id, delta) {
@@ -1156,6 +1337,7 @@ function initSubtabs() {
   document.querySelectorAll('.subtab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const secao = btn.closest('.section');
+      if (!secao) return;
       secao.querySelectorAll('.subtab-btn').forEach(b => b.classList.remove('active'));
       secao.querySelectorAll('.subview').forEach(v => v.classList.remove('active'));
       btn.classList.add('active');
@@ -1166,7 +1348,7 @@ function initSubtabs() {
 
 function initFormAtividade() {
   const form = document.getElementById('form-atividade');
-  form.addEventListener('submit', e => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     const titulo = document.getElementById('a-titulo').value.trim();
     if (!titulo) { mostrarToast('Descreva a atividade.', 'error'); return; }
@@ -1176,33 +1358,33 @@ function initFormAtividade() {
     if (!resultado) { mostrarToast('Selecione a classificação por resultado.', 'error'); return; }
     if (!tipo) { mostrarToast('Selecione a classificação por tipo.', 'error'); return; }
 
-    const id = document.getElementById('a-id').value;
-    const existente = id ? STATE.atividades.find(a => a.id === id) : null;
     const dados = {
-      id: id || gerarId(),
-      titulo,
-      resultado,
-      tipo,
+      titulo, resultado, tipo,
       status: getTagValue('status') || 'novo',
       prazo: document.getElementById('a-prazo').value,
       responsavelId: document.getElementById('a-responsavel').value,
       metaId: document.getElementById('a-meta').value,
       obs: document.getElementById('a-obs').value.trim(),
-      criadoEm: existente ? existente.criadoEm : new Date().toISOString(),
     };
 
-    if (id) {
-      const idx = STATE.atividades.findIndex(a => a.id === id);
-      STATE.atividades[idx] = dados;
-      mostrarToast('Atividade atualizada!');
-    } else {
-      STATE.atividades.push(dados);
-      mostrarToast('Atividade cadastrada!');
+    const id = document.getElementById('a-id').value;
+    try {
+      if (id) {
+        const atualizada = mapAtividade(await Api.atualizarAtividade(id, dados));
+        const idx = STATE.atividades.findIndex(a => a.id === id);
+        STATE.atividades[idx] = atualizada;
+        mostrarToast('Atividade atualizada!');
+      } else {
+        const criada = mapAtividade(await Api.criarAtividade(dados));
+        STATE.atividades.push(criada);
+        mostrarToast('Atividade cadastrada!');
+      }
+      renderAtividades();
+      await refrescarMetas();
+      resetFormAtividade();
+    } catch (err) {
+      mostrarToast(err.message, 'error');
     }
-
-    salvarDadosLider();
-    renderAtividades();
-    resetFormAtividade();
   });
 
   document.getElementById('btn-cancelar-atividade').addEventListener('click', resetFormAtividade);
@@ -1265,7 +1447,7 @@ function initModalAtividade() {
   document.getElementById('modal-overlay-atividade').addEventListener('click', fecharModalAtividade);
   document.getElementById('modal-atividade-cancelar').addEventListener('click', fecharModalAtividade);
 
-  document.getElementById('modal-atividade-salvar').addEventListener('click', () => {
+  document.getElementById('modal-atividade-salvar').addEventListener('click', async () => {
     const id = document.getElementById('ma-id').value;
     const titulo = document.getElementById('ma-titulo').value.trim();
     if (!titulo) { mostrarToast('Descreva a atividade.', 'error'); return; }
@@ -1275,14 +1457,8 @@ function initModalAtividade() {
     if (!resultado) { mostrarToast('Selecione a classificação por resultado.', 'error'); return; }
     if (!tipo) { mostrarToast('Selecione a classificação por tipo.', 'error'); return; }
 
-    const idx = STATE.atividades.findIndex(a => a.id === id);
-    if (idx === -1) return;
-
-    STATE.atividades[idx] = {
-      ...STATE.atividades[idx],
-      titulo,
-      resultado,
-      tipo,
+    const dados = {
+      titulo, resultado, tipo,
       status: getTagValue('ma-status') || 'novo',
       prazo: document.getElementById('ma-prazo').value,
       responsavelId: document.getElementById('ma-responsavel').value,
@@ -1290,19 +1466,31 @@ function initModalAtividade() {
       obs: document.getElementById('ma-obs').value.trim(),
     };
 
-    salvarDadosLider();
-    renderAtividades();
-    fecharModalAtividade();
-    mostrarToast('Atividade atualizada com sucesso!');
+    try {
+      const atualizada = mapAtividade(await Api.atualizarAtividade(id, dados));
+      const idx = STATE.atividades.findIndex(a => a.id === id);
+      STATE.atividades[idx] = atualizada;
+      renderAtividades();
+      await refrescarMetas();
+      fecharModalAtividade();
+      mostrarToast('Atividade atualizada com sucesso!');
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    }
   });
 }
 
-function excluirAtividade(id) {
+async function excluirAtividade(id) {
   if (!confirm('Deseja excluir esta atividade?')) return;
-  STATE.atividades = STATE.atividades.filter(a => a.id !== id);
-  salvarDadosLider();
-  renderAtividades();
-  mostrarToast('Atividade removida.', 'info');
+  try {
+    await Api.excluirAtividade(id);
+    STATE.atividades = STATE.atividades.filter(a => a.id !== id);
+    renderAtividades();
+    await refrescarMetas();
+    mostrarToast('Atividade removida.', 'info');
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
 }
 
 function initFiltrosAtividades() {
@@ -1337,10 +1525,23 @@ function initFiltrosAtividades() {
 // ============================================================
 
 function metaProgresso(metaId) {
+  const meta = STATE.metas.find(m => m.id === metaId);
+  if (meta && meta._totalAtividades !== undefined) {
+    const total = meta._totalAtividades;
+    const concluidas = meta._atividadesConcluidas || 0;
+    return { total, concluidas, pct: total ? Math.round((concluidas / total) * 100) : 0 };
+  }
   const vinculadas = STATE.atividades.filter(a => a.metaId === metaId);
   const concluidas = vinculadas.filter(a => a.status === 'concluido');
   const pct = vinculadas.length ? Math.round((concluidas.length / vinculadas.length) * 100) : 0;
   return { total: vinculadas.length, concluidas: concluidas.length, pct };
+}
+
+async function refrescarMetas() {
+  try {
+    STATE.metas = (await Api.listarMetas()).map(mapMeta);
+    renderMetas();
+  } catch (err) { /* não é crítico — a próxima navegação já traz os dados corretos */ }
 }
 
 function renderMetas() {
@@ -1378,37 +1579,38 @@ function renderMetas() {
 }
 
 function initFormMeta() {
-  document.getElementById('form-meta').addEventListener('submit', e => {
+  document.getElementById('form-meta').addEventListener('submit', async e => {
     e.preventDefault();
     const nome = document.getElementById('me-nome').value.trim();
     const tipo = getTagValue('me-tipo');
     if (!nome) { mostrarToast('Dê um nome à meta.', 'error'); return; }
     if (!tipo) { mostrarToast('Selecione a categoria da meta.', 'error'); return; }
 
-    const id = document.getElementById('me-id').value;
-    const existente = id ? STATE.metas.find(m => m.id === id) : null;
     const dados = {
-      id: id || gerarId(),
       nome, tipo,
       indicador: document.getElementById('me-indicador').value.trim(),
       valor: document.getElementById('me-valor').value.trim(),
       prazo: document.getElementById('me-prazo').value,
       descricao: document.getElementById('me-desc').value.trim(),
-      criadoEm: existente ? existente.criadoEm : new Date().toISOString(),
     };
 
-    if (id) {
-      const idx = STATE.metas.findIndex(m => m.id === id);
-      STATE.metas[idx] = dados;
-      mostrarToast('Meta atualizada!');
-    } else {
-      STATE.metas.push(dados);
-      mostrarToast('Meta cadastrada!');
+    const id = document.getElementById('me-id').value;
+    try {
+      if (id) {
+        const atualizada = mapMeta(await Api.atualizarMeta(id, dados));
+        const idx = STATE.metas.findIndex(m => m.id === id);
+        STATE.metas[idx] = atualizada;
+        mostrarToast('Meta atualizada!');
+      } else {
+        const criada = mapMeta(await Api.criarMeta(dados));
+        STATE.metas.push(criada);
+        mostrarToast('Meta cadastrada!');
+      }
+      renderMetas();
+      resetFormMeta();
+    } catch (err) {
+      mostrarToast(err.message, 'error');
     }
-
-    salvarDadosLider();
-    renderMetas();
-    resetFormMeta();
   });
 
   document.getElementById('btn-cancelar-meta').addEventListener('click', resetFormMeta);
@@ -1438,14 +1640,18 @@ function editarMeta(id) {
   document.querySelector('#section-metas .form-card').scrollIntoView({ behavior: 'smooth' });
 }
 
-function excluirMeta(id) {
+async function excluirMeta(id) {
   if (!confirm('Excluir esta meta? As atividades vinculadas deixarão de referenciá-la.')) return;
-  STATE.metas = STATE.metas.filter(m => m.id !== id);
-  STATE.atividades.forEach(a => { if (a.metaId === id) a.metaId = ''; });
-  salvarDadosLider();
-  renderMetas();
-  renderAtividades();
-  mostrarToast('Meta removida.', 'info');
+  try {
+    await Api.excluirMeta(id);
+    STATE.metas = STATE.metas.filter(m => m.id !== id);
+    STATE.atividades.forEach(a => { if (a.metaId === id) a.metaId = ''; });
+    renderMetas();
+    renderAtividades();
+    mostrarToast('Meta removida.', 'info');
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
 }
 
 // ============================================================
@@ -1495,7 +1701,7 @@ function renderMatriz() {
 
 function initFormMatriz() {
   const form = document.getElementById('form-matriz');
-  form.addEventListener('submit', e => {
+  form.addEventListener('submit', async e => {
     e.preventDefault();
     const titulo = document.getElementById('m-titulo').value.trim();
     if (!titulo) { mostrarToast('Descreva a atividade.', 'error'); return; }
@@ -1505,30 +1711,25 @@ function initFormMatriz() {
     if (!resultado) { mostrarToast('Selecione o nível de resultado.', 'error'); return; }
     if (!esforco) { mostrarToast('Selecione o nível de esforço.', 'error'); return; }
 
+    const dados = { titulo, resultado, esforco, obs: document.getElementById('m-obs').value.trim() };
     const id = document.getElementById('m-id').value;
-    const dados = {
-      id: id || gerarId(),
-      titulo,
-      resultado,
-      esforco,
-      obs: document.getElementById('m-obs').value.trim(),
-      criadoEm: id ? (STATE.matriz.find(m => m.id === id)?.criadoEm || new Date().toISOString()) : new Date().toISOString(),
-    };
-
-    if (id) {
-      const idx = STATE.matriz.findIndex(m => m.id === id);
-      STATE.matriz[idx] = dados;
-      mostrarToast('Item atualizado na matriz!');
-    } else {
-      STATE.matriz.push(dados);
-      const q = getQuadrante(resultado, esforco);
-      const cfg = QUADRANTE_CONFIG[q];
-      mostrarToast(`Adicionado em "${cfg.titulo}"!`);
+    try {
+      if (id) {
+        const atualizado = mapMatriz(await Api.atualizarMatriz(id, dados));
+        const idx = STATE.matriz.findIndex(m => m.id === id);
+        STATE.matriz[idx] = atualizado;
+        mostrarToast('Item atualizado na matriz!');
+      } else {
+        const criado = mapMatriz(await Api.criarMatriz(dados));
+        STATE.matriz.push(criado);
+        const q = getQuadrante(resultado, esforco);
+        mostrarToast(`Adicionado em "${QUADRANTE_CONFIG[q].titulo}"!`);
+      }
+      renderMatriz();
+      resetFormMatriz();
+    } catch (err) {
+      mostrarToast(err.message, 'error');
     }
-
-    salvarDadosLider();
-    renderMatriz();
-    resetFormMatriz();
   });
 
   document.getElementById('btn-cancelar-matriz').addEventListener('click', resetFormMatriz);
@@ -1557,12 +1758,16 @@ function editarMatriz(id) {
   document.querySelector('#section-matriz .form-card').scrollIntoView({ behavior: 'smooth' });
 }
 
-function excluirMatriz(id) {
+async function excluirMatriz(id) {
   if (!confirm('Deseja remover este item da matriz?')) return;
-  STATE.matriz = STATE.matriz.filter(m => m.id !== id);
-  salvarDadosLider();
-  renderMatriz();
-  mostrarToast('Item removido da matriz.', 'info');
+  try {
+    await Api.excluirMatriz(id);
+    STATE.matriz = STATE.matriz.filter(m => m.id !== id);
+    renderMatriz();
+    mostrarToast('Item removido da matriz.', 'info');
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
 }
 
 // ============================================================
@@ -1612,7 +1817,7 @@ function initFormRotina() {
   document.getElementById('rt-data').value = hojeISO();
   document.getElementById('rt-data').addEventListener('change', renderTabelaRotina);
 
-  document.getElementById('form-rotina').addEventListener('submit', e => {
+  document.getElementById('form-rotina').addEventListener('submit', async e => {
     e.preventDefault();
     const inicio = document.getElementById('rt-inicio').value;
     const fim = document.getElementById('rt-fim').value;
@@ -1622,33 +1827,38 @@ function initFormRotina() {
     if (!tipo) { mostrarToast('Selecione o tipo da atividade.', 'error'); return; }
     if (fim <= inicio) { mostrarToast('O horário de fim deve ser depois do início.', 'error'); return; }
 
-    STATE.rotina.push({
-      id: gerarId(),
-      data: document.getElementById('rt-data').value || hojeISO(),
-      inicio, fim, atividade, tipo,
-      impacto: getTagValue('rt-impacto'),
-      energia: getTagValue('rt-energia'),
-      criadoEm: new Date().toISOString(),
-    });
+    try {
+      const novo = mapRotina(await Api.criarRotina({
+        data: document.getElementById('rt-data').value || hojeISO(),
+        inicio, fim, atividade, tipo,
+        impacto: getTagValue('rt-impacto'),
+        energia: getTagValue('rt-energia'),
+      }));
+      STATE.rotina.push(novo);
+      renderDashboardAll();
 
-    salvarDadosLider();
-    renderDashboardAll();
-
-    document.getElementById('rt-inicio').value = '';
-    document.getElementById('rt-fim').value = '';
-    document.getElementById('rt-atividade').value = '';
-    clearTagGroup('rt-tipo');
-    clearTagGroup('rt-impacto');
-    clearTagGroup('rt-energia');
-    mostrarToast('Registrado na rotina do dia!');
+      document.getElementById('rt-inicio').value = '';
+      document.getElementById('rt-fim').value = '';
+      document.getElementById('rt-atividade').value = '';
+      clearTagGroup('rt-tipo');
+      clearTagGroup('rt-impacto');
+      clearTagGroup('rt-energia');
+      mostrarToast('Registrado na rotina do dia!');
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    }
   });
 }
 
-function excluirRotina(id) {
-  STATE.rotina = STATE.rotina.filter(r => r.id !== id);
-  salvarDadosLider();
-  renderDashboardAll();
-  mostrarToast('Registro removido.', 'info');
+async function excluirRotina(id) {
+  try {
+    await Api.excluirRotina(id);
+    STATE.rotina = STATE.rotina.filter(r => r.id !== id);
+    renderDashboardAll();
+    mostrarToast('Registro removido.', 'info');
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
 }
 
 function distribuicaoRotina() {
@@ -1724,10 +1934,16 @@ function renderGraficoDashIdeal() {
     <div class="ideal-soma ${soma !== 100 ? 'ideal-soma-alerta' : ''}">Soma: ${soma}%${soma !== 100 ? ' ⚠️ (ideal somar 100%)' : ' ✓'}</div>
   `;
   document.querySelectorAll('[data-ideal]').forEach(input => {
-    input.addEventListener('change', () => {
+    input.addEventListener('change', async () => {
       STATE.metaIdeal[input.dataset.ideal] = Number(input.value) || 0;
-      salvarDadosLider();
       renderGraficoDashIdeal();
+      try {
+        await Api.atualizarDashboardConfig({
+          idealOperacional: STATE.metaIdeal.operacional,
+          idealTatico: STATE.metaIdeal.tatico,
+          idealEstrategico: STATE.metaIdeal.estrategico,
+        });
+      } catch (err) { mostrarToast(err.message, 'error'); }
     });
   });
 }
@@ -1794,29 +2010,39 @@ function renderPlanoAcao() {
     </table>`;
 
   container.querySelectorAll('input[data-campo]').forEach(input => {
-    input.addEventListener('change', () => {
+    input.addEventListener('change', async () => {
       const id = input.closest('tr').dataset.id;
       const item = STATE.planoAcao.find(p => p.id === id);
-      if (item) { item[input.dataset.campo] = input.value; salvarDadosLider(); }
+      if (!item) return;
+      item[input.dataset.campo] = input.value;
+      try {
+        await Api.atualizarPlanoAcao(id, { acao: item.acao, comoFazer: item.comoFazer, impacto: item.impacto, prazo: item.prazo });
+      } catch (err) { mostrarToast(err.message, 'error'); }
     });
   });
 }
 
-function excluirLinhaPlanoAcao(id) {
-  STATE.planoAcao = STATE.planoAcao.filter(p => p.id !== id);
-  salvarDadosLider();
-  renderPlanoAcao();
+async function excluirLinhaPlanoAcao(id) {
+  try {
+    await Api.excluirPlanoAcao(id);
+    STATE.planoAcao = STATE.planoAcao.filter(p => p.id !== id);
+    renderPlanoAcao();
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
 }
 
 function initPlanoAcao() {
-  document.getElementById('btn-add-plano-acao').addEventListener('click', () => {
-    STATE.planoAcao.push({ id: gerarId(), acao: '', comoFazer: '', impacto: '', prazo: '' });
-    salvarDadosLider();
-    renderPlanoAcao();
+  document.getElementById('btn-add-plano-acao').addEventListener('click', async () => {
+    try {
+      const novo = mapPlanoAcao(await Api.criarPlanoAcao({ acao: '', comoFazer: '', impacto: '', prazo: '', ordem: STATE.planoAcao.length }));
+      STATE.planoAcao.push(novo);
+      renderPlanoAcao();
+    } catch (err) { mostrarToast(err.message, 'error'); }
   });
 }
 
-function renderChecklist(containerId, itens, stateObj) {
+function renderChecklist(containerId, itens, stateObj, campoApi) {
   const el = document.getElementById(containerId);
   el.innerHTML = itens.map(it => `
     <label class="checklist-item">
@@ -1825,9 +2051,11 @@ function renderChecklist(containerId, itens, stateObj) {
     </label>
   `).join('');
   el.querySelectorAll('input[type=checkbox]').forEach(cb => {
-    cb.addEventListener('change', () => {
+    cb.addEventListener('change', async () => {
       stateObj[cb.dataset.id] = cb.checked;
-      salvarDadosLider();
+      try {
+        await Api.atualizarDashboardConfig({ [campoApi]: stateObj });
+      } catch (err) { mostrarToast(err.message, 'error'); }
     });
   });
 }
@@ -1838,8 +2066,8 @@ function renderDashboardAll() {
   renderGraficoDashIdeal();
   renderGargalos();
   renderPlanoAcao();
-  renderChecklist('checklist-erros', ERROS_PLANEJAMENTO_ITENS, STATE.checklistErros);
-  renderChecklist('checklist-lider', CHECKLIST_LIDER_ITENS, STATE.checklistLider);
+  renderChecklist('checklist-erros', ERROS_PLANEJAMENTO_ITENS, STATE.checklistErros, 'checklistErros');
+  renderChecklist('checklist-lider', CHECKLIST_LIDER_ITENS, STATE.checklistLider, 'checklistLider');
 }
 
 // ============================================================
@@ -1855,13 +2083,12 @@ function renderTudo() {
   renderDashboardAll();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  migrarDadosLegado();
+document.addEventListener('DOMContentLoaded', async () => {
   initNavegacao();
   initTagButtons();
   initTagButtonsMulti();
-  initTelaPerfil();
   initSidebarToggle();
+  initTelaAuth();
 
   // Liderados
   initFormLiderado();
@@ -1889,13 +2116,10 @@ document.addEventListener('DOMContentLoaded', () => {
   initFormRotina();
   initPlanoAcao();
 
-  const ativoId = getPerfilAtivoId();
-  const perfis = carregarPerfis();
-  if (ativoId && perfis.some(p => p.id === ativoId)) {
-    carregarDadosLider(ativoId);
-    renderHeaderPerfil();
-    renderTudo();
+  carregarAuth();
+  if (AUTH.token && AUTH.user) {
+    await entrarNaSessao();
   } else {
-    abrirTelaPerfil();
+    mostrarTela('auth');
   }
 });
