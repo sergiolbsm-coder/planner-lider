@@ -650,6 +650,12 @@
         <form id="form-matriz" novalidate>
           <input type="hidden" id="m-id" value="" />
           <div class="form-group">
+            <label for="m-atividade-existente">Puxar de uma atividade já cadastrada (opcional)</label>
+            <select id="m-atividade-existente">
+              <option value="">— Escrever uma descrição nova —</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label for="m-titulo">Descrição da atividade / decisão *</label>
             <input type="text" id="m-titulo" placeholder="O que precisa ser feito ou decidido?" required />
           </div>
@@ -838,14 +844,29 @@
         <button class="btn-secondary btn-add-linha" id="btn-add-plano-acao">➕ Adicionar ação</button>
       </div>
 
-      <div class="dashboard-grid-2">
-        <div class="card">
-          <div class="card-header"><span class="card-icon">❌</span><h2>Erros de Planejamento</h2></div>
-          <div id="checklist-erros" class="checklist-lista"></div>
+      <div class="card">
+        <div class="card-header"><span class="card-icon">📅</span><h2>Reuniões & Feedbacks</h2></div>
+        <div class="stats-grid-3col">
+          <div class="stat-card"><div class="stat-num" id="reun-7dias">0</div><div class="stat-label">Últimos 7 dias</div></div>
+          <div class="stat-card"><div class="stat-num" id="reun-30dias">0</div><div class="stat-label">Últimos 30 dias</div></div>
+          <div class="stat-card"><div class="stat-num" id="reun-ano">0</div><div class="stat-label">Acumulado no ano</div></div>
         </div>
-        <div class="card">
-          <div class="card-header"><span class="card-icon">☑️</span><h2>Checklist do Líder Eficiente</h2></div>
-          <div id="checklist-lider" class="checklist-lista"></div>
+        <div id="dias-sem-reuniao-banner" class="diagnostico-box"></div>
+        <div class="ranking-conversas">
+          <div class="ranking-titulo">👥 Quem você mais conversou</div>
+          <div id="ranking-conversas-lista"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📈</span><h2>Autoavaliação Mensal</h2>
+          <input type="month" id="aa-mes" class="rt-data-input" />
+        </div>
+        <p class="autoavaliacao-intro">Responda com sinceridade uma vez por mês — isso alimenta a análise de melhoria da sua gestão, logo abaixo.</p>
+        <div id="autoavaliacao-itens"></div>
+        <div class="form-actions">
+          <button type="button" class="btn-primary" id="btn-gerar-analise">🔎 Gerar Análise de Melhoria e Feedback da Minha Gestão</button>
         </div>
       </div>
 
@@ -1012,6 +1033,22 @@
       <div class="modal-footer no-print">
         <button class="btn-secondary" id="modal-resumo-fechar">Fechar</button>
         <button class="btn-primary" id="modal-resumo-imprimir">🖨️ Imprimir / Salvar PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de análise de melhoria (autoavaliação mensal) -->
+  <div id="modal-analise" class="modal" style="display:none">
+    <div class="modal-overlay" id="modal-overlay-analise"></div>
+    <div class="modal-box modal-box-resumo">
+      <div class="modal-header no-print">
+        <h3>Análise de Melhoria</h3>
+        <button class="modal-close" id="modal-analise-close">✕</button>
+      </div>
+      <div class="modal-body" id="modal-analise-body"></div>
+      <div class="modal-footer no-print">
+        <button class="btn-secondary" id="modal-analise-fechar">Fechar</button>
+        <button class="btn-primary" id="modal-analise-imprimir">🖨️ Imprimir / Salvar PDF</button>
       </div>
     </div>
   </div>
