@@ -289,6 +289,20 @@ function mostrarToast(msg, tipo = 'success') {
   setTimeout(() => { toast.style.display = 'none'; }, 3000);
 }
 
+// Trava o botão e mostra um "girando" enquanto a chamada à API está em andamento
+// (a rede — e às vezes o servidor gratuito acordando — pode levar alguns segundos).
+// Uso: const restaurar = iniciarCarregamentoBotao(botao, 'Salvando...'); try {...} finally { restaurar(); }
+function iniciarCarregamentoBotao(botao, textoTemporario) {
+  if (!botao) return () => {};
+  const original = botao.innerHTML;
+  botao.disabled = true;
+  botao.innerHTML = `<span class="spinner-inline"></span> ${textoTemporario}`;
+  return () => {
+    botao.disabled = false;
+    botao.innerHTML = original;
+  };
+}
+
 // ============================================================
 // TELAS — auth / carregando / líder / liderado
 // ============================================================
@@ -653,6 +667,7 @@ function initFormLiderado() {
     };
 
     const id = document.getElementById('l-id').value;
+    const restaurar = iniciarCarregamentoBotao(form.querySelector('button[type=submit]'), 'Salvando...');
     try {
       if (id) {
         const atualizado = mapLiderado(await Api.atualizarLiderado(id, dadosComuns));
@@ -669,6 +684,8 @@ function initFormLiderado() {
       resetFormLiderado();
     } catch (err) {
       mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
     }
   });
 
@@ -851,6 +868,7 @@ function initFormConhecer() {
       comportamentos: document.getElementById('dc-comportamentos').value.trim(),
       sentimentos: document.getElementById('dc-sentimentos').value.trim(),
     };
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
     try {
       const atualizado = mapLiderado(await Api.atualizarLiderado(id, dados));
       const idx = STATE.liderados.findIndex(l => l.id === id);
@@ -859,6 +877,8 @@ function initFormConhecer() {
       mostrarToast('Perfil do liderado atualizado!');
     } catch (err) {
       mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
     }
   });
 }
@@ -903,6 +923,7 @@ function initFormRegistroDiario() {
       return;
     }
 
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Registrando...');
     try {
       const novo = mapDiario(await Api.criarRegistroDiario({
         liderado_id: STATE.diarioSelecionadoId, tipo,
@@ -924,6 +945,8 @@ function initFormRegistroDiario() {
       carregarEstatisticasDiario();
     } catch (err) {
       mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
     }
   });
 }
@@ -1394,6 +1417,7 @@ function initFormAtividade() {
     };
 
     const id = document.getElementById('a-id').value;
+    const restaurar = iniciarCarregamentoBotao(form.querySelector('button[type=submit]'), 'Salvando...');
     try {
       if (id) {
         const atualizada = mapAtividade(await Api.atualizarAtividade(id, dados));
@@ -1410,6 +1434,8 @@ function initFormAtividade() {
       resetFormAtividade();
     } catch (err) {
       mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
     }
   });
 
@@ -1492,6 +1518,7 @@ function initModalAtividade() {
       obs: document.getElementById('ma-obs').value.trim(),
     };
 
+    const restaurar = iniciarCarregamentoBotao(document.getElementById('modal-atividade-salvar'), 'Salvando...');
     try {
       const atualizada = mapAtividade(await Api.atualizarAtividade(id, dados));
       const idx = STATE.atividades.findIndex(a => a.id === id);
@@ -1502,6 +1529,8 @@ function initModalAtividade() {
       mostrarToast('Atividade atualizada com sucesso!');
     } catch (err) {
       mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
     }
   });
 }
@@ -1621,6 +1650,7 @@ function initFormMeta() {
     };
 
     const id = document.getElementById('me-id').value;
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
     try {
       if (id) {
         const atualizada = mapMeta(await Api.atualizarMeta(id, dados));
@@ -1636,6 +1666,8 @@ function initFormMeta() {
       resetFormMeta();
     } catch (err) {
       mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
     }
   });
 
@@ -1757,6 +1789,7 @@ function initFormMatriz() {
 
     const dados = { titulo, resultado, esforco, obs: document.getElementById('m-obs').value.trim() };
     const id = document.getElementById('m-id').value;
+    const restaurar = iniciarCarregamentoBotao(form.querySelector('button[type=submit]'), 'Salvando...');
     try {
       if (id) {
         const atualizado = mapMatriz(await Api.atualizarMatriz(id, dados));
@@ -1773,6 +1806,8 @@ function initFormMatriz() {
       resetFormMatriz();
     } catch (err) {
       mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
     }
   });
 
@@ -1871,6 +1906,7 @@ function initFormRotina() {
     if (!tipo) { mostrarToast('Selecione o tipo da atividade.', 'error'); return; }
     if (fim <= inicio) { mostrarToast('O horário de fim deve ser depois do início.', 'error'); return; }
 
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
     try {
       const novo = mapRotina(await Api.criarRotina({
         data: document.getElementById('rt-data').value || hojeISO(),
@@ -1890,6 +1926,8 @@ function initFormRotina() {
       mostrarToast('Registrado na rotina do dia!');
     } catch (err) {
       mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
     }
   });
 }
