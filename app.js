@@ -21,8 +21,7 @@ const STATE = {
   diarioSelecionadoId: null,
   metaIdeal: { operacional: 30, tatico: 40, estrategico: 30 },
   planoAcao: [],
-  checklistErros: {},
-  checklistLider: {},
+  estatisticasDiario: null,
   filtroResultado: 'todos',
   filtroTipo: 'todos',
   filtroResponsavel: 'todos',
@@ -36,8 +35,9 @@ const STATE = {
 };
 
 // ============================================================
-// LISTAS FIXAS (checklists e seeds)
+// LISTAS FIXAS — itens da Autoavaliação Mensal e seeds
 // ============================================================
+// "Sim" aqui = o erro está presente (é um ponto de atenção).
 const ERROS_PLANEJAMENTO_ITENS = [
   { id: 'reativo', texto: 'Dia reagindo a demandas, não proativo.' },
   { id: 'sem-blocos', texto: 'Falta de blocos de tempo para atividades estratégicas.' },
@@ -46,6 +46,7 @@ const ERROS_PLANEJAMENTO_ITENS = [
   { id: 'sem-rotina', texto: 'Não há rotina de acompanhamento e melhoria.' },
 ];
 
+// "Sim" aqui = a boa prática já está presente (ponto forte).
 const CHECKLIST_LIDER_ITENS = [
   { id: 'clareza-prioridades', texto: 'Tenho clareza das prioridades da minha área e da organização.' },
   { id: 'tempo-estrategico', texto: 'Estou dedicando tempo suficiente ao que é estratégico.' },
@@ -56,6 +57,23 @@ const CHECKLIST_LIDER_ITENS = [
   { id: 'elimina-automatiza', texto: 'Elimino ou automatizo atividades que não geram valor.' },
   { id: 'planeja-dia', texto: 'Planejo meu dia com foco no que realmente importa.' },
 ];
+
+// Dica de melhoria mostrada na Análise quando o item indica um ponto de atenção.
+const DICAS_MELHORIA = {
+  'reativo': 'Reserve os primeiros 30 minutos do dia pra planejar as prioridades antes de responder a demandas.',
+  'sem-blocos': 'Bloqueie ao menos 2 horas semanais fixas na agenda só pra atividades estratégicas, sem interrupções.',
+  'sem-priorizacao': 'Use a Matriz de Prioridades toda semana pra decidir o que fazer, planejar, delegar ou eliminar.',
+  'sem-delegacao': 'Escolha 1 atividade essa semana pra delegar, com um combinado claro de expectativa e prazo.',
+  'sem-rotina': 'Reserve 15 minutos toda sexta pra revisar o que funcionou e o que precisa mudar na semana.',
+  'clareza-prioridades': 'Alinhe com sua liderança quais são as 3 prioridades da área pro próximo trimestre.',
+  'tempo-estrategico': 'Reserve tempo fixo na agenda pra atividades estratégicas antes que a operação tome tudo.',
+  'delega-confia': 'Identifique uma pessoa da equipe pronta pra assumir mais responsabilidade e converse sobre isso.',
+  'reunioes-pauta': 'Antes de marcar a próxima reunião, defina pauta, objetivo e o resultado esperado.',
+  'indicadores': 'Escolha 1 indicador da sua área pra acompanhar semanalmente e decidir com base nele.',
+  'desenvolve-pessoas': 'Agende ao menos um 1:1 de desenvolvimento com um liderado esse mês.',
+  'elimina-automatiza': 'Liste uma atividade repetitiva que poderia ser eliminada, simplificada ou automatizada.',
+  'planeja-dia': 'Comece o dia revisando sua agenda e ajustando o que for preciso antes de mergulhar nas tarefas.',
+};
 
 const RISCOS_LABELS = {
   sobrecarga: '😓 Sobrecarga',
@@ -170,6 +188,11 @@ const Api = {
 
   getDashboardConfig: () => api('/dashboard-config'),
   atualizarDashboardConfig: dados => api('/dashboard-config', { method: 'PUT', body: JSON.stringify(dados) }),
+
+  estatisticasDiario: () => api('/diario/estatisticas'),
+
+  obterAutoavaliacao: mesRef => api('/autoavaliacoes/' + mesRef),
+  salvarAutoavaliacao: (mesRef, respostas) => api('/autoavaliacoes/' + mesRef, { method: 'PUT', body: JSON.stringify({ respostas }) }),
 };
 
 // ---- mapeia linhas da API (snake_case) pro formato usado nas telas ----
@@ -358,7 +381,7 @@ function sair() {
   limparAuth();
   STATE.liderados = []; STATE.atividades = []; STATE.matriz = []; STATE.metas = [];
   STATE.diario = []; STATE.diarioResumoEquipe = []; STATE.rotina = []; STATE.planoAcao = [];
-  STATE.checklistErros = {}; STATE.checklistLider = {};
+  STATE.estatisticasDiario = null;
   STATE.meuPerfil = null; STATE.minhasAtividades = []; STATE.minhasMetas = []; STATE.meusFeedbacks = [];
   document.getElementById('form-login').reset();
   document.getElementById('auth-erro').style.display = 'none';
@@ -378,8 +401,6 @@ async function carregarTudoLider() {
     STATE.rotina = rotina.map(mapRotina);
     STATE.planoAcao = planoAcao.map(mapPlanoAcao);
     STATE.metaIdeal = { operacional: config.ideal_operacional, tatico: config.ideal_tatico, estrategico: config.ideal_estrategico };
-    STATE.checklistErros = config.checklist_erros || {};
-    STATE.checklistLider = config.checklist_lider || {};
     STATE.diario = [];
     STATE.diarioSelecionadoId = null;
 
@@ -387,6 +408,8 @@ async function carregarTudoLider() {
     catch (e) { STATE.diarioResumoEquipe = []; }
 
     renderTudo();
+    await carregarEstatisticasDiario();
+    await carregarAutoavaliacaoDoMes();
   } catch (err) {
     mostrarToast(err.message, 'error');
   }
@@ -898,6 +921,7 @@ function initFormRegistroDiario() {
       setTagValue('registro-tipo', 'observacao');
       atualizarPillUltimoFeedback(STATE.diarioSelecionadoId);
       mostrarToast(tipo === 'feedback' ? 'Feedback lançado com sucesso!' : 'Registro adicionado ao diário de bordo!');
+      carregarEstatisticasDiario();
     } catch (err) {
       mostrarToast(err.message, 'error');
     }
@@ -915,6 +939,7 @@ async function excluirRegistroDiario(id) {
     renderDiarioEquipe();
     atualizarPillUltimoFeedback(STATE.diarioSelecionadoId);
     mostrarToast('Registro removido.', 'info');
+    carregarEstatisticasDiario();
   } catch (err) {
     mostrarToast(err.message, 'error');
   }
@@ -1258,6 +1283,7 @@ function renderAtividades() {
 
   renderKanban();
   popularSelectsMeta();
+  popularSelectAtividadeMatriz();
 }
 
 function renderKanban() {
@@ -1699,6 +1725,24 @@ function renderMatriz() {
   });
 }
 
+function popularSelectAtividadeMatriz() {
+  const select = document.getElementById('m-atividade-existente');
+  const atual = select.value;
+  select.innerHTML = '<option value="">— Escrever uma descrição nova —</option>' +
+    STATE.atividades.map(a => `<option value="${a.id}">${a.titulo}</option>`).join('');
+  select.value = atual;
+}
+
+function initSelectAtividadeMatriz() {
+  document.getElementById('m-atividade-existente').addEventListener('change', e => {
+    const a = STATE.atividades.find(x => x.id === e.target.value);
+    if (!a) return;
+    document.getElementById('m-titulo').value = a.titulo;
+    if (a.resultado === 'alto' || a.resultado === 'baixo') setTagValue('m-resultado', a.resultado);
+    if (a.obs) document.getElementById('m-obs').value = a.obs;
+  });
+}
+
 function initFormMatriz() {
   const form = document.getElementById('form-matriz');
   form.addEventListener('submit', async e => {
@@ -2042,32 +2086,190 @@ function initPlanoAcao() {
   });
 }
 
-function renderChecklist(containerId, itens, stateObj, campoApi) {
-  const el = document.getElementById(containerId);
-  el.innerHTML = itens.map(it => `
-    <label class="checklist-item">
-      <input type="checkbox" data-id="${it.id}" ${stateObj[it.id] ? 'checked' : ''} />
-      <span>${it.texto}</span>
-    </label>
-  `).join('');
-  el.querySelectorAll('input[type=checkbox]').forEach(cb => {
-    cb.addEventListener('change', async () => {
-      stateObj[cb.dataset.id] = cb.checked;
-      try {
-        await Api.atualizarDashboardConfig({ [campoApi]: stateObj });
-      } catch (err) { mostrarToast(err.message, 'error'); }
-    });
-  });
-}
-
 function renderDashboardAll() {
   renderTabelaRotina();
   renderGraficoDashAtual();
   renderGraficoDashIdeal();
   renderGargalos();
   renderPlanoAcao();
-  renderChecklist('checklist-erros', ERROS_PLANEJAMENTO_ITENS, STATE.checklistErros, 'checklistErros');
-  renderChecklist('checklist-lider', CHECKLIST_LIDER_ITENS, STATE.checklistLider, 'checklistLider');
+}
+
+// ============================================================
+// REUNIÕES & FEEDBACKS (estatísticas do Diário de Bordo)
+// ============================================================
+async function carregarEstatisticasDiario() {
+  try {
+    STATE.estatisticasDiario = await Api.estatisticasDiario();
+  } catch (err) {
+    STATE.estatisticasDiario = null;
+  }
+  renderReunioesStats();
+}
+
+function renderReunioesStats() {
+  const e = STATE.estatisticasDiario;
+  document.getElementById('reun-7dias').textContent = e ? e.ultimos7Dias : '—';
+  document.getElementById('reun-30dias').textContent = e ? e.ultimos30Dias : '—';
+  document.getElementById('reun-ano').textContent = e ? e.acumuladoAno : '—';
+
+  const banner = document.getElementById('dias-sem-reuniao-banner');
+  if (!e || e.diasSemReuniao === null) {
+    banner.innerHTML = '💡 Registre uma conversa no Diário de Bordo pra começar a acompanhar sua frequência com o time.';
+  } else if (e.diasSemReuniao === 0) {
+    banner.innerHTML = '✅ Você registrou uma conversa com o time hoje.';
+  } else if (e.diasSemReuniao <= 7) {
+    banner.innerHTML = `💡 Já são <strong>${e.diasSemReuniao} dia${e.diasSemReuniao !== 1 ? 's' : ''}</strong> sem registrar uma conversa com o time.`;
+  } else {
+    banner.innerHTML = `⚠️ Já são <strong>${e.diasSemReuniao} dias</strong> sem registrar uma conversa com o time — pode ser hora de agendar um 1:1.`;
+  }
+
+  const lista = document.getElementById('ranking-conversas-lista');
+  if (!e || e.porLiderado.length === 0) {
+    lista.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><p>Cadastre liderados pra acompanhar aqui.</p></div>`;
+    return;
+  }
+  const max = Math.max(1, ...e.porLiderado.map(p => p.total));
+  lista.innerHTML = e.porLiderado.map(p => `
+    <div class="ranking-item">
+      <span class="ranking-nome">${p.nome}</span>
+      <div class="ranking-barra"><div class="ranking-barra-fill" style="width:${(p.total / max) * 100}%"></div></div>
+      <span class="ranking-total ${p.total === 0 ? 'zero' : ''}">${p.total === 0 ? 'Nenhuma ainda' : p.total + ' conversa' + (p.total !== 1 ? 's' : '')}</span>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// AUTOAVALIAÇÃO MENSAL + ANÁLISE DE MELHORIA
+// ============================================================
+function mesAtualISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+}
+
+function todosItensAutoavaliacao() {
+  return [...ERROS_PLANEJAMENTO_ITENS, ...CHECKLIST_LIDER_ITENS];
+}
+
+function renderAutoavaliacaoItens() {
+  document.getElementById('autoavaliacao-itens').innerHTML = todosItensAutoavaliacao().map(it => `
+    <div class="autoavaliacao-item">
+      <span class="autoavaliacao-texto">${it.texto}</span>
+      <div class="btn-group">
+        <button type="button" class="tag-btn" data-group="aa-${it.id}" data-value="sim">Sim</button>
+        <button type="button" class="tag-btn" data-group="aa-${it.id}" data-value="nao">Não</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function preencherRespostasAutoavaliacao(respostas) {
+  todosItensAutoavaliacao().forEach(it => {
+    const v = respostas[it.id];
+    setTagValue('aa-' + it.id, v === true ? 'sim' : v === false ? 'nao' : '');
+  });
+}
+
+function lerRespostasAutoavaliacao() {
+  const respostas = {};
+  todosItensAutoavaliacao().forEach(it => {
+    const v = getTagValue('aa-' + it.id);
+    if (v) respostas[it.id] = v === 'sim';
+  });
+  return respostas;
+}
+
+async function carregarAutoavaliacaoDoMes() {
+  const mes = document.getElementById('aa-mes').value || mesAtualISO();
+  try {
+    const dados = await Api.obterAutoavaliacao(mes);
+    preencherRespostasAutoavaliacao(dados.respostas || {});
+  } catch (err) {
+    preencherRespostasAutoavaliacao({});
+  }
+}
+
+let autoavaliacaoSalvarTimeout = null;
+function agendarSalvarAutoavaliacao() {
+  clearTimeout(autoavaliacaoSalvarTimeout);
+  autoavaliacaoSalvarTimeout = setTimeout(async () => {
+    const mes = document.getElementById('aa-mes').value || mesAtualISO();
+    try {
+      await Api.salvarAutoavaliacao(mes, lerRespostasAutoavaliacao());
+    } catch (err) { mostrarToast(err.message, 'error'); }
+  }, 400);
+}
+
+function initAutoavaliacao() {
+  renderAutoavaliacaoItens();
+  document.getElementById('aa-mes').value = mesAtualISO();
+  document.getElementById('aa-mes').addEventListener('change', carregarAutoavaliacaoDoMes);
+  document.getElementById('autoavaliacao-itens').addEventListener('click', e => {
+    if (e.target.closest('.tag-btn')) agendarSalvarAutoavaliacao();
+  });
+  document.getElementById('btn-gerar-analise').addEventListener('click', gerarAnaliseMelhoria);
+
+  document.getElementById('modal-analise-close').addEventListener('click', fecharModalAnalise);
+  document.getElementById('modal-overlay-analise').addEventListener('click', fecharModalAnalise);
+  document.getElementById('modal-analise-fechar').addEventListener('click', fecharModalAnalise);
+  document.getElementById('modal-analise-imprimir').addEventListener('click', () => window.print());
+}
+
+function fecharModalAnalise() {
+  document.getElementById('modal-analise').style.display = 'none';
+}
+
+async function gerarAnaliseMelhoria() {
+  const mes = document.getElementById('aa-mes').value || mesAtualISO();
+  const respostas = lerRespostasAutoavaliacao();
+
+  const pontosAtencao = [];
+  const pontosPositivos = [];
+
+  ERROS_PLANEJAMENTO_ITENS.forEach(it => {
+    if (respostas[it.id] === true) pontosAtencao.push({ texto: it.texto, dica: DICAS_MELHORIA[it.id] });
+    else if (respostas[it.id] === false) pontosPositivos.push(`Não tem caído nisso: "${it.texto}"`);
+  });
+  CHECKLIST_LIDER_ITENS.forEach(it => {
+    if (respostas[it.id] === false) pontosAtencao.push({ texto: it.texto, dica: DICAS_MELHORIA[it.id] });
+    else if (respostas[it.id] === true) pontosPositivos.push(it.texto);
+  });
+
+  let estat = null;
+  try { estat = await Api.estatisticasDiario(); } catch (err) { /* segue sem essa parte */ }
+
+  const [ano, mesNum] = mes.split('-');
+  const mesLabel = new Date(Number(ano), Number(mesNum) - 1, 1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+
+  const html = `
+    <div class="resumo-cabecalho">
+      <h2>Análise de Melhoria — ${mesLabel}</h2>
+      <p class="resumo-periodo-label">Gerado em ${formatarData(hojeISO())}</p>
+    </div>
+
+    ${estat ? `
+    <div class="detalhe-secao">
+      <div class="detalhe-secao-titulo">📅 Como anda sua conexão com o time</div>
+      <p>${estat.ultimos30Dias} conversa(s)/feedback(s) nos últimos 30 dias · ${estat.acumuladoAno} no acumulado do ano.</p>
+      <p>${estat.diasSemReuniao === null ? 'Você ainda não registrou nenhuma conversa com o time — comece pelo Diário de Bordo.' : estat.diasSemReuniao === 0 ? 'Você registrou uma conversa com o time hoje. 👏' : `Já são <strong>${estat.diasSemReuniao} dia${estat.diasSemReuniao !== 1 ? 's' : ''}</strong> sem registrar uma conversa com o time.`}</p>
+    </div>` : ''}
+
+    <div class="detalhe-secao">
+      <div class="detalhe-secao-titulo">⚠️ Pontos de atenção (${pontosAtencao.length})</div>
+      ${pontosAtencao.length === 0
+        ? '<p>Nenhum ponto de atenção identificado nas respostas deste mês. 🎉</p>'
+        : pontosAtencao.map(p => `<div class="analise-item"><span class="analise-item-icon">💡</span><div><strong>${p.texto}</strong><br>${p.dica}</div></div>`).join('')}
+    </div>
+
+    <div class="detalhe-secao">
+      <div class="detalhe-secao-titulo">✅ Pontos fortes (${pontosPositivos.length})</div>
+      ${pontosPositivos.length === 0
+        ? '<p>Responda a autoavaliação do mês pra ver seus pontos fortes aqui.</p>'
+        : pontosPositivos.map(t => `<div class="analise-item positivo"><span class="analise-item-icon">✅</span><div>${t}</div></div>`).join('')}
+    </div>
+  `;
+
+  document.getElementById('modal-analise-body').innerHTML = html;
+  document.getElementById('modal-analise').style.display = 'flex';
 }
 
 // ============================================================
@@ -2111,10 +2313,12 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Matriz
   initFormMatriz();
+  initSelectAtividadeMatriz();
 
   // Dashboard
   initFormRotina();
   initPlanoAcao();
+  initAutoavaliacao();
 
   carregarAuth();
   if (AUTH.token && AUTH.user) {
