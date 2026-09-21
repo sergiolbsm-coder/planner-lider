@@ -22,6 +22,8 @@ const STATE = {
   metaIdeal: { operacional: 30, tatico: 40, estrategico: 30 },
   planoAcao: [],
   estatisticasDiario: null,
+  arquivos: [],        // arquivos da aula que o líder subiu
+  arquivosTurma: [],   // (visão do liderado) arquivos disponibilizados pelo seu líder
   filtroResultado: 'todos',
   filtroTipo: 'todos',
   filtroResponsavel: 'todos',
@@ -193,6 +195,21 @@ const Api = {
 
   obterAutoavaliacao: mesRef => api('/autoavaliacoes/' + mesRef),
   salvarAutoavaliacao: (mesRef, respostas) => api('/autoavaliacoes/' + mesRef, { method: 'PUT', body: JSON.stringify({ respostas }) }),
+
+  listarArquivos: () => api('/arquivos'),
+  listarArquivosTurma: () => api('/arquivos/minha-turma'),
+  excluirArquivo: id => api('/arquivos/' + id, { method: 'DELETE' }),
+  // Upload é multipart — não passa pelo helper api() (que sempre manda Content-Type: application/json).
+  enviarArquivo: async formData => {
+    const res = await fetch(API_BASE + '/arquivos', {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + AUTH.token },
+      body: formData,
+    });
+    const corpo = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((corpo && corpo.erro) || `Erro ${res.status}.`);
+    return corpo;
+  },
 };
 
 // ---- mapeia linhas da API (snake_case) pro formato usado nas telas ----
@@ -239,6 +256,9 @@ function mapPlanoAcao(p) {
 function mapFeedback(f) {
   return { id: f.id, data: String(f.data).slice(0, 10), conversa: f.conversa || '', plano: f.plano || '', criadoEm: f.criado_em };
 }
+function mapArquivo(a) {
+  return { id: a.id, nome: a.nome, descricao: a.descricao || '', tipoMime: a.tipo_mime, tamanhoBytes: Number(a.tamanho_bytes), criadoEm: a.criado_em };
+}
 
 // ============================================================
 // UTILITÁRIOS
@@ -279,6 +299,47 @@ function iniciaisNome(nome) {
 function truncar(texto, n = 60) {
   if (!texto) return '';
   return texto.length > n ? texto.slice(0, n).trim() + '…' : texto;
+}
+
+function formatarTamanho(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(0) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+}
+
+function iconeArquivo(tipoMime) {
+  if (!tipoMime) return '📄';
+  if (tipoMime.includes('pdf')) return '📕';
+  if (tipoMime.includes('presentation') || tipoMime.includes('powerpoint')) return '📊';
+  if (tipoMime.includes('sheet') || tipoMime.includes('excel')) return '📗';
+  if (tipoMime.includes('word') || tipoMime.includes('document')) return '📘';
+  if (tipoMime.startsWith('image/')) return '🖼️';
+  if (tipoMime.startsWith('video/')) return '🎬';
+  if (tipoMime.startsWith('audio/')) return '🎧';
+  if (tipoMime.includes('zip') || tipoMime.includes('compressed')) return '🗜️';
+  return '📄';
+}
+
+// Baixa o arquivo via fetch (pra levar o Authorization) e dispara o download
+// como se fosse um link normal — usado tanto no líder quanto no liderado.
+async function baixarArquivo(id, nome) {
+  try {
+    const res = await fetch(API_BASE + '/arquivos/' + id + '/download', {
+      headers: { Authorization: 'Bearer ' + AUTH.token },
+    });
+    if (!res.ok) throw new Error('Não foi possível baixar o arquivo.');
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = nome;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
 }
 
 function mostrarToast(msg, tipo = 'success') {
@@ -396,6 +457,7 @@ function sair() {
   STATE.liderados = []; STATE.atividades = []; STATE.matriz = []; STATE.metas = [];
   STATE.diario = []; STATE.diarioResumoEquipe = []; STATE.rotina = []; STATE.planoAcao = [];
   STATE.estatisticasDiario = null;
+  STATE.arquivos = []; STATE.arquivosTurma = [];
   STATE.meuPerfil = null; STATE.minhasAtividades = []; STATE.minhasMetas = []; STATE.meusFeedbacks = [];
   document.getElementById('form-login').reset();
   document.getElementById('auth-erro').style.display = 'none';
@@ -424,6 +486,7 @@ async function carregarTudoLider() {
     renderTudo();
     await carregarEstatisticasDiario();
     await carregarAutoavaliacaoDoMes();
+    await carregarArquivos();
   } catch (err) {
     mostrarToast(err.message, 'error');
   }
@@ -439,6 +502,7 @@ async function carregarTudoLiderado() {
     STATE.minhasMetas = metas.map(mapMeta);
     STATE.meusFeedbacks = feedbacks.map(mapFeedback);
     renderVisaoLiderado();
+    await carregarArquivosTurma();
   } catch (err) {
     mostrarToast(err.message, 'error');
   }
@@ -2311,6 +2375,112 @@ async function gerarAnaliseMelhoria() {
 }
 
 // ============================================================
+// MÓDULO NOVO — ARQUIVOS DA AULA
+// ============================================================
+async function carregarArquivos() {
+  try {
+    STATE.arquivos = (await Api.listarArquivos()).map(mapArquivo);
+  } catch (err) {
+    STATE.arquivos = [];
+  }
+  renderArquivos();
+}
+
+function renderArquivos() {
+  document.getElementById('badge-total-arquivos').textContent = STATE.arquivos.length;
+  const container = document.getElementById('lista-arquivos');
+  if (STATE.arquivos.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><p>Nenhum arquivo enviado ainda.</p></div>`;
+    return;
+  }
+  container.innerHTML = STATE.arquivos.map(a => `
+    <div class="arquivo-item">
+      <span class="arquivo-icone">${iconeArquivo(a.tipoMime)}</span>
+      <div class="arquivo-info">
+        <div class="arquivo-nome">${a.nome}</div>
+        <div class="arquivo-meta">${formatarTamanho(a.tamanhoBytes)} · enviado em ${formatarData(a.criadoEm?.split('T')[0])}</div>
+        ${a.descricao ? `<div class="arquivo-desc">${a.descricao}</div>` : ''}
+      </div>
+      <div class="arquivo-acoes">
+        <button class="btn-icon" title="Baixar" onclick="baixarArquivo('${a.id}', ${JSON.stringify(a.nome)})">⬇️</button>
+        <button class="btn-icon btn-icon-danger" title="Excluir" onclick="excluirArquivo('${a.id}')">🗑️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+function initFormArquivo() {
+  document.getElementById('form-arquivo').addEventListener('submit', async e => {
+    e.preventDefault();
+    const input = document.getElementById('ar-arquivo');
+    const arquivo = input.files[0];
+    if (!arquivo) { mostrarToast('Selecione um arquivo.', 'error'); return; }
+    if (arquivo.size > 20 * 1024 * 1024) { mostrarToast('Arquivo maior que o limite de 20MB.', 'error'); return; }
+
+    const formData = new FormData();
+    formData.append('arquivo', arquivo);
+    formData.append('nome', document.getElementById('ar-nome').value.trim());
+    formData.append('descricao', document.getElementById('ar-descricao').value.trim());
+
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Enviando...');
+    try {
+      const novo = mapArquivo(await Api.enviarArquivo(formData));
+      STATE.arquivos.unshift(novo);
+      renderArquivos();
+      document.getElementById('form-arquivo').reset();
+      mostrarToast('Arquivo enviado! Já está disponível pra turma.');
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
+    }
+  });
+}
+
+async function excluirArquivo(id) {
+  if (!confirm('Excluir este arquivo? A turma deixará de vê-lo.')) return;
+  try {
+    await Api.excluirArquivo(id);
+    STATE.arquivos = STATE.arquivos.filter(a => a.id !== id);
+    renderArquivos();
+    mostrarToast('Arquivo removido.', 'info');
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
+}
+
+async function carregarArquivosTurma() {
+  try {
+    STATE.arquivosTurma = (await Api.listarArquivosTurma()).map(mapArquivo);
+  } catch (err) {
+    STATE.arquivosTurma = [];
+  }
+  renderArquivosTurma();
+}
+
+function renderArquivosTurma() {
+  document.getElementById('badge-arquivos-turma').textContent = STATE.arquivosTurma.length;
+  const container = document.getElementById('lista-arquivos-turma');
+  if (STATE.arquivosTurma.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><p>Nenhum material disponível ainda.</p></div>`;
+    return;
+  }
+  container.innerHTML = STATE.arquivosTurma.map(a => `
+    <div class="arquivo-item">
+      <span class="arquivo-icone">${iconeArquivo(a.tipoMime)}</span>
+      <div class="arquivo-info">
+        <div class="arquivo-nome">${a.nome}</div>
+        <div class="arquivo-meta">${formatarTamanho(a.tamanhoBytes)} · ${formatarData(a.criadoEm?.split('T')[0])}</div>
+        ${a.descricao ? `<div class="arquivo-desc">${a.descricao}</div>` : ''}
+      </div>
+      <div class="arquivo-acoes">
+        <button class="btn-icon" title="Baixar" onclick="baixarArquivo('${a.id}', ${JSON.stringify(a.nome)})">⬇️</button>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
 // RENDERIZAÇÃO GERAL / INICIALIZAÇÃO
 // ============================================================
 function renderTudo() {
@@ -2357,6 +2527,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   initFormRotina();
   initPlanoAcao();
   initAutoavaliacao();
+
+  // Arquivos da Aula
+  initFormArquivo();
 
   carregarAuth();
   if (AUTH.token && AUTH.user) {
