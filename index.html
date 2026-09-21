@@ -881,21 +881,32 @@
       </div>
 
       <div class="card form-card">
-        <div class="card-header"><span class="card-icon">➕</span><h2>Enviar Arquivo</h2></div>
+        <div class="card-header">
+          <span class="card-icon">➕</span>
+          <h2 id="arquivo-form-title">Enviar Arquivo</h2>
+        </div>
         <form id="form-arquivo" novalidate>
-          <div class="form-group">
+          <input type="hidden" id="ar-id" value="" />
+          <div class="form-group" id="grupo-ar-arquivo">
             <label for="ar-arquivo">Arquivo * <span class="label-hint">(máx. 20MB)</span></label>
-            <input type="file" id="ar-arquivo" required />
+            <input type="file" id="ar-arquivo" />
           </div>
+          <p class="label-hint" id="ar-arquivo-hint" style="display:none">Pra trocar o conteúdo do arquivo, exclua este e envie de novo — aqui dá pra ajustar nome, pasta e descrição.</p>
           <div class="form-group">
             <label for="ar-nome">Nome de exibição</label>
             <input type="text" id="ar-nome" placeholder="Deixe em branco pra usar o nome do arquivo" />
+          </div>
+          <div class="form-group">
+            <label for="ar-pasta">Pasta <span class="label-hint">(opcional — agrupa os materiais)</span></label>
+            <input type="text" id="ar-pasta" list="lista-pastas" placeholder="Ex: Módulo 1, Aula 03..." />
+            <datalist id="lista-pastas"></datalist>
           </div>
           <div class="form-group">
             <label for="ar-descricao">Descrição</label>
             <textarea id="ar-descricao" rows="2" placeholder="Do que se trata esse material..."></textarea>
           </div>
           <div class="form-actions">
+            <button type="button" id="btn-cancelar-arquivo" class="btn-secondary" style="display:none">Cancelar</button>
             <button type="submit" class="btn-primary">⬆️ Enviar</button>
           </div>
         </form>

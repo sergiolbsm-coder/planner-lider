@@ -198,6 +198,7 @@ const Api = {
 
   listarArquivos: () => api('/arquivos'),
   listarArquivosTurma: () => api('/arquivos/minha-turma'),
+  atualizarArquivo: (id, dados) => api('/arquivos/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
   excluirArquivo: id => api('/arquivos/' + id, { method: 'DELETE' }),
   // Upload é multipart — não passa pelo helper api() (que sempre manda Content-Type: application/json).
   enviarArquivo: async formData => {
@@ -257,7 +258,7 @@ function mapFeedback(f) {
   return { id: f.id, data: String(f.data).slice(0, 10), conversa: f.conversa || '', plano: f.plano || '', criadoEm: f.criado_em };
 }
 function mapArquivo(a) {
-  return { id: a.id, nome: a.nome, descricao: a.descricao || '', tipoMime: a.tipo_mime, tamanhoBytes: Number(a.tamanho_bytes), criadoEm: a.criado_em };
+  return { id: a.id, nome: a.nome, descricao: a.descricao || '', pasta: a.pasta || '', tipoMime: a.tipo_mime, tamanhoBytes: Number(a.tamanho_bytes), criadoEm: a.criado_em };
 }
 
 // ============================================================
@@ -2386,55 +2387,131 @@ async function carregarArquivos() {
   renderArquivos();
 }
 
-function renderArquivos() {
-  document.getElementById('badge-total-arquivos').textContent = STATE.arquivos.length;
-  const container = document.getElementById('lista-arquivos');
-  if (STATE.arquivos.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><p>Nenhum arquivo enviado ainda.</p></div>`;
-    return;
-  }
-  container.innerHTML = STATE.arquivos.map(a => `
+// Agrupa por pasta preservando a ordem de chegada (mais recente primeiro,
+// já que a API devolve ORDER BY criado_em DESC) — "Sem pasta" sempre por último.
+function agruparPorPasta(lista) {
+  const grupos = new Map();
+  lista.forEach(a => {
+    const chave = a.pasta || '';
+    if (!grupos.has(chave)) grupos.set(chave, []);
+    grupos.get(chave).push(a);
+  });
+  const nomeadas = [...grupos.keys()].filter(k => k).sort((x, y) => x.localeCompare(y, 'pt-BR'));
+  const ordem = grupos.has('') ? [...nomeadas, ''] : nomeadas;
+  return ordem.map(chave => ({ pasta: chave || 'Sem pasta', itens: grupos.get(chave) }));
+}
+
+function htmlItemArquivo(a, comAcoesLider) {
+  return `
     <div class="arquivo-item">
       <span class="arquivo-icone">${iconeArquivo(a.tipoMime)}</span>
       <div class="arquivo-info">
         <div class="arquivo-nome">${a.nome}</div>
-        <div class="arquivo-meta">${formatarTamanho(a.tamanhoBytes)} · enviado em ${formatarData(a.criadoEm?.split('T')[0])}</div>
+        <div class="arquivo-meta">${formatarTamanho(a.tamanhoBytes)} · ${formatarData(a.criadoEm?.split('T')[0])}</div>
         ${a.descricao ? `<div class="arquivo-desc">${a.descricao}</div>` : ''}
       </div>
       <div class="arquivo-acoes">
         <button class="btn-icon" title="Baixar" onclick="baixarArquivo('${a.id}', ${JSON.stringify(a.nome)})">⬇️</button>
-        <button class="btn-icon btn-icon-danger" title="Excluir" onclick="excluirArquivo('${a.id}')">🗑️</button>
+        ${comAcoesLider ? `
+          <button class="btn-icon" title="Editar" onclick="editarArquivo('${a.id}')">✏️</button>
+          <button class="btn-icon btn-icon-danger" title="Excluir" onclick="excluirArquivo('${a.id}')">🗑️</button>
+        ` : ''}
       </div>
-    </div>
+    </div>`;
+}
+
+function renderListaArquivosAgrupada(containerId, lista, comAcoesLider) {
+  const container = document.getElementById(containerId);
+  if (lista.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><p>${comAcoesLider ? 'Nenhum arquivo enviado ainda.' : 'Nenhum material disponível ainda.'}</p></div>`;
+    return;
+  }
+  const grupos = agruparPorPasta(lista);
+  container.innerHTML = grupos.map((g, i) => `
+    <details class="pasta-grupo" open>
+      <summary class="pasta-titulo">📁 ${g.pasta} <span class="badge">${g.itens.length}</span></summary>
+      ${g.itens.map(a => htmlItemArquivo(a, comAcoesLider)).join('')}
+    </details>
   `).join('');
+}
+
+function renderArquivos() {
+  document.getElementById('badge-total-arquivos').textContent = STATE.arquivos.length;
+  renderListaArquivosAgrupada('lista-arquivos', STATE.arquivos, true);
+  popularDatalistPastas();
+}
+
+function popularDatalistPastas() {
+  const pastas = [...new Set(STATE.arquivos.map(a => a.pasta).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  document.getElementById('lista-pastas').innerHTML = pastas.map(p => `<option value="${p}"></option>`).join('');
 }
 
 function initFormArquivo() {
   document.getElementById('form-arquivo').addEventListener('submit', async e => {
     e.preventDefault();
-    const input = document.getElementById('ar-arquivo');
-    const arquivo = input.files[0];
-    if (!arquivo) { mostrarToast('Selecione um arquivo.', 'error'); return; }
-    if (arquivo.size > 20 * 1024 * 1024) { mostrarToast('Arquivo maior que o limite de 20MB.', 'error'); return; }
+    const id = document.getElementById('ar-id').value;
+    const nome = document.getElementById('ar-nome').value.trim();
+    const descricao = document.getElementById('ar-descricao').value.trim();
+    const pasta = document.getElementById('ar-pasta').value.trim();
 
-    const formData = new FormData();
-    formData.append('arquivo', arquivo);
-    formData.append('nome', document.getElementById('ar-nome').value.trim());
-    formData.append('descricao', document.getElementById('ar-descricao').value.trim());
-
-    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Enviando...');
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), id ? 'Salvando...' : 'Enviando...');
     try {
-      const novo = mapArquivo(await Api.enviarArquivo(formData));
-      STATE.arquivos.unshift(novo);
+      if (id) {
+        if (!nome) { mostrarToast('Dê um nome ao arquivo.', 'error'); return; }
+        const atualizado = mapArquivo(await Api.atualizarArquivo(id, { nome, descricao, pasta }));
+        const idx = STATE.arquivos.findIndex(a => a.id === id);
+        STATE.arquivos[idx] = atualizado;
+        mostrarToast('Arquivo atualizado!');
+      } else {
+        const arquivo = document.getElementById('ar-arquivo').files[0];
+        if (!arquivo) { mostrarToast('Selecione um arquivo.', 'error'); return; }
+        if (arquivo.size > 20 * 1024 * 1024) { mostrarToast('Arquivo maior que o limite de 20MB.', 'error'); return; }
+
+        const formData = new FormData();
+        formData.append('arquivo', arquivo);
+        formData.append('nome', nome);
+        formData.append('descricao', descricao);
+        formData.append('pasta', pasta);
+        const novo = mapArquivo(await Api.enviarArquivo(formData));
+        STATE.arquivos.unshift(novo);
+        mostrarToast('Arquivo enviado! Já está disponível pra turma.');
+      }
       renderArquivos();
-      document.getElementById('form-arquivo').reset();
-      mostrarToast('Arquivo enviado! Já está disponível pra turma.');
+      resetFormArquivo();
     } catch (err) {
       mostrarToast(err.message, 'error');
     } finally {
       restaurar();
     }
   });
+
+  document.getElementById('btn-cancelar-arquivo').addEventListener('click', resetFormArquivo);
+}
+
+function resetFormArquivo() {
+  document.getElementById('ar-id').value = '';
+  document.getElementById('form-arquivo').reset();
+  document.getElementById('grupo-ar-arquivo').style.display = 'block';
+  document.getElementById('ar-arquivo-hint').style.display = 'none';
+  document.getElementById('arquivo-form-title').textContent = 'Enviar Arquivo';
+  document.querySelector('#form-arquivo button[type=submit]').innerHTML = '⬆️ Enviar';
+  document.getElementById('btn-cancelar-arquivo').style.display = 'none';
+}
+
+function editarArquivo(id) {
+  const a = STATE.arquivos.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('ar-id').value = a.id;
+  document.getElementById('ar-nome').value = a.nome;
+  document.getElementById('ar-descricao').value = a.descricao || '';
+  document.getElementById('ar-pasta').value = a.pasta || '';
+  document.getElementById('grupo-ar-arquivo').style.display = 'none';
+  document.getElementById('ar-arquivo-hint').style.display = 'block';
+  document.getElementById('arquivo-form-title').textContent = 'Editar Arquivo';
+  document.querySelector('#form-arquivo button[type=submit]').innerHTML = '💾 Salvar';
+  document.getElementById('btn-cancelar-arquivo').style.display = 'inline-flex';
+  irParaSecao('aula');
+  document.querySelector('#section-aula .form-card').scrollIntoView({ behavior: 'smooth' });
 }
 
 async function excluirArquivo(id) {
@@ -2460,24 +2537,7 @@ async function carregarArquivosTurma() {
 
 function renderArquivosTurma() {
   document.getElementById('badge-arquivos-turma').textContent = STATE.arquivosTurma.length;
-  const container = document.getElementById('lista-arquivos-turma');
-  if (STATE.arquivosTurma.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><p>Nenhum material disponível ainda.</p></div>`;
-    return;
-  }
-  container.innerHTML = STATE.arquivosTurma.map(a => `
-    <div class="arquivo-item">
-      <span class="arquivo-icone">${iconeArquivo(a.tipoMime)}</span>
-      <div class="arquivo-info">
-        <div class="arquivo-nome">${a.nome}</div>
-        <div class="arquivo-meta">${formatarTamanho(a.tamanhoBytes)} · ${formatarData(a.criadoEm?.split('T')[0])}</div>
-        ${a.descricao ? `<div class="arquivo-desc">${a.descricao}</div>` : ''}
-      </div>
-      <div class="arquivo-acoes">
-        <button class="btn-icon" title="Baixar" onclick="baixarArquivo('${a.id}', ${JSON.stringify(a.nome)})">⬇️</button>
-      </div>
-    </div>
-  `).join('');
+  renderListaArquivosAgrupada('lista-arquivos-turma', STATE.arquivosTurma, false);
 }
 
 // ============================================================
