@@ -2496,6 +2496,12 @@ function agruparPorPasta(lista) {
   return ordem.map(chave => ({ pasta: chave || 'Sem pasta', itens: grupos.get(chave) }));
 }
 
+// Escapa texto pra caber com segurança dentro de um atributo HTML
+// (data-nome etc.) — evita quebrar o HTML quando o nome do arquivo tem aspas.
+function escapeAtributo(texto) {
+  return String(texto || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
+
 // comAcoesAdmin: true só na visão do administrador (única que edita/exclui
 // agora) — líder e liderado sempre veem a lista somente-leitura.
 function htmlItemArquivo(a, comAcoesAdmin, opcoesVincularTurma) {
@@ -2508,7 +2514,7 @@ function htmlItemArquivo(a, comAcoesAdmin, opcoesVincularTurma) {
         ${a.descricao ? `<div class="arquivo-desc">${a.descricao}</div>` : ''}
       </div>
       <div class="arquivo-acoes">
-        <button class="btn-icon" title="Baixar" onclick="baixarArquivo('${a.id}', ${JSON.stringify(a.nome)})">⬇️</button>
+        <button class="btn-icon btn-baixar-arquivo" title="Baixar" data-id="${a.id}" data-nome="${escapeAtributo(a.nome)}">⬇️</button>
         ${comAcoesAdmin ? `
           <button class="btn-icon" title="Editar" onclick="editarArquivoAdmin('${a.id}')">✏️</button>
           ${opcoesVincularTurma ? `
@@ -2542,11 +2548,11 @@ function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin) {
       <summary class="pasta-titulo">
         📁 ${g.pasta} <span class="badge">${g.itens.length}</span>
         ${opcoesVincularTurma ? `
-          <select class="select-vincular" title="Vincular pasta a outra turma" onclick="event.stopPropagation()" onchange="event.stopPropagation(); vincularPasta(${JSON.stringify(pastaReal)}, this.value); this.value='';">
+          <select class="select-vincular select-vincular-pasta" title="Vincular pasta a outra turma" data-pasta="${escapeAtributo(pastaReal)}" onclick="event.stopPropagation()">
             <option value="">🔗 Vincular pasta a...</option>
             ${opcoesVincularTurma}
           </select>
-          <select class="select-vincular" title="Transferir pasta pra outra turma (sai daqui)" onclick="event.stopPropagation()" onchange="event.stopPropagation(); transferirPasta(${JSON.stringify(pastaReal)}, this.value); this.value='';">
+          <select class="select-vincular select-transferir-pasta" title="Transferir pasta pra outra turma (sai daqui)" data-pasta="${escapeAtributo(pastaReal)}" onclick="event.stopPropagation()">
             <option value="">📦 Transferir pasta pra...</option>
             ${opcoesVincularTurma}
           </select>
@@ -2556,6 +2562,16 @@ function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin) {
     </details>
   `;
   }).join('');
+
+  container.querySelectorAll('.btn-baixar-arquivo').forEach(btn => {
+    btn.addEventListener('click', () => baixarArquivo(btn.dataset.id, btn.dataset.nome));
+  });
+  container.querySelectorAll('.select-vincular-pasta').forEach(sel => {
+    sel.addEventListener('change', () => { vincularPasta(sel.dataset.pasta, sel.value); sel.value = ''; });
+  });
+  container.querySelectorAll('.select-transferir-pasta').forEach(sel => {
+    sel.addEventListener('change', () => { transferirPasta(sel.dataset.pasta, sel.value); sel.value = ''; });
+  });
 }
 
 function renderArquivos() {
