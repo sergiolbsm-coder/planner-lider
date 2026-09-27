@@ -25,41 +25,19 @@
       <div class="perfil-header">
         <img class="logo-icon perfil-logo" src="logo-idl.png" alt="Instituto da Liderança" />
         <h1>Planner do Líder</h1>
-        <p>Líderes e liderados entram com sua própria conta. Cada líder tem seu quadro; cada liderado vê o que é seu.</p>
-      </div>
-
-      <div class="subtabs auth-subtabs">
-        <button class="subtab-btn active" data-authview="entrar">Entrar</button>
-        <button class="subtab-btn" data-authview="criar">Criar conta de líder</button>
+        <p>Administrador, líderes e liderados entram com sua própria conta — cada um vê só o que é seu.</p>
       </div>
 
       <div id="auth-erro" class="auth-erro" style="display:none"></div>
 
-      <div id="view-entrar" class="subview active">
-        <form id="form-login" novalidate>
-          <div class="form-group"><label for="lg-email">E-mail</label><input type="email" id="lg-email" placeholder="voce@empresa.com" required /></div>
-          <div class="form-group"><label for="lg-senha">Senha</label><input type="password" id="lg-senha" required /></div>
-          <div class="form-actions" style="justify-content:stretch">
-            <button type="submit" class="btn-primary" style="width:100%;justify-content:center">Entrar</button>
-          </div>
-        </form>
-        <p class="auth-hint">É liderado e ainda não recebeu e-mail/senha? Peça ao seu líder — é ele quem cadastra o acesso da equipe.<br>Se demorar um pouco pra entrar, é normal: o servidor gratuito "acorda" no primeiro acesso do dia.</p>
-      </div>
-
-      <div id="view-criar" class="subview">
-        <form id="form-registrar-lider" novalidate>
-          <div class="form-grid-2">
-            <div class="form-group"><label for="rg-nome">Nome *</label><input type="text" id="rg-nome" required /></div>
-            <div class="form-group"><label for="rg-area">Área / Equipe</label><input type="text" id="rg-area" placeholder="Ex: Produção, Comercial..." /></div>
-          </div>
-          <div class="form-group"><label for="rg-cargo">Cargo</label><input type="text" id="rg-cargo" placeholder="Ex: Supervisor, Gerente..." /></div>
-          <div class="form-group"><label for="rg-email">E-mail *</label><input type="email" id="rg-email" required /></div>
-          <div class="form-group"><label for="rg-senha">Senha *</label><input type="password" id="rg-senha" minlength="6" placeholder="Mínimo 6 caracteres" required /></div>
-          <div class="form-actions" style="justify-content:stretch">
-            <button type="submit" class="btn-primary" style="width:100%;justify-content:center">✅ Criar minha conta</button>
-          </div>
-        </form>
-      </div>
+      <form id="form-login" novalidate>
+        <div class="form-group"><label for="lg-email">E-mail</label><input type="email" id="lg-email" placeholder="voce@empresa.com" required /></div>
+        <div class="form-group"><label for="lg-senha">Senha</label><input type="password" id="lg-senha" required /></div>
+        <div class="form-actions" style="justify-content:stretch">
+          <button type="submit" class="btn-primary" style="width:100%;justify-content:center">Entrar</button>
+        </div>
+      </form>
+      <p class="auth-hint">Ainda não recebeu e-mail/senha? Peça ao seu líder (se você é liderado) ou ao administrador (se você é líder) — é quem cadastra os acessos.<br>Se demorar um pouco pra entrar, é normal: o servidor gratuito "acorda" no primeiro acesso do dia.</p>
     </div>
   </div>
 
@@ -111,8 +89,8 @@
           <span class="card-icon">🏆</span>
           <h2>Sua Trilha</h2>
           <span class="badge" id="desafios-progresso-badge">0/0</span>
-          <button type="button" class="btn-secondary" id="btn-parametrizar-desafios">⚙️ Parametrizar</button>
         </div>
+        <p class="label-hint">A trilha é definida pelo administrador da sua turma — aqui você acompanha e marca seu progresso.</p>
         <div class="desafios-barra-fundo"><div class="desafios-barra-preenchida" id="desafios-barra-preenchida"></div></div>
         <div id="lista-desafios"></div>
       </div>
@@ -1004,45 +982,13 @@
 
       <div class="section-hero">
         <h1>Arquivos da Aula</h1>
-        <p>Suba o material aqui e a turma baixa direto do site — sem precisar entrar no Drive (que às vezes o proxy da empresa bloqueia).</p>
-      </div>
-
-      <div class="card form-card">
-        <div class="card-header">
-          <span class="card-icon">➕</span>
-          <h2 id="arquivo-form-title">Enviar Arquivo</h2>
-        </div>
-        <form id="form-arquivo" novalidate>
-          <input type="hidden" id="ar-id" value="" />
-          <div class="form-group" id="grupo-ar-arquivo">
-            <label for="ar-arquivo">Arquivo * <span class="label-hint">(máx. 20MB)</span></label>
-            <input type="file" id="ar-arquivo" />
-          </div>
-          <p class="label-hint" id="ar-arquivo-hint" style="display:none">Pra trocar o conteúdo do arquivo, exclua este e envie de novo — aqui dá pra ajustar nome, pasta e descrição.</p>
-          <div class="form-group">
-            <label for="ar-nome">Nome de exibição</label>
-            <input type="text" id="ar-nome" placeholder="Deixe em branco pra usar o nome do arquivo" />
-          </div>
-          <div class="form-group">
-            <label for="ar-pasta">Pasta <span class="label-hint">(opcional — agrupa os materiais)</span></label>
-            <input type="text" id="ar-pasta" list="lista-pastas" placeholder="Ex: Módulo 1, Aula 03..." />
-            <datalist id="lista-pastas"></datalist>
-          </div>
-          <div class="form-group">
-            <label for="ar-descricao">Descrição</label>
-            <textarea id="ar-descricao" rows="2" placeholder="Do que se trata esse material..."></textarea>
-          </div>
-          <div class="form-actions">
-            <button type="button" id="btn-cancelar-arquivo" class="btn-secondary" style="display:none">Cancelar</button>
-            <button type="submit" class="btn-primary">⬆️ Enviar</button>
-          </div>
-        </form>
+        <p>Material que o administrador disponibilizou pra sua turma — baixe direto do site, sem precisar entrar no Drive.</p>
       </div>
 
       <div class="card">
         <div class="card-header"><span class="card-icon">📚</span><h2>Materiais Disponíveis</h2><span class="badge" id="badge-total-arquivos">0</span></div>
         <div id="lista-arquivos">
-          <div class="empty-state"><div class="empty-icon">📚</div><p>Nenhum arquivo enviado ainda.</p></div>
+          <div class="empty-state"><div class="empty-icon">📚</div><p>Nenhum material disponível ainda.</p></div>
         </div>
       </div>
 
@@ -1110,37 +1056,127 @@
     </footer>
   </div>
 
-  <!-- Modal de parametrização da trilha de Desafios -->
-  <div id="modal-parametrizar-desafios" class="modal" style="display:none">
-    <div class="modal-overlay" id="modal-overlay-parametrizar-desafios"></div>
-    <div class="modal-box">
-      <div class="modal-header">
-        <h3>Parametrizar Desafios</h3>
-        <button class="modal-close" id="modal-parametrizar-desafios-close">✕</button>
+  <!-- ===== VISÃO DO ADMINISTRADOR (papel "admin") ===== -->
+  <div id="app-admin" class="app-liderado" style="display:none">
+    <header class="liderado-header">
+      <div class="sidebar-brand">
+        <img class="logo-icon" src="logo-idl.png" alt="Instituto da Liderança" />
+        <div class="logo-title">Painel do Administrador</div>
       </div>
-      <div class="modal-body">
-        <p class="label-hint">Monte sua própria trilha: edite o texto, vincule a uma seção do planner (opcional) e reordene como quiser.</p>
-        <div id="lista-parametrizar-desafios"></div>
-        <form id="form-add-desafio" novalidate class="parametriza-form">
-          <input type="text" id="pd-titulo" placeholder="Título do novo desafio *" required />
-          <input type="text" id="pd-descricao" placeholder="Descrição (opcional)" />
-          <select id="pd-secao">
-            <option value="">Sem seção vinculada</option>
-            <option value="liderados">Liderados</option>
-            <option value="plano">Plano de Gestão</option>
-            <option value="diario">Diário de Bordo</option>
-            <option value="atividades">Atividades</option>
-            <option value="metas">Metas</option>
-            <option value="matriz">Prioridades</option>
-            <option value="dashboard">Dashboard</option>
-            <option value="aula">Arquivos da Aula</option>
-          </select>
-          <input type="date" id="pd-prazo" title="Prazo (opcional)" />
-          <input type="number" id="pd-pontos" title="Pontos se entregar no prazo" min="0" step="1" value="10" placeholder="Pontos" />
-          <button type="submit" class="btn-primary">➕ Adicionar</button>
+      <div class="lider-ativo lider-ativo-clara" id="admin-chip">
+        <span class="lider-ativo-avatar" id="admin-avatar">?</span>
+        <span class="lider-ativo-nome" id="admin-nome-topo">—</span>
+        <button class="lider-ativo-trocar" id="btn-sair-admin" title="Sair">🚪</button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div class="section-hero">
+        <h1>Turmas</h1>
+        <p>Cada turma tem seus próprios líderes e sua própria trilha de Desafios.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-icon">🎓</span><h2>Turmas</h2><span class="badge" id="badge-total-turmas">0</span></div>
+        <div id="lista-turmas" class="admin-turmas-lista">
+          <div class="empty-state"><div class="empty-icon">🎓</div><p>Nenhuma turma criada ainda.</p></div>
+        </div>
+        <form id="form-nova-turma" class="parametriza-form" novalidate>
+          <input type="text" id="tu-nome" placeholder="Nome da nova turma (ex: Turma 2026.1)" required />
+          <button type="submit" class="btn-primary">➕ Nova Turma</button>
         </form>
       </div>
-    </div>
+
+      <div id="admin-turma-detalhe" style="display:none">
+        <div class="card">
+          <div class="card-header"><span class="card-icon">👥</span><h2>Líderes — <span id="admin-turma-nome"></span></h2><span class="badge" id="badge-turma-lideres">0</span></div>
+          <div id="lista-turma-lideres">
+            <div class="empty-state"><div class="empty-icon">👤</div><p>Nenhum líder cadastrado nesta turma ainda.</p></div>
+          </div>
+          <form id="form-novo-lider" class="admin-novo-lider-form" novalidate>
+            <input type="text" id="nl-nome" placeholder="Nome *" required />
+            <input type="text" id="nl-cargo" placeholder="Cargo" />
+            <input type="text" id="nl-area" placeholder="Área / Equipe" />
+            <input type="email" id="nl-email" placeholder="E-mail *" required />
+            <input type="password" id="nl-senha" placeholder="Senha * (mín. 6)" minlength="6" required />
+            <button type="submit" class="btn-primary">➕ Cadastrar Líder</button>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-icon">🏆</span><h2>Trilha de Desafios</h2><span class="badge" id="badge-turma-desafios">0</span></div>
+          <p class="label-hint">Título, descrição, seção do planner (opcional), prazo e pontos — todo líder desta turma segue a mesma trilha.</p>
+          <div id="lista-admin-desafios"></div>
+          <form id="form-add-desafio-admin" novalidate class="parametriza-form">
+            <input type="text" id="ad-titulo" placeholder="Título do novo desafio *" required />
+            <input type="text" id="ad-descricao" placeholder="Descrição (opcional)" />
+            <select id="ad-secao">
+              <option value="">Sem seção vinculada</option>
+              <option value="liderados">Liderados</option>
+              <option value="plano">Plano de Gestão</option>
+              <option value="diario">Diário de Bordo</option>
+              <option value="atividades">Atividades</option>
+              <option value="metas">Metas</option>
+              <option value="matriz">Prioridades</option>
+              <option value="dashboard">Dashboard</option>
+              <option value="aula">Arquivos da Aula</option>
+            </select>
+            <input type="date" id="ad-prazo" title="Prazo (opcional)" />
+            <input type="number" id="ad-pontos" title="Pontos se entregar no prazo" min="0" step="1" value="10" placeholder="Pontos" />
+            <button type="submit" class="btn-primary">➕ Adicionar</button>
+          </form>
+        </div>
+
+        <div class="card form-card">
+          <div class="card-header">
+            <span class="card-icon">➕</span>
+            <h2 id="admin-arquivo-form-title">Enviar Arquivo da Aula</h2>
+          </div>
+          <form id="form-arquivo-admin" novalidate>
+            <input type="hidden" id="aa-id" value="" />
+            <div class="form-group" id="grupo-aa-arquivo">
+              <label for="aa-arquivo">Arquivo * <span class="label-hint">(máx. 20MB)</span></label>
+              <input type="file" id="aa-arquivo" />
+            </div>
+            <p class="label-hint" id="aa-arquivo-hint" style="display:none">Pra trocar o conteúdo do arquivo, exclua este e envie de novo — aqui dá pra ajustar nome, pasta e descrição.</p>
+            <div class="form-group">
+              <label for="aa-nome">Nome de exibição</label>
+              <input type="text" id="aa-nome" placeholder="Deixe em branco pra usar o nome do arquivo" />
+            </div>
+            <div class="form-group">
+              <label for="aa-pasta">Pasta <span class="label-hint">(opcional — agrupa os materiais)</span></label>
+              <input type="text" id="aa-pasta" list="lista-pastas-admin" placeholder="Ex: Módulo 1, Aula 03..." />
+              <datalist id="lista-pastas-admin"></datalist>
+            </div>
+            <div class="form-group">
+              <label for="aa-descricao">Descrição</label>
+              <textarea id="aa-descricao" rows="2" placeholder="Do que se trata esse material..."></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="button" id="btn-cancelar-arquivo-admin" class="btn-secondary" style="display:none">Cancelar</button>
+              <button type="submit" class="btn-primary">⬆️ Enviar</button>
+            </div>
+          </form>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-icon">📚</span><h2>Materiais da Turma</h2><span class="badge" id="badge-turma-arquivos">0</span></div>
+          <div id="lista-admin-arquivos">
+            <div class="empty-state"><div class="empty-icon">📚</div><p>Nenhum arquivo enviado ainda.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" id="admin-card-sem-turma" style="display:none">
+        <div class="card-header"><span class="card-icon">⚠️</span><h2>Líderes sem turma</h2><span class="badge" id="badge-sem-turma">0</span></div>
+        <p class="label-hint">Contas de líder de antes das turmas existirem — atribua uma turma pra cada uma.</p>
+        <div id="lista-lideres-sem-turma"></div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>© 2025 Instituto da Liderança · <a href="https://www.institutodalideranca.com.br" target="_blank">www.institutodalideranca.com.br</a></p>
+    </footer>
   </div>
 
   <!-- Modal de detalhe do liderado -->

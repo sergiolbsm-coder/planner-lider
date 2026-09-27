@@ -645,6 +645,21 @@ select { cursor: pointer; }
   .parametriza-campos, .parametriza-form { grid-template-columns: 1fr; }
 }
 
+/* ============================================================
+   ADMINISTRADOR — turmas, líderes
+============================================================ */
+.admin-turmas-lista { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 4px; }
+.turma-chip { background: var(--bg); border: 1.5px solid var(--border); border-radius: 20px; padding: 8px 18px; font-weight: 700; font-size: 13.5px; color: var(--text); cursor: pointer; transition: var(--transition); }
+.turma-chip:hover { border-color: var(--primary-light); }
+.turma-chip.selected { background: var(--primary); border-color: var(--primary); color: #fff; }
+.admin-novo-lider-form { display: grid; grid-template-columns: 1.2fr 1fr 1fr 1.4fr 1fr auto; gap: 8px; margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); }
+@media (max-width: 900px) {
+  .admin-novo-lider-form { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 480px) {
+  .admin-novo-lider-form { grid-template-columns: 1fr; }
+}
+
 .desafio-tag { display: inline-block; margin-top: 4px; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; font-family: 'JetBrains Mono', monospace; }
 .desafio-tag-ok { background: #e9f9f2; color: #1a9e6e; }
 .desafio-tag-atraso { background: #fdf0ef; color: #e74c3c; }
