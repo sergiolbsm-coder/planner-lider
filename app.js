@@ -25,6 +25,8 @@ const STATE = {
   arquivos: [],        // arquivos da aula que o líder subiu
   arquivosTurma: [],   // (visão do liderado) arquivos disponibilizados pelo seu líder
   desafios: [],        // trilha de passo a passo, parametrizável pelo próprio líder
+  planoGestao: null,   // Passo 1 — Criação do Plano (visão, metas do ano, combinados)
+  diagnostico: [],     // brainstorm de Desafios e Oportunidades da equipe/área
   filtroResultado: 'todos',
   filtroTipo: 'todos',
   filtroResponsavel: 'todos',
@@ -202,6 +204,14 @@ const Api = {
   atualizarDesafio: (id, dados) => api('/desafios/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
   excluirDesafio: id => api('/desafios/' + id, { method: 'DELETE' }),
 
+  getPlanoGestao: () => api('/plano-gestao'),
+  salvarPlanoGestao: dados => api('/plano-gestao', { method: 'PUT', body: JSON.stringify(dados) }),
+
+  listarDiagnostico: () => api('/diagnostico'),
+  criarDiagnostico: dados => api('/diagnostico', { method: 'POST', body: JSON.stringify(dados) }),
+  atualizarDiagnostico: (id, dados) => api('/diagnostico/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
+  excluirDiagnostico: id => api('/diagnostico/' + id, { method: 'DELETE' }),
+
   listarArquivos: () => api('/arquivos'),
   listarArquivosTurma: () => api('/arquivos/minha-turma'),
   atualizarArquivo: (id, dados) => api('/arquivos/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
@@ -261,7 +271,38 @@ function mapPlanoAcao(p) {
   return { id: p.id, acao: p.acao || '', comoFazer: p.como_fazer || '', impacto: p.impacto || '', prazo: p.prazo || '' };
 }
 function mapDesafio(d) {
-  return { id: d.id, titulo: d.titulo, descricao: d.descricao || '', secaoAlvo: d.secao_alvo || '', concluido: !!d.concluido, ordem: Number(d.ordem) || 0 };
+  return {
+    id: d.id, titulo: d.titulo, descricao: d.descricao || '', secaoAlvo: d.secao_alvo || '',
+    prazo: d.prazo ? String(d.prazo).slice(0, 10) : '', pontos: Number(d.pontos) || 0,
+    concluido: !!d.concluido, concluidoEm: d.concluido_em ? String(d.concluido_em).slice(0, 10) : '',
+    ordem: Number(d.ordem) || 0,
+  };
+}
+// Um desafio concluído no prazo vale os pontos; concluído depois do prazo vale 0
+// (mas continua contando como concluído na trilha — só não pontua).
+function desafioNoPrazo(d) {
+  if (!d.concluido) return null;
+  if (!d.prazo || !d.concluidoEm) return true;
+  return d.concluidoEm <= d.prazo;
+}
+function pontosDoDesafio(d) {
+  if (!d.concluido) return 0;
+  return desafioNoPrazo(d) ? d.pontos : 0;
+}
+function calcularPontuacaoDesafios() {
+  const pontosPossiveis = STATE.desafios.reduce((soma, d) => soma + (d.pontos || 0), 0);
+  const pontosGanhos = STATE.desafios.reduce((soma, d) => soma + pontosDoDesafio(d), 0);
+  return { pontosGanhos, pontosPossiveis };
+}
+function mapPlanoGestao(p) {
+  return {
+    expectativasAno: p.expectativas_ano || '', pontosFortesEquipe: p.pontos_fortes_equipe || '',
+    visaoMissao: p.visao_missao || '', metaDesempenho: p.meta_desempenho || '',
+    metaProcessos: p.meta_processos || '', lemaDoAno: p.lema_do_ano || '', combinados: p.combinados || '',
+  };
+}
+function mapDiagnostico(d) {
+  return { id: d.id, tipo: d.tipo, texto: d.texto, ordem: Number(d.ordem) || 0 };
 }
 function mapFeedback(f) {
   return { id: f.id, data: String(f.data).slice(0, 10), conversa: f.conversa || '', plano: f.plano || '', criadoEm: f.criado_em };
@@ -453,7 +494,7 @@ async function entrarNaSessao() {
     renderHeaderLider();
     await carregarTudoLider();
     mostrarTela('lider');
-    irParaSecao('liderados');
+    irParaSecao('desafios');
   } else {
     await carregarTudoLiderado();
     mostrarTela('liderado');
@@ -472,6 +513,7 @@ function sair() {
   STATE.estatisticasDiario = null;
   STATE.arquivos = []; STATE.arquivosTurma = [];
   STATE.desafios = [];
+  STATE.planoGestao = null; STATE.diagnostico = [];
   STATE.meuPerfil = null; STATE.minhasAtividades = []; STATE.minhasMetas = []; STATE.meusFeedbacks = [];
   document.getElementById('form-login').reset();
   document.getElementById('auth-erro').style.display = 'none';
@@ -499,6 +541,12 @@ async function carregarTudoLider() {
 
     try { STATE.desafios = (await Api.listarDesafios()).map(mapDesafio); }
     catch (e) { STATE.desafios = []; }
+
+    try { STATE.planoGestao = mapPlanoGestao(await Api.getPlanoGestao()); }
+    catch (e) { STATE.planoGestao = mapPlanoGestao({}); }
+
+    try { STATE.diagnostico = (await Api.listarDiagnostico()).map(mapDiagnostico); }
+    catch (e) { STATE.diagnostico = []; }
 
     renderTudo();
     await carregarEstatisticasDiario();
@@ -2218,6 +2266,33 @@ function renderDashboardAll() {
   renderGraficoDashIdeal();
   renderGargalos();
   renderPlanoAcao();
+  renderDashboardDesafios();
+}
+
+// Espelha o progresso e a pontuação da trilha de Desafios direto no
+// Dashboard, junto com um resumo rápido de gestão de pessoas — assim o líder
+// não precisa trocar de seção pra ver como está andando.
+function renderDashboardDesafios() {
+  const badge = document.getElementById('dash-desafios-badge');
+  const barra = document.getElementById('dash-desafios-barra');
+  const statsEl = document.getElementById('dash-gestao-stats');
+  if (!badge || !barra || !statsEl) return;
+
+  const desafios = STATE.desafios;
+  const concluidos = desafios.filter(d => d.concluido).length;
+  const { pontosGanhos, pontosPossiveis } = calcularPontuacaoDesafios();
+  badge.textContent = `${concluidos}/${desafios.length} · 🏆 ${pontosGanhos}/${pontosPossiveis} pts`;
+  barra.style.width = desafios.length ? `${Math.round((concluidos / desafios.length) * 100)}%` : '0%';
+
+  const totalLiderados = STATE.liderados.length;
+  const comPerfil = STATE.liderados.filter(l => (l.perfil || '').trim()).length;
+  const comFeedback = new Set(STATE.diarioResumoEquipe.filter(d => d.tipo === 'feedback').map(d => d.lideradoId)).size;
+
+  statsEl.innerHTML = `
+    <div class="stat-card"><div class="stat-num">${totalLiderados}</div><div class="stat-label">Liderados na equipe</div></div>
+    <div class="stat-card"><div class="stat-num">${totalLiderados ? Math.round((comPerfil / totalLiderados) * 100) : 0}%</div><div class="stat-label">Com perfil preenchido</div></div>
+    <div class="stat-card"><div class="stat-num">${comFeedback}</div><div class="stat-label">Já receberam feedback formal</div></div>
+  `;
 }
 
 // ============================================================
@@ -2564,6 +2639,156 @@ function renderArquivosTurma() {
 }
 
 // ============================================================
+// PLANO DE GESTÃO — "Passo 1: Criação do Plano" + Diagnóstico
+// (Desafios e Oportunidades) do material oficial do Instituto
+// ============================================================
+function renderPlanoGestao() {
+  const p = STATE.planoGestao;
+  const campo = document.getElementById('pg-expectativas');
+  if (!p || !campo) return; // seção só existe na visão do líder
+
+  document.getElementById('pg-expectativas').value = p.expectativasAno;
+  document.getElementById('pg-visao').value = p.visaoMissao;
+  document.getElementById('pg-pontos-fortes').value = p.pontosFortesEquipe;
+  document.getElementById('pg-desempenho').value = p.metaDesempenho;
+  document.getElementById('pg-processos').value = p.metaProcessos;
+  document.getElementById('pg-lema').value = p.lemaDoAno;
+  document.getElementById('pg-combinados').value = p.combinados;
+}
+
+function initPlanoGestao() {
+  document.getElementById('form-plano-gestao').addEventListener('submit', async e => {
+    e.preventDefault();
+    const dados = {
+      expectativasAno: document.getElementById('pg-expectativas').value.trim(),
+      visaoMissao: document.getElementById('pg-visao').value.trim(),
+      pontosFortesEquipe: document.getElementById('pg-pontos-fortes').value.trim(),
+      metaDesempenho: document.getElementById('pg-desempenho').value.trim(),
+      metaProcessos: document.getElementById('pg-processos').value.trim(),
+      lemaDoAno: document.getElementById('pg-lema').value.trim(),
+      combinados: document.getElementById('pg-combinados').value.trim(),
+    };
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
+    try {
+      STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
+      mostrarToast('Plano de gestão salvo!');
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
+    }
+  });
+
+  document.getElementById('btn-gerar-apresentacao-plano').addEventListener('click', gerarApresentacaoPlano);
+  document.getElementById('modal-plano-apresentacao-close').addEventListener('click', fecharModalApresentacaoPlano);
+  document.getElementById('modal-overlay-plano-apresentacao').addEventListener('click', fecharModalApresentacaoPlano);
+  document.getElementById('modal-plano-apresentacao-fechar').addEventListener('click', fecharModalApresentacaoPlano);
+  document.getElementById('modal-plano-apresentacao-imprimir').addEventListener('click', () => window.print());
+
+  document.querySelectorAll('.diagnostico-form').forEach(form => {
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const input = form.querySelector('input');
+      const texto = input.value.trim();
+      if (!texto) return;
+      const tipo = form.dataset.tipo;
+      try {
+        const novo = mapDiagnostico(await Api.criarDiagnostico({ tipo, texto, ordem: STATE.diagnostico.filter(d => d.tipo === tipo).length }));
+        STATE.diagnostico.push(novo);
+        renderDiagnostico();
+        input.value = '';
+        input.focus();
+      } catch (err) { mostrarToast(err.message, 'error'); }
+    });
+  });
+}
+
+function fecharModalApresentacaoPlano() {
+  document.getElementById('modal-plano-apresentacao').style.display = 'none';
+}
+
+// Gera o "print" que o líder apresenta pra equipe (visão, metas do ano,
+// combinados e o diagnóstico) — reaproveita o mesmo modal+CSS de impressão já
+// usados no Resumo p/ Feedback e na Análise de Melhoria.
+function gerarApresentacaoPlano() {
+  const p = STATE.planoGestao || mapPlanoGestao({});
+  const desafios = STATE.diagnostico.filter(d => d.tipo === 'desafio');
+  const oportunidades = STATE.diagnostico.filter(d => d.tipo === 'oportunidade');
+  const listaLinhas = texto => (texto || '').split('\n').map(l => l.trim()).filter(Boolean);
+
+  const html = `
+    <div class="resumo-cabecalho">
+      <h2>${AUTH.user.nome}</h2>
+      <p class="resumo-periodo-label">Plano de Gestão · Gerado em ${formatarData(hojeISO())}</p>
+    </div>
+
+    ${p.visaoMissao ? `<div class="detalhe-secao"><div class="detalhe-secao-titulo">🧭 Visão e Missão</div><p>${p.visaoMissao}</p></div>` : ''}
+    ${p.lemaDoAno ? `<div class="detalhe-secao"><div class="detalhe-secao-titulo">🎯 Lema do Ano</div><p>${p.lemaDoAno}</p></div>` : ''}
+
+    <div class="detalhe-secao">
+      <div class="detalhe-secao-titulo">📋 As expectativas para esse ano</div>
+      ${listaLinhas(p.expectativasAno).length ? `<ul class="resumo-lista-atividades">${listaLinhas(p.expectativasAno).map(l => `<li>${l}</li>`).join('')}</ul>` : '<p>Ainda não preenchido.</p>'}
+    </div>
+
+    ${p.pontosFortesEquipe ? `<div class="detalhe-secao"><div class="detalhe-secao-titulo">⭐ 3 Pontos Fortes da Equipe</div><p>${p.pontosFortesEquipe}</p></div>` : ''}
+
+    <div class="detalhe-secao">
+      <div class="detalhe-secao-titulo">📈 Metas e Objetivos</div>
+      ${p.metaDesempenho ? `<p><strong>1) Desempenho:</strong> ${p.metaDesempenho}</p>` : ''}
+      ${p.metaProcessos ? `<p><strong>2) Processos:</strong> ${p.metaProcessos}</p>` : ''}
+      ${(!p.metaDesempenho && !p.metaProcessos) ? '<p>Ainda não preenchido.</p>' : ''}
+    </div>
+
+    ${p.combinados ? `<div class="detalhe-secao"><div class="detalhe-secao-titulo">🤝 Combinados</div><p>${p.combinados}</p></div>` : ''}
+
+    <div class="detalhe-secao">
+      <div class="detalhe-secao-titulo">🧭 Diagnóstico — Desafios e Oportunidades</div>
+      <div class="apresentacao-diagnostico-grid">
+        <div>
+          <strong>⚠️ Desafios</strong>
+          ${desafios.length ? `<ul class="resumo-lista-atividades">${desafios.map(d => `<li>${d.texto}</li>`).join('')}</ul>` : '<p>Nenhum registrado ainda.</p>'}
+        </div>
+        <div>
+          <strong>💡 Oportunidades</strong>
+          ${oportunidades.length ? `<ul class="resumo-lista-atividades">${oportunidades.map(d => `<li>${d.texto}</li>`).join('')}</ul>` : '<p>Nenhuma registrada ainda.</p>'}
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('modal-plano-apresentacao-body').innerHTML = html;
+  document.getElementById('modal-plano-apresentacao').style.display = 'flex';
+}
+
+function renderDiagnostico() {
+  const containerDesafio = document.getElementById('lista-diagnostico-desafio');
+  const containerOportunidade = document.getElementById('lista-diagnostico-oportunidade');
+  if (!containerDesafio || !containerOportunidade) return;
+
+  const render = (container, tipo) => {
+    const itens = STATE.diagnostico.filter(d => d.tipo === tipo);
+    container.innerHTML = itens.length === 0
+      ? `<p class="label-hint">Nenhum item ainda.</p>`
+      : itens.map(d => `
+        <div class="diagnostico-item">
+          <span>${d.texto}</span>
+          <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" title="Remover" onclick="excluirDiagnostico('${d.id}')">🗑️</button>
+        </div>
+      `).join('');
+  };
+  render(containerDesafio, 'desafio');
+  render(containerOportunidade, 'oportunidade');
+}
+
+async function excluirDiagnostico(id) {
+  try {
+    await Api.excluirDiagnostico(id);
+    STATE.diagnostico = STATE.diagnostico.filter(d => d.id !== id);
+    renderDiagnostico();
+  } catch (err) { mostrarToast(err.message, 'error'); }
+}
+
+// ============================================================
 // RENDERIZAÇÃO GERAL / INICIALIZAÇÃO
 // ============================================================
 // DESAFIOS DO LÍDER — trilha de passo a passo (parametrizável) +
@@ -2576,22 +2801,50 @@ function renderArquivosTurma() {
 // módulos), porque um desafio pode ser qualquer coisa que o líder queira
 // acompanhar — inclusive uma funcionalidade que ainda nem existe no planner.
 const SECOES_DESAFIO = {
-  liderados: 'Liderados', diario: 'Diário de Bordo', atividades: 'Atividades',
+  liderados: 'Liderados', plano: 'Plano de Gestão', diario: 'Diário de Bordo', atividades: 'Atividades',
   metas: 'Metas', matriz: 'Prioridades', dashboard: 'Dashboard', aula: 'Arquivos da Aula',
 };
 
+function somarDias(dataISO, dias) {
+  const d = new Date(dataISO + 'T00:00:00');
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+
+// Segue o "Passo a Passo do Líder" oficial do Instituto (EQUIPE → DIAGNÓSTICO →
+// PLANEJAMENTO → MONITORAMENTO → FEEDBACK → ENTREGA → GESTÃO). Os prazos são
+// sugestões relativas ao dia do cadastro — o líder ajusta como quiser depois.
 function desafiosPadrao() {
+  const hoje = hojeISO();
   return [
-    { titulo: 'Monte sua equipe', descricao: 'Cadastre pelo menos um liderado.', secaoAlvo: 'liderados' },
-    { titulo: 'Conheça cada liderado', descricao: 'Preencha o perfil comportamental de todos os liderados cadastrados.', secaoAlvo: 'liderados' },
-    { titulo: 'Defina metas organizacionais', descricao: 'Cadastre ao menos uma meta ou indicador.', secaoAlvo: 'metas' },
-    { titulo: 'Vincule atividades às metas', descricao: 'Cadastre uma atividade ligada a uma meta.', secaoAlvo: 'atividades' },
-    { titulo: 'Priorize com a Matriz', descricao: 'Adicione ao menos um item na Matriz de Prioridades.', secaoAlvo: 'matriz' },
-    { titulo: 'Registre no Diário de Bordo', descricao: 'Faça seu primeiro registro de observação ou feedback com um liderado.', secaoAlvo: 'diario' },
-    { titulo: 'Monte seu Plano de Ação', descricao: 'Defina ao menos uma ação no Plano de Ação, dentro do Dashboard.', secaoAlvo: 'dashboard' },
-    { titulo: 'Registre sua rotina diária', descricao: 'Lance ao menos um bloco de tempo na sua rotina, dentro do Dashboard.', secaoAlvo: 'dashboard' },
-    { titulo: 'Faça sua Autoavaliação mensal', descricao: 'Responda a autoavaliação e gere sua Análise de Melhoria, dentro do Dashboard.', secaoAlvo: 'dashboard' },
+    { titulo: 'Monte sua equipe', descricao: 'Cadastre pelo menos um liderado.', secaoAlvo: 'liderados', prazo: somarDias(hoje, 7), pontos: 10 },
+    { titulo: 'Conheça cada liderado', descricao: 'Preencha o perfil comportamental de todos os liderados cadastrados.', secaoAlvo: 'liderados', prazo: somarDias(hoje, 14), pontos: 10 },
+    { titulo: 'Faça o brainstorm de Desafios e Oportunidades', descricao: 'Diagnóstico: liste os principais desafios e oportunidades da sua equipe/área.', secaoAlvo: 'plano', prazo: somarDias(hoje, 14), pontos: 15 },
+    { titulo: 'Crie seu Plano de Gestão', descricao: 'Expectativas do ano, visão e missão, pontos fortes da equipe, metas do ano e combinados.', secaoAlvo: 'plano', prazo: somarDias(hoje, 21), pontos: 15 },
+    { titulo: 'Defina metas organizacionais', descricao: 'Cadastre ao menos uma meta ou indicador.', secaoAlvo: 'metas', prazo: somarDias(hoje, 21), pontos: 10 },
+    { titulo: 'Vincule atividades às metas', descricao: 'Cadastre uma atividade ligada a uma meta.', secaoAlvo: 'atividades', prazo: somarDias(hoje, 28), pontos: 10 },
+    { titulo: 'Priorize com a Matriz', descricao: 'Adicione ao menos um item na Matriz de Prioridades.', secaoAlvo: 'matriz', prazo: somarDias(hoje, 28), pontos: 10 },
+    { titulo: 'Registre sua rotina diária', descricao: 'Lance ao menos um bloco de tempo na sua rotina, dentro do Dashboard.', secaoAlvo: 'dashboard', prazo: somarDias(hoje, 30), pontos: 5 },
+    { titulo: 'Registre no Diário de Bordo', descricao: 'Faça seu primeiro registro de observação ou feedback com um liderado.', secaoAlvo: 'diario', prazo: somarDias(hoje, 30), pontos: 10 },
+    { titulo: 'Monte seu Plano de Ação', descricao: 'Defina ao menos uma ação no Plano de Ação, dentro do Dashboard.', secaoAlvo: 'dashboard', prazo: somarDias(hoje, 35), pontos: 10 },
+    { titulo: 'Apresente seu Plano de Gestão à equipe', descricao: 'Entrega: gere a apresentação do plano e compartilhe com o time.', secaoAlvo: 'plano', prazo: somarDias(hoje, 35), pontos: 15 },
+    { titulo: 'Faça sua Autoavaliação mensal', descricao: 'Gestão: responda a autoavaliação e gere sua Análise de Melhoria, dentro do Dashboard.', secaoAlvo: 'dashboard', prazo: somarDias(hoje, 30), pontos: 10 },
   ].map((item, i) => ({ ...item, ordem: i }));
+}
+
+function statusPrazoDesafio(d) {
+  if (d.concluido) {
+    return desafioNoPrazo(d)
+      ? { texto: `✅ No prazo · +${d.pontos} pts`, classe: 'desafio-tag-ok' }
+      : { texto: '⚠️ Concluído com atraso · 0 pts', classe: 'desafio-tag-atraso' };
+  }
+  if (d.prazo && d.prazo < hojeISO()) {
+    return { texto: `⏰ Atrasado desde ${formatarData(d.prazo)}`, classe: 'desafio-tag-atraso' };
+  }
+  if (d.prazo) {
+    return { texto: `Prazo: ${formatarData(d.prazo)}`, classe: 'desafio-tag-prazo' };
+  }
+  return null;
 }
 
 function renderDesafios() {
@@ -2602,27 +2855,32 @@ function renderDesafios() {
 
   const desafios = STATE.desafios;
   const concluidos = desafios.filter(d => d.concluido).length;
-  badge.textContent = `${concluidos}/${desafios.length}`;
+  const { pontosGanhos, pontosPossiveis } = calcularPontuacaoDesafios();
+  badge.textContent = `${concluidos}/${desafios.length} · 🏆 ${pontosGanhos}/${pontosPossiveis} pts`;
   barra.style.width = desafios.length ? `${Math.round((concluidos / desafios.length) * 100)}%` : '0%';
 
   if (desafios.length === 0) {
     lista.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><p>Nenhum desafio parametrizado ainda.<br>Clique em "⚙️ Parametrizar" para montar sua trilha.</p></div>`;
   } else {
-    lista.innerHTML = desafios.map(d => `
+    lista.innerHTML = desafios.map(d => {
+      const status = statusPrazoDesafio(d);
+      return `
       <div class="desafio-card ${d.concluido ? 'desafio-concluido' : ''}">
         <button type="button" class="desafio-check" title="${d.concluido ? 'Marcar como pendente' : 'Marcar como concluído'}" onclick="toggleDesafioConcluido('${d.id}')">${d.concluido ? '✅' : '⬜'}</button>
         <div class="desafio-corpo">
           <div class="desafio-titulo">${d.titulo}</div>
           ${d.descricao ? `<p class="desafio-descricao">${d.descricao}</p>` : ''}
+          ${status ? `<span class="desafio-tag ${status.classe}">${status.texto}</span>` : ''}
         </div>
         <div class="desafio-acao">
           ${d.secaoAlvo ? `<button type="button" class="btn-secondary" onclick="irParaSecao('${d.secaoAlvo}')">Ir para ${SECOES_DESAFIO[d.secaoAlvo] || 'lá'}</button>` : ''}
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
   }
 
   renderConsolidado();
+  renderDashboardDesafios();
 }
 
 async function toggleDesafioConcluido(id) {
@@ -2660,6 +2918,8 @@ function renderModalDesafios() {
             <option value="">Sem seção vinculada</option>
             ${Object.entries(SECOES_DESAFIO).map(([valor, label]) => `<option value="${valor}" ${d.secaoAlvo === valor ? 'selected' : ''}>${label}</option>`).join('')}
           </select>
+          <input type="date" data-campo="prazo" title="Prazo" value="${d.prazo || ''}" />
+          <input type="number" data-campo="pontos" title="Pontos se entregar no prazo" min="0" step="1" value="${d.pontos}" />
         </div>
         <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" title="Remover" onclick="excluirDesafioParametrizado('${d.id}')">🗑️</button>
       </div>
@@ -2671,9 +2931,12 @@ function renderModalDesafios() {
         campo.addEventListener('change', async () => {
           const item = STATE.desafios.find(d => d.id === id);
           if (!item) return;
-          item[campo.dataset.campo] = campo.value;
+          item[campo.dataset.campo] = campo.dataset.campo === 'pontos' ? (Number(campo.value) || 0) : campo.value;
           try {
-            await Api.atualizarDesafio(id, { titulo: item.titulo, descricao: item.descricao, secaoAlvo: item.secaoAlvo || null });
+            await Api.atualizarDesafio(id, {
+              titulo: item.titulo, descricao: item.descricao, secaoAlvo: item.secaoAlvo || null,
+              prazo: item.prazo || null, pontos: item.pontos,
+            });
             renderDesafios();
           } catch (err) { mostrarToast(err.message, 'error'); }
         });
@@ -2725,10 +2988,12 @@ function initDesafios() {
     if (!titulo) { mostrarToast('Dê um título ao desafio.', 'error'); return; }
     const descricao = document.getElementById('pd-descricao').value.trim();
     const secaoAlvo = document.getElementById('pd-secao').value;
+    const prazo = document.getElementById('pd-prazo').value || null;
+    const pontos = Number(document.getElementById('pd-pontos').value) || 0;
 
     const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Adicionando...');
     try {
-      const novo = mapDesafio(await Api.criarDesafio({ titulo, descricao, secaoAlvo, ordem: STATE.desafios.length }));
+      const novo = mapDesafio(await Api.criarDesafio({ titulo, descricao, secaoAlvo, prazo, pontos, ordem: STATE.desafios.length }));
       STATE.desafios.push(novo);
       renderModalDesafios();
       renderDesafios();
@@ -2791,6 +3056,8 @@ function renderTudo() {
   renderMetas();
   renderMatriz();
   renderDashboardAll();
+  renderPlanoGestao();
+  renderDiagnostico();
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -2830,6 +3097,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Arquivos da Aula
   initFormArquivo();
+
+  // Plano de Gestão / Diagnóstico
+  initPlanoGestao();
 
   // Desafios
   initDesafios();

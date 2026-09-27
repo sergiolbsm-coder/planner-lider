@@ -77,6 +77,7 @@
       <nav class="sidebar-nav">
         <button class="nav-btn active" data-section="desafios"><span class="nav-icon">🏆</span><span>Desafios</span></button>
         <button class="nav-btn" data-section="liderados"><span class="nav-icon">👥</span><span>Liderados</span></button>
+        <button class="nav-btn" data-section="plano"><span class="nav-icon">📋</span><span>Plano de Gestão</span></button>
         <button class="nav-btn" data-section="diario"><span class="nav-icon">📓</span><span>Diário de Bordo</span></button>
         <button class="nav-btn" data-section="atividades"><span class="nav-icon">🗂️</span><span>Atividades</span></button>
         <button class="nav-btn" data-section="metas"><span class="nav-icon">🎯</span><span>Metas</span></button>
@@ -220,6 +221,86 @@
             <p>Nenhum liderado cadastrado ainda.<br>Use o formulário acima para começar.</p>
           </div>
         </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================
+         MÓDULO — PLANO DE GESTÃO (Passo 1 + Diagnóstico)
+    ============================================ -->
+    <section id="section-plano" class="section">
+
+      <div class="section-hero">
+        <h1>Plano de Gestão</h1>
+        <p>Diagnóstico da equipe/área e criação do plano do ano — visão, metas, combinados. Monte aqui e gere a apresentação pra compartilhar com o time.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-icon">🧭</span><h2>Desafios e Oportunidades</h2></div>
+        <p class="label-hint">Brainstorm de 2 quadrantes: o que hoje desafia sua equipe/área, e onde estão as oportunidades.</p>
+        <div class="diagnostico-grid">
+          <div class="diagnostico-coluna diagnostico-desafios">
+            <div class="diagnostico-coluna-titulo">⚠️ Desafios</div>
+            <div id="lista-diagnostico-desafio"></div>
+            <form class="diagnostico-form" data-tipo="desafio">
+              <input type="text" placeholder="Adicionar um desafio..." required />
+              <button type="submit" class="btn-secondary">➕</button>
+            </form>
+          </div>
+          <div class="diagnostico-coluna diagnostico-oportunidades">
+            <div class="diagnostico-coluna-titulo">💡 Oportunidades</div>
+            <div id="lista-diagnostico-oportunidade"></div>
+            <form class="diagnostico-form" data-tipo="oportunidade">
+              <input type="text" placeholder="Adicionar uma oportunidade..." required />
+              <button type="submit" class="btn-secondary">➕</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">📋</span>
+          <h2>Passo 1 — Criação do Plano</h2>
+          <button type="button" class="btn-primary" id="btn-gerar-apresentacao-plano">🖨️ Gerar Apresentação do Plano</button>
+        </div>
+        <form id="form-plano-gestao" novalidate>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="pg-expectativas">As expectativas para esse ano</label>
+              <textarea id="pg-expectativas" rows="5" placeholder="Uma por linha..."></textarea>
+            </div>
+            <div class="form-group">
+              <label for="pg-visao">Visão e Missão</label>
+              <textarea id="pg-visao" rows="5" placeholder="Onde a equipe quer chegar e por quê..."></textarea>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="pg-pontos-fortes">3 Pontos Fortes da Equipe</label>
+            <textarea id="pg-pontos-fortes" rows="3"></textarea>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="pg-desempenho">Metas e Objetivos — 1) Desempenho</label>
+              <textarea id="pg-desempenho" rows="3"></textarea>
+            </div>
+            <div class="form-group">
+              <label for="pg-processos">Metas e Objetivos — 2) Processos</label>
+              <textarea id="pg-processos" rows="3"></textarea>
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="pg-lema">3) Lema do Ano</label>
+            <input type="text" id="pg-lema" placeholder="Uma frase que resuma o ano..." />
+          </div>
+          <div class="form-group">
+            <label for="pg-combinados">Combinados</label>
+            <textarea id="pg-combinados" rows="4" placeholder="O que a equipe combinou entre si..."></textarea>
+          </div>
+          <div class="form-actions">
+            <button type="submit" class="btn-primary">💾 Salvar Plano</button>
+          </div>
+        </form>
       </div>
 
     </section>
@@ -812,6 +893,17 @@
         <p>Registre sua rotina, identifique gargalos e acompanhe sua evolução rumo a uma liderança mais estratégica.</p>
       </div>
 
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">🏆</span>
+          <h2>Desafios & Gestão</h2>
+          <span class="badge" id="dash-desafios-badge">0/0</span>
+          <button type="button" class="btn-secondary" onclick="irParaSecao('desafios')">Ver trilha completa</button>
+        </div>
+        <div class="desafios-barra-fundo"><div class="desafios-barra-preenchida" id="dash-desafios-barra"></div></div>
+        <div class="stats-grid-3col" id="dash-gestao-stats"></div>
+      </div>
+
       <div class="card form-card">
         <div class="card-header">
           <span class="card-icon">⏱️</span>
@@ -1035,6 +1127,7 @@
           <select id="pd-secao">
             <option value="">Sem seção vinculada</option>
             <option value="liderados">Liderados</option>
+            <option value="plano">Plano de Gestão</option>
             <option value="diario">Diário de Bordo</option>
             <option value="atividades">Atividades</option>
             <option value="metas">Metas</option>
@@ -1042,6 +1135,8 @@
             <option value="dashboard">Dashboard</option>
             <option value="aula">Arquivos da Aula</option>
           </select>
+          <input type="date" id="pd-prazo" title="Prazo (opcional)" />
+          <input type="number" id="pd-pontos" title="Pontos se entregar no prazo" min="0" step="1" value="10" placeholder="Pontos" />
           <button type="submit" class="btn-primary">➕ Adicionar</button>
         </form>
       </div>
@@ -1167,6 +1262,22 @@
       <div class="modal-footer no-print">
         <button class="btn-secondary" id="modal-analise-fechar">Fechar</button>
         <button class="btn-primary" id="modal-analise-imprimir">🖨️ Imprimir / Salvar PDF</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de apresentação do Plano de Gestão -->
+  <div id="modal-plano-apresentacao" class="modal" style="display:none">
+    <div class="modal-overlay" id="modal-overlay-plano-apresentacao"></div>
+    <div class="modal-box modal-box-resumo">
+      <div class="modal-header no-print">
+        <h3>Apresentação do Plano de Gestão</h3>
+        <button class="modal-close" id="modal-plano-apresentacao-close">✕</button>
+      </div>
+      <div class="modal-body" id="modal-plano-apresentacao-body"></div>
+      <div class="modal-footer no-print">
+        <button class="btn-secondary" id="modal-plano-apresentacao-fechar">Fechar</button>
+        <button class="btn-primary" id="modal-plano-apresentacao-imprimir">🖨️ Imprimir / Salvar PDF</button>
       </div>
     </div>
   </div>
