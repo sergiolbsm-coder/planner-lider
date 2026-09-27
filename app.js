@@ -2626,55 +2626,31 @@ function renderPlanoGestao() {
 // registrar o listener — e um <button type="submit"> sem handler nenhum faz
 // o navegador submeter o form de verdade (recarrega a página e perde tudo).
 function initPlanoGestao() {
-  initSeguro('formPlanoGestao', () => {
-    document.getElementById('form-plano-gestao').addEventListener('submit', async e => {
-      e.preventDefault();
-      const dados = {
-        expectativasAno: document.getElementById('pg-expectativas').value.trim(),
-        visaoMissao: document.getElementById('pg-visao').value.trim(),
-        pontosFortesEquipe: document.getElementById('pg-pontos-fortes').value.trim(),
-        metaDesempenho: document.getElementById('pg-desempenho').value.trim(),
-        metaProcessos: document.getElementById('pg-processos').value.trim(),
-        lemaDoAno: document.getElementById('pg-lema').value.trim(),
-        combinados: document.getElementById('pg-combinados').value.trim(),
-      };
-      const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
-      try {
-        STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
-        renderRecapPlano();
-        destacarRecapPlano();
-        const marcados = await marcarDesafiosDaSecaoConcluidos('plano-criacao');
-        mostrarToast(marcados ? `Plano de gestão salvo! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Plano de gestão salvo!');
-      } catch (err) {
-        mostrarToast(err.message, 'error');
-      } finally {
-        restaurar();
-      }
-    });
-  });
-
-  initSeguro('formFerramentaAviao', () => {
-    document.getElementById('form-ferramenta-aviao').addEventListener('submit', async e => {
-      e.preventDefault();
-      const dados = {
-        deOndeViemos: document.getElementById('av-de-onde-viemos').value.trim(),
-        comoNosGuiamos: document.getElementById('av-como-guiamos').value.trim(),
-        paraQuemValor: document.getElementById('av-para-quem').value.trim(),
-        oQueDaPoder: document.getElementById('av-o-que-poder').value.trim(),
-        paraOndeVamos: document.getElementById('av-para-onde').value.trim(),
-      };
-      const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
-      try {
-        STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
-        renderRecapPlano();
-        destacarRecapPlano();
-        const marcados = await marcarDesafiosDaSecaoConcluidos('plano-apresentacao');
-        mostrarToast(marcados ? `Ferramenta Avião salva! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Ferramenta Avião salva!');
-      } catch (err) {
-        mostrarToast(err.message, 'error');
-      } finally {
-        restaurar();
-      }
+  // Cada campo da Criação do Plano e da Ferramenta Avião é seu próprio
+  // formulário (mesmo espírito do Diagnóstico: adicionar/salvar cada resposta
+  // por conta própria, em vez de um formulário gigante com um botão só —
+  // além de mais robusto, um campo falhar não trava os outros).
+  initSeguro('formsCampoUnico', () => {
+    document.querySelectorAll('.form-campo-unico').forEach(form => {
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const campo = form.dataset.campo;
+        const input = form.querySelector('textarea, input');
+        const valor = input.value.trim();
+        const ehAviao = form.classList.contains('form-campo-aviao');
+        const restaurar = iniciarCarregamentoBotao(form.querySelector('button[type=submit]'), 'Salvando...');
+        try {
+          STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao({ [campo]: valor }));
+          renderRecapPlano();
+          destacarRecapPlano();
+          const marcados = await marcarDesafiosDaSecaoConcluidos(ehAviao ? 'plano-apresentacao' : 'plano-criacao');
+          mostrarToast(marcados ? `Salvo! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Salvo!');
+        } catch (err) {
+          mostrarToast(err.message, 'error');
+        } finally {
+          restaurar();
+        }
+      });
     });
   });
 

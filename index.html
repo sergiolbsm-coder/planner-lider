@@ -250,43 +250,65 @@
             <span class="card-icon">📋</span>
             <h2>Passo 2 — Criação do Plano</h2>
           </div>
-          <form id="form-plano-gestao" novalidate>
-            <div class="form-grid-2">
-              <div class="form-group">
-                <label for="pg-expectativas">As expectativas para esse ano</label>
-                <textarea id="pg-expectativas" rows="5" placeholder="Uma por linha..."></textarea>
-              </div>
-              <div class="form-group">
-                <label for="pg-visao">Visão e Missão</label>
-                <textarea id="pg-visao" rows="5" placeholder="Onde a equipe quer chegar e por quê..."></textarea>
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="pg-pontos-fortes">3 Pontos Fortes da Equipe</label>
+          <p class="label-hint">Cada resposta é salva por conta própria — preencha e clique em salvar em qualquer ordem.</p>
+
+          <div class="campo-avulso">
+            <label for="pg-expectativas">As expectativas para esse ano</label>
+            <p class="label-hint">Uma por linha.</p>
+            <form class="form-campo-unico" data-campo="expectativasAno">
+              <textarea id="pg-expectativas" rows="4"></textarea>
+              <button type="submit" class="btn-secondary">💾 Salvar</button>
+            </form>
+          </div>
+
+          <div class="campo-avulso">
+            <label for="pg-visao">Visão e Missão</label>
+            <p class="label-hint">Onde a equipe quer chegar e por quê.</p>
+            <form class="form-campo-unico" data-campo="visaoMissao">
+              <textarea id="pg-visao" rows="4"></textarea>
+              <button type="submit" class="btn-secondary">💾 Salvar</button>
+            </form>
+          </div>
+
+          <div class="campo-avulso">
+            <label for="pg-pontos-fortes">3 Pontos Fortes da Equipe</label>
+            <form class="form-campo-unico" data-campo="pontosFortesEquipe">
               <textarea id="pg-pontos-fortes" rows="3"></textarea>
-            </div>
-            <div class="form-grid-2">
-              <div class="form-group">
-                <label for="pg-desempenho">Metas e Objetivos — 1) Desempenho</label>
-                <textarea id="pg-desempenho" rows="3"></textarea>
-              </div>
-              <div class="form-group">
-                <label for="pg-processos">Metas e Objetivos — 2) Processos</label>
-                <textarea id="pg-processos" rows="3"></textarea>
-              </div>
-            </div>
-            <div class="form-group">
-              <label for="pg-lema">3) Lema do Ano</label>
+              <button type="submit" class="btn-secondary">💾 Salvar</button>
+            </form>
+          </div>
+
+          <div class="campo-avulso">
+            <label for="pg-desempenho">Metas e Objetivos — 1) Desempenho</label>
+            <form class="form-campo-unico" data-campo="metaDesempenho">
+              <textarea id="pg-desempenho" rows="3"></textarea>
+              <button type="submit" class="btn-secondary">💾 Salvar</button>
+            </form>
+          </div>
+
+          <div class="campo-avulso">
+            <label for="pg-processos">Metas e Objetivos — 2) Processos</label>
+            <form class="form-campo-unico" data-campo="metaProcessos">
+              <textarea id="pg-processos" rows="3"></textarea>
+              <button type="submit" class="btn-secondary">💾 Salvar</button>
+            </form>
+          </div>
+
+          <div class="campo-avulso">
+            <label for="pg-lema">3) Lema do Ano</label>
+            <form class="form-campo-unico" data-campo="lemaDoAno">
               <input type="text" id="pg-lema" placeholder="Uma frase que resuma o ano..." />
-            </div>
-            <div class="form-group">
-              <label for="pg-combinados">Combinados</label>
+              <button type="submit" class="btn-secondary">💾 Salvar</button>
+            </form>
+          </div>
+
+          <div class="campo-avulso">
+            <label for="pg-combinados">Combinados</label>
+            <form class="form-campo-unico" data-campo="combinados">
               <textarea id="pg-combinados" rows="4" placeholder="O que a equipe combinou entre si..."></textarea>
-            </div>
-            <div class="form-actions">
-              <button type="submit" class="btn-primary">💾 Salvar Plano</button>
-            </div>
-          </form>
+              <button type="submit" class="btn-secondary">💾 Salvar</button>
+            </form>
+          </div>
         </div>
       </div>
 
@@ -302,39 +324,49 @@
 
         <div class="card">
           <div class="card-header"><span class="card-icon">✈️</span><h2>Passo 3 — Ferramenta Avião: Anatomia do Alinhamento</h2></div>
-          <p class="label-hint">5 perguntas pra alinhar a equipe antes de apresentar o plano.</p>
-          <form id="form-ferramenta-aviao" novalidate>
-            <div class="aviao-wrap">
-              <div class="aviao-campo aviao-cor-rosa">
-                <label for="av-de-onde-viemos">De onde viemos?</label>
-                <p class="label-hint">Histórico, bagagem e cultura que trouxeram a equipe até aqui.</p>
+          <p class="label-hint">5 perguntas pra alinhar a equipe antes de apresentar o plano — cada uma salva por conta própria.</p>
+          <div class="aviao-wrap">
+            <div class="aviao-campo aviao-cor-rosa">
+              <label for="av-de-onde-viemos">De onde viemos?</label>
+              <p class="label-hint">Histórico, bagagem e cultura que trouxeram a equipe até aqui.</p>
+              <form class="form-campo-unico form-campo-aviao" data-campo="deOndeViemos">
                 <textarea id="av-de-onde-viemos" rows="3"></textarea>
-              </div>
-              <div class="aviao-campo aviao-cor-ciano">
-                <label for="av-como-guiamos">Como nos guiamos?</label>
-                <p class="label-hint">Valores, princípios e indicadores de navegação.</p>
+                <button type="submit" class="btn-secondary">💾 Salvar</button>
+              </form>
+            </div>
+            <div class="aviao-campo aviao-cor-ciano">
+              <label for="av-como-guiamos">Como nos guiamos?</label>
+              <p class="label-hint">Valores, princípios e indicadores de navegação.</p>
+              <form class="form-campo-unico form-campo-aviao" data-campo="comoNosGuiamos">
                 <textarea id="av-como-guiamos" rows="3"></textarea>
-              </div>
-              <div class="aviao-campo aviao-cor-ciano aviao-campo-largo">
-                <label for="av-para-quem">Para quem desempenhamos valor?</label>
-                <p class="label-hint">Clientes, stakeholders e as pessoas que atendemos.</p>
+                <button type="submit" class="btn-secondary">💾 Salvar</button>
+              </form>
+            </div>
+            <div class="aviao-campo aviao-cor-ciano aviao-campo-largo">
+              <label for="av-para-quem">Para quem desempenhamos valor?</label>
+              <p class="label-hint">Clientes, stakeholders e as pessoas que atendemos.</p>
+              <form class="form-campo-unico form-campo-aviao" data-campo="paraQuemValor">
                 <textarea id="av-para-quem" rows="2"></textarea>
-              </div>
-              <div class="aviao-campo aviao-cor-roxo aviao-campo-roxo1">
-                <label for="av-o-que-poder">O que nos dá poder?</label>
-                <p class="label-hint">Recursos, diferenciais e capacidades propulsoras.</p>
+                <button type="submit" class="btn-secondary">💾 Salvar</button>
+              </form>
+            </div>
+            <div class="aviao-campo aviao-cor-roxo aviao-campo-roxo1">
+              <label for="av-o-que-poder">O que nos dá poder?</label>
+              <p class="label-hint">Recursos, diferenciais e capacidades propulsoras.</p>
+              <form class="form-campo-unico form-campo-aviao" data-campo="oQueDaPoder">
                 <textarea id="av-o-que-poder" rows="3"></textarea>
-              </div>
-              <div class="aviao-campo aviao-cor-roxo aviao-campo-roxo2">
-                <label for="av-para-onde">Para onde vamos?</label>
-                <p class="label-hint">Visão de futuro, destino final e objetivos estratégicos.</p>
+                <button type="submit" class="btn-secondary">💾 Salvar</button>
+              </form>
+            </div>
+            <div class="aviao-campo aviao-cor-roxo aviao-campo-roxo2">
+              <label for="av-para-onde">Para onde vamos?</label>
+              <p class="label-hint">Visão de futuro, destino final e objetivos estratégicos.</p>
+              <form class="form-campo-unico form-campo-aviao" data-campo="paraOndeVamos">
                 <textarea id="av-para-onde" rows="3"></textarea>
-              </div>
+                <button type="submit" class="btn-secondary">💾 Salvar</button>
+              </form>
             </div>
-            <div class="form-actions">
-              <button type="submit" class="btn-primary">💾 Salvar Ferramenta Avião</button>
-            </div>
-          </form>
+          </div>
         </div>
       </div>
 

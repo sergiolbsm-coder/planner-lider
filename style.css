@@ -617,6 +617,19 @@ select { cursor: pointer; }
 .diagnostico-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg); margin-bottom: 6px; font-size: 13.5px; }
 .diagnostico-form { display: flex; gap: 8px; margin-top: 10px; }
 .diagnostico-form input { flex: 1; }
+
+/* Campo com salvamento próprio (Criação do Plano / Ferramenta Avião) — mesma
+   ideia do diagnóstico: cada resposta tem seu botão, sem formulário gigante. */
+.campo-avulso { margin-bottom: 20px; }
+.campo-avulso:last-child { margin-bottom: 0; }
+.campo-avulso > label { display: block; font-weight: 700; font-size: 14px; color: var(--text); margin-bottom: 2px; }
+.form-campo-unico { display: flex; gap: 8px; align-items: flex-start; }
+.form-campo-unico textarea, .form-campo-unico input { flex: 1; }
+.form-campo-unico .btn-secondary { flex-shrink: 0; }
+@media (max-width: 640px) {
+  .form-campo-unico { flex-direction: column; }
+  .form-campo-unico .btn-secondary { align-self: flex-end; }
+}
 .apresentacao-diagnostico-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 @media (max-width: 640px) {
   .diagnostico-grid, .apresentacao-diagnostico-grid { grid-template-columns: 1fr; }
