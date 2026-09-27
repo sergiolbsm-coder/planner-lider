@@ -622,7 +622,7 @@ select { cursor: pointer; }
 .aviao-wrap {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  grid-template-areas: "rosa ciano" "largo largo" "imagem imagem" "roxo1 roxo2";
+  grid-template-areas: "rosa ciano" "largo largo" "roxo1 roxo2";
   gap: 16px;
 }
 .aviao-campo { border-radius: var(--radius); border: 1.5px solid var(--border); border-top: 4px solid var(--border); padding: 14px; background: var(--bg); }
@@ -635,10 +635,8 @@ select { cursor: pointer; }
 .aviao-campo-largo { grid-area: largo; }
 .aviao-campo-roxo1 { grid-area: roxo1; }
 .aviao-campo-roxo2 { grid-area: roxo2; }
-.aviao-imagem { grid-area: imagem; display: flex; align-items: center; justify-content: center; padding: 8px 0; }
-.aviao-imagem svg { width: 140px; height: auto; color: var(--primary); }
 @media (max-width: 640px) {
-  .aviao-wrap { grid-template-columns: 1fr; grid-template-areas: "rosa" "ciano" "largo" "imagem" "roxo1" "roxo2"; }
+  .aviao-wrap { grid-template-columns: 1fr; grid-template-areas: "rosa" "ciano" "largo" "roxo1" "roxo2"; }
 }
 
 /* ============================================================
