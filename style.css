@@ -660,6 +660,9 @@ select { cursor: pointer; }
   .admin-novo-lider-form { grid-template-columns: 1fr; }
 }
 
+.admin-turma-toolbar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.admin-turma-nome-input { flex: 1; min-width: 180px; font-weight: 700; font-size: 15px; }
+
 .desafio-tag { display: inline-block; margin-top: 4px; font-size: 11.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; font-family: 'JetBrains Mono', monospace; }
 .desafio-tag-ok { background: #e9f9f2; color: #1a9e6e; }
 .desafio-tag-atraso { background: #fdf0ef; color: #e74c3c; }

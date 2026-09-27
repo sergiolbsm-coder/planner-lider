@@ -154,6 +154,8 @@ const Api = {
 
   listarTurmas: () => api('/admin/turmas'),
   criarTurma: nome => api('/admin/turmas', { method: 'POST', body: JSON.stringify({ nome }) }),
+  atualizarTurma: (id, nome) => api(`/admin/turmas/${id}`, { method: 'PUT', body: JSON.stringify({ nome }) }),
+  excluirTurma: id => api(`/admin/turmas/${id}`, { method: 'DELETE' }),
   listarTodosLideres: () => api('/admin/lideres'),
   listarLideresDaTurma: turmaId => api(`/admin/turmas/${turmaId}/lideres`),
   criarLiderNaTurma: (turmaId, dados) => api(`/admin/turmas/${turmaId}/lideres`, { method: 'POST', body: JSON.stringify(dados) }),
@@ -232,6 +234,7 @@ const Api = {
   excluirArquivoDaTurma: (turmaId, id) => api(`/admin/turmas/${turmaId}/arquivos/${id}`, { method: 'DELETE' }),
   vincularArquivoATurma: (id, turmaId) => api(`/admin/arquivos/${id}/vincular`, { method: 'POST', body: JSON.stringify({ turmaId }) }),
   vincularPastaATurma: (turmaId, pasta, turmaDestinoId) => api(`/admin/turmas/${turmaId}/pastas/vincular`, { method: 'POST', body: JSON.stringify({ pasta: pasta || null, turmaDestinoId }) }),
+  transferirPastaATurma: (turmaId, pasta, turmaDestinoId) => api(`/admin/turmas/${turmaId}/pastas/transferir`, { method: 'POST', body: JSON.stringify({ pasta: pasta || null, turmaDestinoId }) }),
   // Upload é multipart — não passa pelo helper api() (que sempre manda Content-Type: application/json).
   enviarArquivoNaTurma: async (turmaId, formData) => {
     const res = await fetch(API_BASE + `/admin/turmas/${turmaId}/arquivos`, {
@@ -2541,6 +2544,10 @@ function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin) {
             <option value="">🔗 Vincular pasta a...</option>
             ${opcoesVincularTurma}
           </select>
+          <select class="select-vincular" title="Transferir pasta pra outra turma (sai daqui)" onclick="event.stopPropagation()" onchange="event.stopPropagation(); transferirPasta(${JSON.stringify(pastaReal)}, this.value); this.value='';">
+            <option value="">📦 Transferir pasta pra...</option>
+            ${opcoesVincularTurma}
+          </select>
         ` : ''}
       </summary>
       ${g.itens.map(a => htmlItemArquivo(a, comAcoesAdmin, opcoesVincularTurma)).join('')}
@@ -2910,6 +2917,7 @@ async function selecionarTurma(id) {
   renderTurmas();
   const turma = STATE.turmas.find(t => t.id === id);
   document.getElementById('admin-turma-nome').textContent = turma ? turma.nome : '';
+  document.getElementById('admin-turma-nome-input').value = turma ? turma.nome : '';
   document.getElementById('admin-turma-detalhe').style.display = '';
 
   try {
@@ -3097,6 +3105,17 @@ async function vincularPasta(pasta, turmaDestinoId) {
   } catch (err) { mostrarToast(err.message, 'error'); }
 }
 
+async function transferirPasta(pasta, turmaDestinoId) {
+  if (!turmaDestinoId) return;
+  const nomeTurma = STATE.turmas.find(t => t.id === turmaDestinoId)?.nome || 'turma selecionada';
+  if (!confirm(`Transferir esta pasta pra ${nomeTurma}? Ela vai sair da turma atual.`)) return;
+  try {
+    const resultado = await Api.transferirPastaATurma(STATE.turmaSelecionadaId, pasta, turmaDestinoId);
+    mostrarToast(`${resultado.transferidos} arquivo(s) transferido(s) pra ${nomeTurma}!`);
+    await selecionarTurma(STATE.turmaSelecionadaId);
+  } catch (err) { mostrarToast(err.message, 'error'); }
+}
+
 function initAdmin() {
   document.getElementById('form-nova-turma').addEventListener('submit', async e => {
     e.preventDefault();
@@ -3119,6 +3138,35 @@ function initAdmin() {
     } finally {
       restaurar();
     }
+  });
+
+  document.getElementById('btn-salvar-nome-turma').addEventListener('click', async () => {
+    const nome = document.getElementById('admin-turma-nome-input').value.trim();
+    if (!nome || !STATE.turmaSelecionadaId) { mostrarToast('Dê um nome à turma.', 'error'); return; }
+    try {
+      const atualizada = mapTurma(await Api.atualizarTurma(STATE.turmaSelecionadaId, nome));
+      const idx = STATE.turmas.findIndex(t => t.id === atualizada.id);
+      STATE.turmas[idx] = atualizada;
+      document.getElementById('admin-turma-nome').textContent = atualizada.nome;
+      renderTurmas();
+      mostrarToast('Nome da turma atualizado!');
+    } catch (err) { mostrarToast(err.message, 'error'); }
+  });
+
+  document.getElementById('btn-excluir-turma').addEventListener('click', async () => {
+    const turma = STATE.turmas.find(t => t.id === STATE.turmaSelecionadaId);
+    if (!turma) return;
+    if (!confirm(`Excluir a turma "${turma.nome}"? Os líderes dela ficam sem turma (não são apagados) e a trilha de desafios da turma é excluída.`)) return;
+    try {
+      await Api.excluirTurma(turma.id);
+      STATE.turmas = STATE.turmas.filter(t => t.id !== turma.id);
+      STATE.turmaSelecionadaId = null;
+      document.getElementById('admin-turma-detalhe').style.display = 'none';
+      renderTurmas();
+      STATE.lideresSemTurma = (await Api.listarTodosLideres()).map(mapLiderResumo).filter(l => !l.turmaId);
+      renderLideresSemTurma();
+      mostrarToast('Turma excluída.', 'info');
+    } catch (err) { mostrarToast(err.message, 'error'); }
   });
 
   document.getElementById('form-novo-lider').addEventListener('submit', async e => {
