@@ -10,7 +10,7 @@
        vendo a versão antiga por até 4h mesmo depois do deploy. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Cormorant+Garamond:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260927g" />
+  <link rel="stylesheet" href="style.css?v=20260927h" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -321,7 +321,7 @@
           <div class="card-header">
             <span class="card-icon">📄</span>
             <h2>Recapitulando o Plano</h2>
-            <button type="button" class="btn-primary" id="btn-gerar-apresentacao-plano">🖨️ Gerar Apresentação do Plano</button>
+            <button type="button" class="btn-primary" id="btn-gerar-apresentacao-plano">📝 Gerar Ata de Reunião</button>
           </div>
           <div id="recap-plano-gestao"></div>
         </div>
@@ -1409,13 +1409,13 @@
     <div class="modal-overlay" id="modal-overlay-plano-apresentacao"></div>
     <div class="modal-box modal-box-resumo">
       <div class="modal-header no-print">
-        <h3>Apresentação do Plano de Gestão</h3>
+        <h3>Recap do Plano — vira Ata de Reunião no Word</h3>
         <button class="modal-close" id="modal-plano-apresentacao-close">✕</button>
       </div>
       <div class="modal-body" id="modal-plano-apresentacao-body"></div>
       <div class="modal-footer no-print">
         <button class="btn-secondary" id="modal-plano-apresentacao-fechar">Fechar</button>
-        <button class="btn-primary" id="modal-plano-apresentacao-imprimir">🖨️ Imprimir / Salvar PDF</button>
+        <button class="btn-primary" id="modal-plano-apresentacao-imprimir">📝 Baixar Ata de Reunião (Word)</button>
       </div>
     </div>
   </div>
@@ -1423,6 +1423,6 @@
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <script src="app.js?v=20260927g"></script>
+  <script src="app.js?v=20260927h"></script>
 </body>
 </html>
