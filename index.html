@@ -210,75 +210,138 @@
 
       <div class="section-hero">
         <h1>Plano de Gestão</h1>
-        <p>Diagnóstico da equipe/área e criação do plano do ano — visão, metas, combinados. Monte aqui e gere a apresentação pra compartilhar com o time.</p>
+        <p>Diagnóstico da equipe/área, criação do plano do ano e a apresentação pra alinhar com o time — em 3 passos.</p>
       </div>
 
-      <div class="card">
-        <div class="card-header"><span class="card-icon">🧭</span><h2>Desafios e Oportunidades</h2></div>
-        <p class="label-hint">Brainstorm de 2 quadrantes: o que hoje desafia sua equipe/área, e onde estão as oportunidades.</p>
-        <div class="diagnostico-grid">
-          <div class="diagnostico-coluna diagnostico-desafios">
-            <div class="diagnostico-coluna-titulo">⚠️ Desafios</div>
-            <div id="lista-diagnostico-desafio"></div>
-            <form class="diagnostico-form" data-tipo="desafio">
-              <input type="text" placeholder="Adicionar um desafio..." required />
-              <button type="submit" class="btn-secondary">➕</button>
-            </form>
-          </div>
-          <div class="diagnostico-coluna diagnostico-oportunidades">
-            <div class="diagnostico-coluna-titulo">💡 Oportunidades</div>
-            <div id="lista-diagnostico-oportunidade"></div>
-            <form class="diagnostico-form" data-tipo="oportunidade">
-              <input type="text" placeholder="Adicionar uma oportunidade..." required />
-              <button type="submit" class="btn-secondary">➕</button>
-            </form>
+      <div class="subtabs">
+        <button class="subtab-btn active" data-subview="diagnostico">🧭 1. Diagnóstico</button>
+        <button class="subtab-btn" data-subview="criacao">📋 2. Criação do Plano</button>
+        <button class="subtab-btn" data-subview="apresentacao">✈️ 3. Apresentação</button>
+      </div>
+
+      <div id="view-diagnostico" class="subview active">
+        <div class="card">
+          <div class="card-header"><span class="card-icon">🧭</span><h2>Desafios e Oportunidades</h2></div>
+          <p class="label-hint">Brainstorm de 2 quadrantes: o que hoje desafia sua equipe/área, e onde estão as oportunidades.</p>
+          <div class="diagnostico-grid">
+            <div class="diagnostico-coluna diagnostico-desafios">
+              <div class="diagnostico-coluna-titulo">⚠️ Desafios</div>
+              <div id="lista-diagnostico-desafio"></div>
+              <form class="diagnostico-form" data-tipo="desafio">
+                <input type="text" placeholder="Adicionar um desafio..." required />
+                <button type="submit" class="btn-secondary">➕</button>
+              </form>
+            </div>
+            <div class="diagnostico-coluna diagnostico-oportunidades">
+              <div class="diagnostico-coluna-titulo">💡 Oportunidades</div>
+              <div id="lista-diagnostico-oportunidade"></div>
+              <form class="diagnostico-form" data-tipo="oportunidade">
+                <input type="text" placeholder="Adicionar uma oportunidade..." required />
+                <button type="submit" class="btn-secondary">➕</button>
+              </form>
+            </div>
           </div>
         </div>
       </div>
 
-      <div class="card">
-        <div class="card-header">
-          <span class="card-icon">📋</span>
-          <h2>Passo 1 — Criação do Plano</h2>
-          <button type="button" class="btn-primary" id="btn-gerar-apresentacao-plano">🖨️ Gerar Apresentação do Plano</button>
+      <div id="view-criacao" class="subview">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📋</span>
+            <h2>Passo 2 — Criação do Plano</h2>
+          </div>
+          <form id="form-plano-gestao" novalidate>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="pg-expectativas">As expectativas para esse ano</label>
+                <textarea id="pg-expectativas" rows="5" placeholder="Uma por linha..."></textarea>
+              </div>
+              <div class="form-group">
+                <label for="pg-visao">Visão e Missão</label>
+                <textarea id="pg-visao" rows="5" placeholder="Onde a equipe quer chegar e por quê..."></textarea>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="pg-pontos-fortes">3 Pontos Fortes da Equipe</label>
+              <textarea id="pg-pontos-fortes" rows="3"></textarea>
+            </div>
+            <div class="form-grid-2">
+              <div class="form-group">
+                <label for="pg-desempenho">Metas e Objetivos — 1) Desempenho</label>
+                <textarea id="pg-desempenho" rows="3"></textarea>
+              </div>
+              <div class="form-group">
+                <label for="pg-processos">Metas e Objetivos — 2) Processos</label>
+                <textarea id="pg-processos" rows="3"></textarea>
+              </div>
+            </div>
+            <div class="form-group">
+              <label for="pg-lema">3) Lema do Ano</label>
+              <input type="text" id="pg-lema" placeholder="Uma frase que resuma o ano..." />
+            </div>
+            <div class="form-group">
+              <label for="pg-combinados">Combinados</label>
+              <textarea id="pg-combinados" rows="4" placeholder="O que a equipe combinou entre si..."></textarea>
+            </div>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">💾 Salvar Plano</button>
+            </div>
+          </form>
         </div>
-        <form id="form-plano-gestao" novalidate>
-          <div class="form-grid-2">
-            <div class="form-group">
-              <label for="pg-expectativas">As expectativas para esse ano</label>
-              <textarea id="pg-expectativas" rows="5" placeholder="Uma por linha..."></textarea>
+      </div>
+
+      <div id="view-apresentacao" class="subview">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-icon">📄</span>
+            <h2>Recapitulando o Plano</h2>
+            <button type="button" class="btn-primary" id="btn-gerar-apresentacao-plano">🖨️ Gerar Apresentação do Plano</button>
+          </div>
+          <div id="recap-plano-gestao"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><span class="card-icon">✈️</span><h2>Passo 3 — Ferramenta Avião: Anatomia do Alinhamento</h2></div>
+          <p class="label-hint">5 perguntas pra alinhar a equipe antes de apresentar o plano.</p>
+          <form id="form-ferramenta-aviao" novalidate>
+            <div class="aviao-wrap">
+              <div class="aviao-campo aviao-cor-rosa">
+                <label for="av-de-onde-viemos">De onde viemos?</label>
+                <p class="label-hint">Histórico, bagagem e cultura que trouxeram a equipe até aqui.</p>
+                <textarea id="av-de-onde-viemos" rows="3"></textarea>
+              </div>
+              <div class="aviao-campo aviao-cor-ciano">
+                <label for="av-como-guiamos">Como nos guiamos?</label>
+                <p class="label-hint">Valores, princípios e indicadores de navegação.</p>
+                <textarea id="av-como-guiamos" rows="3"></textarea>
+              </div>
+              <div class="aviao-campo aviao-cor-ciano aviao-campo-largo">
+                <label for="av-para-quem">Para quem desempenhamos valor?</label>
+                <p class="label-hint">Clientes, stakeholders e as pessoas que atendemos.</p>
+                <textarea id="av-para-quem" rows="2"></textarea>
+              </div>
+              <div class="aviao-imagem" aria-hidden="true">
+                <svg viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M100 6 C108 6 114 16 114 30 L114 95 L190 145 L190 158 L114 132 L114 172 L140 196 L140 206 L100 192 L60 206 L60 196 L86 172 L86 132 L10 158 L10 145 L86 95 L86 30 C86 16 92 6 100 6 Z"
+                        fill="var(--idl-purple)" fill-opacity="0.12" stroke="var(--idl-purple)" stroke-width="2.5" stroke-linejoin="round"/>
+                </svg>
+              </div>
+              <div class="aviao-campo aviao-cor-roxo aviao-campo-roxo1">
+                <label for="av-o-que-poder">O que nos dá poder?</label>
+                <p class="label-hint">Recursos, diferenciais e capacidades propulsoras.</p>
+                <textarea id="av-o-que-poder" rows="3"></textarea>
+              </div>
+              <div class="aviao-campo aviao-cor-roxo aviao-campo-roxo2">
+                <label for="av-para-onde">Para onde vamos?</label>
+                <p class="label-hint">Visão de futuro, destino final e objetivos estratégicos.</p>
+                <textarea id="av-para-onde" rows="3"></textarea>
+              </div>
             </div>
-            <div class="form-group">
-              <label for="pg-visao">Visão e Missão</label>
-              <textarea id="pg-visao" rows="5" placeholder="Onde a equipe quer chegar e por quê..."></textarea>
+            <div class="form-actions">
+              <button type="submit" class="btn-primary">💾 Salvar Ferramenta Avião</button>
             </div>
-          </div>
-          <div class="form-group">
-            <label for="pg-pontos-fortes">3 Pontos Fortes da Equipe</label>
-            <textarea id="pg-pontos-fortes" rows="3"></textarea>
-          </div>
-          <div class="form-grid-2">
-            <div class="form-group">
-              <label for="pg-desempenho">Metas e Objetivos — 1) Desempenho</label>
-              <textarea id="pg-desempenho" rows="3"></textarea>
-            </div>
-            <div class="form-group">
-              <label for="pg-processos">Metas e Objetivos — 2) Processos</label>
-              <textarea id="pg-processos" rows="3"></textarea>
-            </div>
-          </div>
-          <div class="form-group">
-            <label for="pg-lema">3) Lema do Ano</label>
-            <input type="text" id="pg-lema" placeholder="Uma frase que resuma o ano..." />
-          </div>
-          <div class="form-group">
-            <label for="pg-combinados">Combinados</label>
-            <textarea id="pg-combinados" rows="4" placeholder="O que a equipe combinou entre si..."></textarea>
-          </div>
-          <div class="form-actions">
-            <button type="submit" class="btn-primary">💾 Salvar Plano</button>
-          </div>
-        </form>
+          </form>
+        </div>
       </div>
 
     </section>
@@ -1120,7 +1183,9 @@
             <select id="ad-secao">
               <option value="">Sem seção vinculada</option>
               <option value="liderados">Liderados</option>
-              <option value="plano">Plano de Gestão</option>
+              <option value="diagnostico">Plano de Gestão — 1. Diagnóstico</option>
+              <option value="plano-criacao">Plano de Gestão — 2. Criação do Plano</option>
+              <option value="plano-apresentacao">Plano de Gestão — 3. Apresentação</option>
               <option value="diario">Diário de Bordo</option>
               <option value="atividades">Atividades</option>
               <option value="metas">Metas</option>

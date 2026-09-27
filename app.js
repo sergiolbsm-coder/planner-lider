@@ -318,6 +318,8 @@ function mapPlanoGestao(p) {
     expectativasAno: p.expectativas_ano || '', pontosFortesEquipe: p.pontos_fortes_equipe || '',
     visaoMissao: p.visao_missao || '', metaDesempenho: p.meta_desempenho || '',
     metaProcessos: p.meta_processos || '', lemaDoAno: p.lema_do_ano || '', combinados: p.combinados || '',
+    deOndeViemos: p.de_onde_viemos || '', comoNosGuiamos: p.como_nos_guiamos || '',
+    paraQuemValor: p.para_quem_valor || '', oQueDaPoder: p.o_que_da_poder || '', paraOndeVamos: p.para_onde_vamos || '',
   };
 }
 function mapDiagnostico(d) {
@@ -2591,6 +2593,14 @@ function renderPlanoGestao() {
   document.getElementById('pg-processos').value = p.metaProcessos;
   document.getElementById('pg-lema').value = p.lemaDoAno;
   document.getElementById('pg-combinados').value = p.combinados;
+
+  document.getElementById('av-de-onde-viemos').value = p.deOndeViemos;
+  document.getElementById('av-como-guiamos').value = p.comoNosGuiamos;
+  document.getElementById('av-para-quem').value = p.paraQuemValor;
+  document.getElementById('av-o-que-poder').value = p.oQueDaPoder;
+  document.getElementById('av-para-onde').value = p.paraOndeVamos;
+
+  renderRecapPlano();
 }
 
 function initPlanoGestao() {
@@ -2608,8 +2618,31 @@ function initPlanoGestao() {
     const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
     try {
       STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
-      const marcados = await marcarDesafiosDaSecaoConcluidos('plano');
+      renderRecapPlano();
+      const marcados = await marcarDesafiosDaSecaoConcluidos('plano-criacao');
       mostrarToast(marcados ? `Plano de gestão salvo! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Plano de gestão salvo!');
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
+    }
+  });
+
+  document.getElementById('form-ferramenta-aviao').addEventListener('submit', async e => {
+    e.preventDefault();
+    const dados = {
+      deOndeViemos: document.getElementById('av-de-onde-viemos').value.trim(),
+      comoNosGuiamos: document.getElementById('av-como-guiamos').value.trim(),
+      paraQuemValor: document.getElementById('av-para-quem').value.trim(),
+      oQueDaPoder: document.getElementById('av-o-que-poder').value.trim(),
+      paraOndeVamos: document.getElementById('av-para-onde').value.trim(),
+    };
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
+    try {
+      STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
+      renderRecapPlano();
+      const marcados = await marcarDesafiosDaSecaoConcluidos('plano-apresentacao');
+      mostrarToast(marcados ? `Ferramenta Avião salva! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Ferramenta Avião salva!');
     } catch (err) {
       mostrarToast(err.message, 'error');
     } finally {
@@ -2634,8 +2667,10 @@ function initPlanoGestao() {
         const novo = mapDiagnostico(await Api.criarDiagnostico({ tipo, texto, ordem: STATE.diagnostico.filter(d => d.tipo === tipo).length }));
         STATE.diagnostico.push(novo);
         renderDiagnostico();
+        renderRecapPlano();
         input.value = '';
         input.focus();
+        await marcarDesafiosDaSecaoConcluidos('diagnostico');
       } catch (err) { mostrarToast(err.message, 'error'); }
     });
   });
@@ -2645,16 +2680,16 @@ function fecharModalApresentacaoPlano() {
   document.getElementById('modal-plano-apresentacao').style.display = 'none';
 }
 
-// Gera o "print" que o líder apresenta pra equipe (visão, metas do ano,
-// combinados e o diagnóstico) — reaproveita o mesmo modal+CSS de impressão já
-// usados no Resumo p/ Feedback e na Análise de Melhoria.
-function gerarApresentacaoPlano() {
+// Conteúdo compartilhado entre o recap inline (aba Apresentação) e o modal de
+// impressão — visão, metas do ano, combinados, diagnóstico e as 5 respostas
+// da Ferramenta Avião, tudo junto (é o que vai ser apresentado pra equipe).
+function montarHtmlApresentacaoPlano() {
   const p = STATE.planoGestao || mapPlanoGestao({});
   const desafios = STATE.diagnostico.filter(d => d.tipo === 'desafio');
   const oportunidades = STATE.diagnostico.filter(d => d.tipo === 'oportunidade');
   const listaLinhas = texto => (texto || '').split('\n').map(l => l.trim()).filter(Boolean);
 
-  const html = `
+  return `
     <div class="resumo-cabecalho">
       <h2>${AUTH.user.nome}</h2>
       <p class="resumo-periodo-label">Plano de Gestão · Gerado em ${formatarData(hojeISO())}</p>
@@ -2692,9 +2727,28 @@ function gerarApresentacaoPlano() {
         </div>
       </div>
     </div>
-  `;
 
-  document.getElementById('modal-plano-apresentacao-body').innerHTML = html;
+    <div class="detalhe-secao">
+      <div class="detalhe-secao-titulo">✈️ Ferramenta Avião — Anatomia do Alinhamento</div>
+      <p><strong>De onde viemos?</strong> ${p.deOndeViemos || 'Ainda não preenchido.'}</p>
+      <p><strong>Como nos guiamos?</strong> ${p.comoNosGuiamos || 'Ainda não preenchido.'}</p>
+      <p><strong>Para quem desempenhamos valor?</strong> ${p.paraQuemValor || 'Ainda não preenchido.'}</p>
+      <p><strong>O que nos dá poder?</strong> ${p.oQueDaPoder || 'Ainda não preenchido.'}</p>
+      <p><strong>Para onde vamos?</strong> ${p.paraOndeVamos || 'Ainda não preenchido.'}</p>
+    </div>
+  `;
+}
+
+function renderRecapPlano() {
+  const container = document.getElementById('recap-plano-gestao');
+  if (!container) return;
+  container.innerHTML = montarHtmlApresentacaoPlano();
+}
+
+// Reaproveita o mesmo modal+CSS de impressão já usados no Resumo p/ Feedback
+// e na Análise de Melhoria.
+function gerarApresentacaoPlano() {
+  document.getElementById('modal-plano-apresentacao-body').innerHTML = montarHtmlApresentacaoPlano();
   document.getElementById('modal-plano-apresentacao').style.display = 'flex';
 }
 
@@ -2723,6 +2777,7 @@ async function excluirDiagnostico(id) {
     await Api.excluirDiagnostico(id);
     STATE.diagnostico = STATE.diagnostico.filter(d => d.id !== id);
     renderDiagnostico();
+    renderRecapPlano();
   } catch (err) { mostrarToast(err.message, 'error'); }
 }
 
@@ -2739,9 +2794,28 @@ async function excluirDiagnostico(id) {
 // módulos), porque um desafio pode ser qualquer coisa que o líder queira
 // acompanhar — inclusive uma funcionalidade que ainda nem existe no planner.
 const SECOES_DESAFIO = {
-  liderados: 'Liderados', plano: 'Plano de Gestão', diario: 'Diário de Bordo', atividades: 'Atividades',
+  liderados: 'Liderados',
+  diagnostico: 'Plano de Gestão — 1. Diagnóstico',
+  'plano-criacao': 'Plano de Gestão — 2. Criação do Plano',
+  'plano-apresentacao': 'Plano de Gestão — 3. Apresentação',
+  plano: 'Plano de Gestão', // legado — desafios criados antes das 3 abas existirem
+  diario: 'Diário de Bordo', atividades: 'Atividades',
   metas: 'Metas', matriz: 'Prioridades', dashboard: 'Dashboard', aula: 'Arquivos da Aula',
 };
+
+// As 3 sub-etapas do Plano de Gestão vivem todas na mesma página
+// (section-plano), só mudando a subaba — "plano" (legado) cai na 1ª por padrão.
+const SUBTAB_DO_SECAO_DESAFIO = { diagnostico: 'diagnostico', 'plano-criacao': 'criacao', 'plano-apresentacao': 'apresentacao', plano: 'diagnostico' };
+
+function irParaSecaoDesafio(secaoAlvo) {
+  const pagina = secaoAlvo in SUBTAB_DO_SECAO_DESAFIO ? 'plano' : secaoAlvo;
+  irParaSecao(pagina);
+  const subview = SUBTAB_DO_SECAO_DESAFIO[secaoAlvo];
+  if (subview) {
+    const btn = document.querySelector(`#section-plano .subtab-btn[data-subview="${subview}"]`);
+    if (btn) btn.click();
+  }
+}
 
 function somarDias(dataISO, dias) {
   const d = new Date(dataISO + 'T00:00:00');
@@ -2757,15 +2831,15 @@ function desafiosPadrao() {
   return [
     { titulo: 'Monte sua equipe', descricao: 'Cadastre pelo menos um liderado.', secaoAlvo: 'liderados', prazo: somarDias(hoje, 7), pontos: 10 },
     { titulo: 'Conheça cada liderado', descricao: 'Preencha o perfil comportamental de todos os liderados cadastrados.', secaoAlvo: 'liderados', prazo: somarDias(hoje, 14), pontos: 10 },
-    { titulo: 'Faça o brainstorm de Desafios e Oportunidades', descricao: 'Diagnóstico: liste os principais desafios e oportunidades da sua equipe/área.', secaoAlvo: 'plano', prazo: somarDias(hoje, 14), pontos: 15 },
-    { titulo: 'Crie seu Plano de Gestão', descricao: 'Expectativas do ano, visão e missão, pontos fortes da equipe, metas do ano e combinados.', secaoAlvo: 'plano', prazo: somarDias(hoje, 21), pontos: 15 },
+    { titulo: 'Faça o brainstorm de Desafios e Oportunidades', descricao: 'Diagnóstico: liste os principais desafios e oportunidades da sua equipe/área.', secaoAlvo: 'diagnostico', prazo: somarDias(hoje, 14), pontos: 15 },
+    { titulo: 'Crie seu Plano de Gestão', descricao: 'Expectativas do ano, visão e missão, pontos fortes da equipe, metas do ano e combinados.', secaoAlvo: 'plano-criacao', prazo: somarDias(hoje, 21), pontos: 15 },
     { titulo: 'Defina metas organizacionais', descricao: 'Cadastre ao menos uma meta ou indicador.', secaoAlvo: 'metas', prazo: somarDias(hoje, 21), pontos: 10 },
     { titulo: 'Vincule atividades às metas', descricao: 'Cadastre uma atividade ligada a uma meta.', secaoAlvo: 'atividades', prazo: somarDias(hoje, 28), pontos: 10 },
     { titulo: 'Priorize com a Matriz', descricao: 'Adicione ao menos um item na Matriz de Prioridades.', secaoAlvo: 'matriz', prazo: somarDias(hoje, 28), pontos: 10 },
     { titulo: 'Registre sua rotina diária', descricao: 'Lance ao menos um bloco de tempo na sua rotina, dentro do Dashboard.', secaoAlvo: 'dashboard', prazo: somarDias(hoje, 30), pontos: 5 },
     { titulo: 'Registre no Diário de Bordo', descricao: 'Faça seu primeiro registro de observação ou feedback com um liderado.', secaoAlvo: 'diario', prazo: somarDias(hoje, 30), pontos: 10 },
     { titulo: 'Monte seu Plano de Ação', descricao: 'Defina ao menos uma ação no Plano de Ação, dentro do Dashboard.', secaoAlvo: 'dashboard', prazo: somarDias(hoje, 35), pontos: 10 },
-    { titulo: 'Apresente seu Plano de Gestão à equipe', descricao: 'Entrega: gere a apresentação do plano e compartilhe com o time.', secaoAlvo: 'plano', prazo: somarDias(hoje, 35), pontos: 15 },
+    { titulo: 'Apresente seu Plano de Gestão à equipe', descricao: 'Entrega: preencha a Ferramenta Avião e gere a apresentação do plano pra compartilhar com o time.', secaoAlvo: 'plano-apresentacao', prazo: somarDias(hoje, 35), pontos: 15 },
     { titulo: 'Faça sua Autoavaliação mensal', descricao: 'Gestão: responda a autoavaliação e gere sua Análise de Melhoria, dentro do Dashboard.', secaoAlvo: 'dashboard', prazo: somarDias(hoje, 30), pontos: 10 },
   ].map((item, i) => ({ ...item, ordem: i }));
 }
@@ -2811,7 +2885,7 @@ function renderDesafios() {
           ${status ? `<span class="desafio-tag ${status.classe}">${status.texto}</span>` : ''}
         </div>
         <div class="desafio-acao">
-          ${d.secaoAlvo ? `<button type="button" class="btn-secondary" onclick="irParaSecao('${d.secaoAlvo}')">Ir para ${SECOES_DESAFIO[d.secaoAlvo] || 'lá'}</button>` : ''}
+          ${d.secaoAlvo ? `<button type="button" class="btn-secondary" onclick="irParaSecaoDesafio('${d.secaoAlvo}')">Ir para ${SECOES_DESAFIO[d.secaoAlvo] || 'lá'}</button>` : ''}
         </div>
       </div>`;
     }).join('');

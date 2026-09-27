@@ -617,6 +617,31 @@ select { cursor: pointer; }
 }
 
 /* ============================================================
+   FERRAMENTA AVIÃO — Passo 3 (Apresentação do Plano de Gestão)
+============================================================ */
+.aviao-wrap {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-areas: "rosa ciano" "largo largo" "imagem imagem" "roxo1 roxo2";
+  gap: 16px;
+}
+.aviao-campo { border-radius: var(--radius); border: 1.5px solid var(--border); border-top: 4px solid var(--border); padding: 14px; background: var(--bg); }
+.aviao-campo label { display: block; font-weight: 700; font-size: 14px; color: var(--text); margin-bottom: 2px; }
+.aviao-campo .label-hint { margin-bottom: 8px; }
+.aviao-campo textarea { width: 100%; }
+.aviao-cor-rosa { border-top-color: var(--idl-magenta); grid-area: rosa; }
+.aviao-cor-ciano { border-top-color: var(--idl-turquoise); grid-area: ciano; }
+.aviao-cor-roxo { border-top-color: var(--idl-violet); }
+.aviao-campo-largo { grid-area: largo; }
+.aviao-campo-roxo1 { grid-area: roxo1; }
+.aviao-campo-roxo2 { grid-area: roxo2; }
+.aviao-imagem { grid-area: imagem; display: flex; align-items: center; justify-content: center; padding: 8px 0; }
+.aviao-imagem svg { width: 140px; height: auto; color: var(--primary); }
+@media (max-width: 640px) {
+  .aviao-wrap { grid-template-columns: 1fr; grid-template-areas: "rosa" "ciano" "largo" "imagem" "roxo1" "roxo2"; }
+}
+
+/* ============================================================
    DESAFIOS DO LÍDER — trilha + painel consolidado
 ============================================================ */
 .desafios-barra-fundo { height: 8px; border-radius: 999px; background: var(--bg); overflow: hidden; margin: 4px 0 18px; }
