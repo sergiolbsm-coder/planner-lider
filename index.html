@@ -75,7 +75,8 @@
       </div>
 
       <nav class="sidebar-nav">
-        <button class="nav-btn active" data-section="liderados"><span class="nav-icon">👥</span><span>Liderados</span></button>
+        <button class="nav-btn active" data-section="desafios"><span class="nav-icon">🏆</span><span>Desafios</span></button>
+        <button class="nav-btn" data-section="liderados"><span class="nav-icon">👥</span><span>Liderados</span></button>
         <button class="nav-btn" data-section="diario"><span class="nav-icon">📓</span><span>Diário de Bordo</span></button>
         <button class="nav-btn" data-section="atividades"><span class="nav-icon">🗂️</span><span>Atividades</span></button>
         <button class="nav-btn" data-section="metas"><span class="nav-icon">🎯</span><span>Metas</span></button>
@@ -95,9 +96,43 @@
   <main class="main-content">
 
     <!-- ============================================
+         MÓDULO 0 — DESAFIOS DO LÍDER
+    ============================================ -->
+    <section id="section-desafios" class="section active">
+
+      <div class="section-hero">
+        <h1>Desafios do Líder</h1>
+        <p>Uma trilha de passos práticos pra estruturar sua gestão de pessoas. Ao concluir todos, seu Painel Consolidado da equipe está pronto.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">🏆</span>
+          <h2>Sua Trilha</h2>
+          <span class="badge" id="desafios-progresso-badge">0/0</span>
+          <button type="button" class="btn-secondary" id="btn-parametrizar-desafios">⚙️ Parametrizar</button>
+        </div>
+        <div class="desafios-barra-fundo"><div class="desafios-barra-preenchida" id="desafios-barra-preenchida"></div></div>
+        <div id="lista-desafios"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">🧩</span>
+          <h2>Painel Consolidado da Equipe</h2>
+          <span class="badge" id="badge-consolidado-total">0</span>
+        </div>
+        <div id="consolidado-lista">
+          <div class="empty-state"><div class="empty-icon">🧩</div><p>Cadastre seus liderados pra ver o painel consolidado da equipe.</p></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================
          MÓDULO 1 — PAINEL DE LIDERADOS
     ============================================ -->
-    <section id="section-liderados" class="section active">
+    <section id="section-liderados" class="section">
 
       <div class="section-hero">
         <h1>Painel de Liderados</h1>
@@ -981,6 +1016,36 @@
     <footer class="footer">
       <p>© 2025 Instituto da Liderança · <a href="https://www.institutodalideranca.com.br" target="_blank">www.institutodalideranca.com.br</a></p>
     </footer>
+  </div>
+
+  <!-- Modal de parametrização da trilha de Desafios -->
+  <div id="modal-parametrizar-desafios" class="modal" style="display:none">
+    <div class="modal-overlay" id="modal-overlay-parametrizar-desafios"></div>
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>Parametrizar Desafios</h3>
+        <button class="modal-close" id="modal-parametrizar-desafios-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="label-hint">Monte sua própria trilha: edite o texto, vincule a uma seção do planner (opcional) e reordene como quiser.</p>
+        <div id="lista-parametrizar-desafios"></div>
+        <form id="form-add-desafio" novalidate class="parametriza-form">
+          <input type="text" id="pd-titulo" placeholder="Título do novo desafio *" required />
+          <input type="text" id="pd-descricao" placeholder="Descrição (opcional)" />
+          <select id="pd-secao">
+            <option value="">Sem seção vinculada</option>
+            <option value="liderados">Liderados</option>
+            <option value="diario">Diário de Bordo</option>
+            <option value="atividades">Atividades</option>
+            <option value="metas">Metas</option>
+            <option value="matriz">Prioridades</option>
+            <option value="dashboard">Dashboard</option>
+            <option value="aula">Arquivos da Aula</option>
+          </select>
+          <button type="submit" class="btn-primary">➕ Adicionar</button>
+        </form>
+      </div>
+    </div>
   </div>
 
   <!-- Modal de detalhe do liderado -->
