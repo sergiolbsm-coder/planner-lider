@@ -2659,7 +2659,7 @@ function initPlanoGestao() {
     document.getElementById('modal-plano-apresentacao-close').addEventListener('click', fecharModalApresentacaoPlano);
     document.getElementById('modal-overlay-plano-apresentacao').addEventListener('click', fecharModalApresentacaoPlano);
     document.getElementById('modal-plano-apresentacao-fechar').addEventListener('click', fecharModalApresentacaoPlano);
-    document.getElementById('modal-plano-apresentacao-imprimir').addEventListener('click', () => window.print());
+    document.getElementById('modal-plano-apresentacao-imprimir').addEventListener('click', gerarDocApresentacaoPlano);
   });
 
   initSeguro('formsDiagnostico', () => {
@@ -2751,6 +2751,152 @@ function renderRecapPlano() {
   const container = document.getElementById('recap-plano-gestao');
   if (!container) return;
   container.innerHTML = montarHtmlApresentacaoPlano();
+}
+
+// Versão da apresentação com estilo tudo inline (sem depender do style.css do
+// app) — é o que vira o .doc baixado. O "imprimir/salvar PDF" do navegador
+// bagunçava a paginação (a página ficava com blocos vazios enormes e cortava
+// seções no meio) porque herdava CSS pensado pra tela, não pra impressão;
+// gerar um Word de verdade evita esse problema por completo.
+// Monta a Ata de Reunião no formato padrão do Instituto (Propósito,
+// Participantes, Pauta, Notas/Decisões, Itens de Ação, Próxima Reunião) já
+// preenchida com o conteúdo do Plano de Gestão — pronta pra usar como
+// documento da própria reunião de apresentação do plano à equipe.
+function montarHtmlAtaReuniao() {
+  const p = STATE.planoGestao || mapPlanoGestao({});
+  const desafios = STATE.diagnostico.filter(d => d.tipo === 'desafio');
+  const oportunidades = STATE.diagnostico.filter(d => d.tipo === 'oportunidade');
+  const listaLinhas = texto => (texto || '').split('\n').map(l => l.trim()).filter(Boolean);
+
+  const corTitulo = '#391694';
+  const corTexto = '#24153E';
+  const corMuted = '#6F667E';
+  const corBorda = '#D9D3EC';
+
+  const p_ = texto => `<p style="font-size:11pt;color:${corTexto};line-height:1.5;margin:0 0 8px 0;">${texto}</p>`;
+  const ul_ = itens => `<ul style="margin:0 0 8px 22px;padding:0;">${itens.map(i => `<li style="font-size:11pt;color:${corTexto};line-height:1.5;">${i}</li>`).join('')}</ul>`;
+  const tituloSecao = (n, titulo) => `<div style="font-weight:bold;font-size:14pt;color:${corTitulo};margin:22px 0 8px 0;border-bottom:1.5pt solid ${corBorda};padding-bottom:4px;">${n}. ${titulo}</div>`;
+  const subTitulo = titulo => `<div style="font-weight:bold;color:${corTitulo};margin:14px 0 4px 0;">${titulo}</div>`;
+  const th_ = txt => `<td style="background:${corTitulo};color:#fff;font-weight:bold;font-size:10pt;padding:6px 8px;border:1pt solid ${corBorda};">${txt}</td>`;
+  const td_ = txt => `<td style="font-size:10pt;color:${corTexto};padding:6px 8px;border:1pt solid ${corBorda};">${txt || '&nbsp;'}</td>`;
+
+  const participantesLinhas = STATE.liderados.length
+    ? STATE.liderados.map(l => `<tr>${td_(l.nome)}${td_(l.cargo)}${td_(l.email)}${td_('')}${td_('')}</tr>`).join('')
+    : `<tr>${td_('')}${td_('')}${td_('')}${td_('')}${td_('')}</tr>`;
+
+  const acoesComTexto = STATE.planoAcao.filter(a => a.acao);
+  const acoesLinhas = acoesComTexto.length
+    ? acoesComTexto.map(a => `<tr>${td_(a.acao)}${td_('')}${td_(a.prazo)}${td_('')}</tr>`).join('')
+    : `<tr>${td_('')}${td_('')}${td_('')}${td_('')}</tr>`;
+
+  return `
+    <div style="font-family:Calibri, Arial, sans-serif;">
+      <h1 style="font-size:20pt;color:${corTitulo};margin:0 0 4px 0;">Ata de Reunião — Apresentação do Plano de Gestão</h1>
+      <p style="font-size:10pt;color:${corMuted};margin:0 0 16px 0;">Gerado em ${formatarData(hojeISO())}</p>
+
+      <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+        <tr>${td_(`<b>Data da Reunião:</b> `)}${td_(`<b>Local:</b> `)}</tr>
+        <tr>${td_(`<b>Hora de Início:</b> `)}${td_(`<b>Hora de Término:</b> `)}</tr>
+        <tr>${td_(`<b>Redator:</b> ${AUTH.user.nome}`)}${td_('')}</tr>
+      </table>
+
+      ${tituloSecao(1, 'Propósito da Reunião')}
+      ${p_('Apresentar o Plano de Gestão do ano à equipe e alinhar visão, metas, combinados e próximos passos.')}
+
+      ${tituloSecao(2, 'Participantes')}
+      <p style="font-size:9pt;color:${corMuted};margin:0 0 6px 0;">(adicione linhas conforme necessário)</p>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>${th_('Nome')}${th_('Cargo')}${th_('E-mail')}${th_('Telefone')}${th_('Assinatura')}</tr>
+        ${participantesLinhas}
+      </table>
+
+      ${tituloSecao(3, 'Pauta da Reunião')}
+      ${ul_([
+        'Abertura e diagnóstico — Desafios e Oportunidades da equipe/área',
+        'Visão, Missão e Lema do Ano',
+        'Metas e Objetivos (Desempenho e Processos)',
+        'Combinados da equipe',
+        'Ferramenta Avião — Anatomia do Alinhamento',
+        'Itens de ação e próximos passos',
+      ])}
+
+      ${tituloSecao(4, 'Notas, Decisões e Assuntos Discutidos')}
+
+      ${subTitulo('🧭 Diagnóstico — Desafios e Oportunidades')}
+      <table style="width:100%;border-collapse:collapse;"><tr>
+        <td style="width:50%;vertical-align:top;padding-right:12px;">
+          <div style="font-weight:bold;color:${corTexto};margin-bottom:4px;">Desafios</div>
+          ${desafios.length ? ul_(desafios.map(d => d.texto)) : p_('Nenhum registrado ainda.')}
+        </td>
+        <td style="width:50%;vertical-align:top;padding-left:12px;">
+          <div style="font-weight:bold;color:${corTexto};margin-bottom:4px;">Oportunidades</div>
+          ${oportunidades.length ? ul_(oportunidades.map(d => d.texto)) : p_('Nenhuma registrada ainda.')}
+        </td>
+      </tr></table>
+
+      ${subTitulo('🧭 Visão e Missão')}
+      ${p_(p.visaoMissao || 'Ainda não preenchido.')}
+
+      ${subTitulo('🎯 Lema do Ano')}
+      ${p_(p.lemaDoAno || 'Ainda não preenchido.')}
+
+      ${subTitulo('📋 Expectativas para esse ano')}
+      ${listaLinhas(p.expectativasAno).length ? ul_(listaLinhas(p.expectativasAno)) : p_('Ainda não preenchido.')}
+
+      ${subTitulo('⭐ 3 Pontos Fortes da Equipe')}
+      ${p_(p.pontosFortesEquipe || 'Ainda não preenchido.')}
+
+      ${subTitulo('📈 Metas e Objetivos')}
+      ${p.metaDesempenho ? p_(`<b>1) Desempenho:</b> ${p.metaDesempenho}`) : ''}
+      ${p.metaProcessos ? p_(`<b>2) Processos:</b> ${p.metaProcessos}`) : ''}
+      ${(!p.metaDesempenho && !p.metaProcessos) ? p_('Ainda não preenchido.') : ''}
+
+      ${subTitulo('🤝 Combinados')}
+      ${p_(p.combinados || 'Ainda não preenchido.')}
+
+      ${subTitulo('✈️ Ferramenta Avião — Anatomia do Alinhamento')}
+      ${p_(`<b>De onde viemos?</b> ${p.deOndeViemos || 'Ainda não preenchido.'}`)}
+      ${p_(`<b>Como nos guiamos?</b> ${p.comoNosGuiamos || 'Ainda não preenchido.'}`)}
+      ${p_(`<b>Para quem desempenhamos valor?</b> ${p.paraQuemValor || 'Ainda não preenchido.'}`)}
+      ${p_(`<b>O que nos dá poder?</b> ${p.oQueDaPoder || 'Ainda não preenchido.'}`)}
+      ${p_(`<b>Para onde vamos?</b> ${p.paraOndeVamos || 'Ainda não preenchido.'}`)}
+
+      ${tituloSecao(5, 'Itens de Ação')}
+      <p style="font-size:9pt;color:${corMuted};margin:0 0 6px 0;">(adicione linhas conforme necessário)</p>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr>${th_('Ação')}${th_('Responsável')}${th_('Data Esperada')}${th_('Situação')}</tr>
+        ${acoesLinhas}
+      </table>
+
+      ${tituloSecao(6, 'Próxima Reunião')}
+      <p style="font-size:9pt;color:${corMuted};margin:0 0 6px 0;">[Opcional]</p>
+      <table style="width:100%;border-collapse:collapse;margin-bottom:8px;">
+        <tr>${td_('<b>Data:</b> ')}${td_('<b>Hora:</b> ')}</tr>
+        <tr>${td_('<b>Local:</b> ')}${td_('')}</tr>
+      </table>
+      <div style="font-weight:bold;color:${corTexto};margin-bottom:4px;">Pauta:</div>
+      ${p_('&nbsp;')}
+    </div>
+  `;
+}
+
+// Baixa um .doc de verdade (HTML com o namespace do Word) — abre direto no
+// Word/LibreOffice/Google Docs, sem depender do "Imprimir" do navegador (que
+// bagunçava a paginação: página com blocos vazios enormes e conteúdo cortado).
+function gerarDocApresentacaoPlano() {
+  const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+    <head><meta charset="utf-8"><title>Ata de Reunião</title></head>
+    <body>${montarHtmlAtaReuniao()}</body>
+    </html>`;
+  const blob = new Blob(['﻿', html], { type: 'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Ata de Reuniao - Plano de Gestao - ${AUTH.user.nome}.doc`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 // Depois de salvar (Criação do Plano ou Ferramenta Avião), o recap fica lá em
