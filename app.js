@@ -24,7 +24,7 @@ const STATE = {
   estatisticasDiario: null,
   arquivos: [],        // arquivos da aula que o líder subiu
   arquivosTurma: [],   // (visão do liderado) arquivos disponibilizados pelo seu líder
-  desafios: [],        // trilha de passo a passo, parametrizável pelo próprio líder
+  desafios: [],        // trilha de passo a passo da turma do líder, com o progresso dele
   planoGestao: null,   // Passo 1 — Criação do Plano (visão, metas do ano, combinados)
   diagnostico: [],     // brainstorm de Desafios e Oportunidades da equipe/área
   filtroResultado: 'todos',
@@ -37,6 +37,13 @@ const STATE = {
   minhasAtividades: [],
   minhasMetas: [],
   meusFeedbacks: [],
+  // Visão do administrador (papel "admin")
+  turmas: [],
+  turmaSelecionadaId: null,
+  turmaLideres: [],
+  turmaDesafios: [],   // trilha (template) da turma selecionada, sem progresso individual
+  turmaArquivos: [],   // arquivos da aula da turma selecionada
+  lideresSemTurma: [],
 };
 
 // ============================================================
@@ -89,16 +96,10 @@ const RISCOS_LABELS = {
   pressao: '🧱 Pressão excessiva',
 };
 
-function planoAcaoPadrao() {
-  return [
-    { acao: 'Bloquear tempo para o estratégico', comoFazer: 'Agendar 2 blocos diários sem interrupções.', impacto: 'Mais foco em projetos e desenvolvimento.', prazo: 'Imediato' },
-    { acao: 'Delegar com clareza', comoFazer: 'Definir responsáveis e acompanhar resultados.', impacto: 'Reduzir sobrecarga operacional.', prazo: 'Imediato' },
-    { acao: 'Padronizar processos', comoFazer: 'Criar checklists e templates para demandas recorrentes.', impacto: 'Menos retrabalho e mais eficiência.', prazo: 'Curto prazo (30 dias)' },
-    { acao: 'Reuniões com propósito', comoFazer: 'Pauta clara, objetivo e tempo definido.', impacto: 'Reuniões mais eficazes e rápidas.', prazo: 'Curto prazo (30 dias)' },
-    { acao: 'Acompanhar indicadores', comoFazer: 'Focar no que realmente importa.', impacto: 'Decisões melhores e mais rápidas.', prazo: 'Contínuo' },
-    { acao: 'Desenvolver pessoas', comoFazer: '1:1s semanais e feedback estruturado.', impacto: 'Equipe mais engajada e preparada.', prazo: 'Contínuo' },
-  ];
-}
+// Seed do Plano de Ação padrão de um líder novo: agora fica no backend (ver
+// PLANO_ACAO_PADRAO em src/routes/admin.js), aplicado quando o admin cadastra
+// o líder — antes disso, era feito daqui mesmo, no frontend, na hora que o
+// próprio líder se autocadastrava.
 
 // ============================================================
 // API — autenticação e chamadas HTTP
@@ -149,8 +150,18 @@ async function api(caminho, opcoes = {}) {
 }
 
 const Api = {
-  registrarLider: dados => api('/auth/registrar-lider', { method: 'POST', body: JSON.stringify(dados) }),
   login: (email, senha) => api('/auth/login', { method: 'POST', body: JSON.stringify({ email, senha }) }),
+
+  listarTurmas: () => api('/admin/turmas'),
+  criarTurma: nome => api('/admin/turmas', { method: 'POST', body: JSON.stringify({ nome }) }),
+  listarTodosLideres: () => api('/admin/lideres'),
+  listarLideresDaTurma: turmaId => api(`/admin/turmas/${turmaId}/lideres`),
+  criarLiderNaTurma: (turmaId, dados) => api(`/admin/turmas/${turmaId}/lideres`, { method: 'POST', body: JSON.stringify(dados) }),
+  moverLiderDeTurma: (liderId, turmaId) => api(`/admin/lideres/${liderId}`, { method: 'PUT', body: JSON.stringify({ turmaId }) }),
+  listarDesafiosDaTurma: turmaId => api(`/admin/turmas/${turmaId}/desafios`),
+  criarDesafioAdmin: (turmaId, dados) => api(`/admin/turmas/${turmaId}/desafios`, { method: 'POST', body: JSON.stringify(dados) }),
+  atualizarDesafioAdmin: (id, dados) => api(`/admin/desafios/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
+  excluirDesafioAdmin: id => api(`/admin/desafios/${id}`, { method: 'DELETE' }),
 
   meuPerfilLiderado: () => api('/liderados/me'),
   listarLiderados: () => api('/liderados'),
@@ -212,13 +223,16 @@ const Api = {
   atualizarDiagnostico: (id, dados) => api('/diagnostico/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
   excluirDiagnostico: id => api('/diagnostico/' + id, { method: 'DELETE' }),
 
+  // Upload/edição/exclusão de arquivos agora são só do administrador, por
+  // turma — líder e liderado só listam e baixam os da turma do seu líder.
   listarArquivos: () => api('/arquivos'),
   listarArquivosTurma: () => api('/arquivos/minha-turma'),
-  atualizarArquivo: (id, dados) => api('/arquivos/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
-  excluirArquivo: id => api('/arquivos/' + id, { method: 'DELETE' }),
+  listarArquivosDaTurma: turmaId => api(`/admin/turmas/${turmaId}/arquivos`),
+  atualizarArquivoAdmin: (id, dados) => api(`/admin/arquivos/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
+  excluirArquivoAdmin: id => api(`/admin/arquivos/${id}`, { method: 'DELETE' }),
   // Upload é multipart — não passa pelo helper api() (que sempre manda Content-Type: application/json).
-  enviarArquivo: async formData => {
-    const res = await fetch(API_BASE + '/arquivos', {
+  enviarArquivoNaTurma: async (turmaId, formData) => {
+    const res = await fetch(API_BASE + `/admin/turmas/${turmaId}/arquivos`, {
       method: 'POST',
       headers: { Authorization: 'Bearer ' + AUTH.token },
       body: formData,
@@ -423,21 +437,12 @@ function mostrarTela(nome) {
   document.getElementById('tela-auth').style.display = nome === 'auth' ? '' : 'none';
   document.getElementById('app-shell').style.display = nome === 'lider' ? '' : 'none';
   document.getElementById('app-liderado').style.display = nome === 'liderado' ? '' : 'none';
+  document.getElementById('app-admin').style.display = nome === 'admin' ? '' : 'none';
   document.getElementById('btn-sidebar-toggle').style.display = nome === 'lider' ? '' : 'none';
   document.body.classList.remove('sidebar-open');
 }
 
 function initTelaAuth() {
-  document.querySelectorAll('#tela-auth .subtab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('#tela-auth .subtab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('#tela-auth .subview').forEach(v => v.classList.remove('active'));
-      btn.classList.add('active');
-      document.getElementById('view-' + btn.dataset.authview).classList.add('active');
-      document.getElementById('auth-erro').style.display = 'none';
-    });
-  });
-
   document.getElementById('form-login').addEventListener('submit', async e => {
     e.preventDefault();
     const email = document.getElementById('lg-email').value.trim();
@@ -445,23 +450,12 @@ function initTelaAuth() {
     await tentarAuth(document.querySelector('#form-login button[type=submit]'), () => Api.login(email, senha));
   });
 
-  document.getElementById('form-registrar-lider').addEventListener('submit', async e => {
-    e.preventDefault();
-    const dados = {
-      nome: document.getElementById('rg-nome').value.trim(),
-      area: document.getElementById('rg-area').value.trim(),
-      cargo: document.getElementById('rg-cargo').value.trim(),
-      email: document.getElementById('rg-email').value.trim(),
-      senha: document.getElementById('rg-senha').value,
-    };
-    await tentarAuth(document.querySelector('#form-registrar-lider button[type=submit]'), () => Api.registrarLider(dados), true);
-  });
-
   document.getElementById('btn-sair').addEventListener('click', sair);
   document.getElementById('btn-sair-liderado').addEventListener('click', sair);
+  document.getElementById('btn-sair-admin').addEventListener('click', sair);
 }
 
-async function tentarAuth(botao, chamada, ehRegistroDeLider) {
+async function tentarAuth(botao, chamada) {
   const erroEl = document.getElementById('auth-erro');
   erroEl.style.display = 'none';
   const textoOriginal = botao.textContent;
@@ -470,14 +464,6 @@ async function tentarAuth(botao, chamada, ehRegistroDeLider) {
   try {
     const { token, user } = await chamada();
     salvarAuth(token, user);
-    if (ehRegistroDeLider) {
-      for (const item of planoAcaoPadrao()) {
-        try { await Api.criarPlanoAcao(item); } catch (e) { /* não bloqueia o cadastro */ }
-      }
-      for (const item of desafiosPadrao()) {
-        try { await Api.criarDesafio(item); } catch (e) { /* não bloqueia o cadastro */ }
-      }
-    }
     await entrarNaSessao();
   } catch (err) {
     erroEl.textContent = err.message;
@@ -490,7 +476,10 @@ async function tentarAuth(botao, chamada, ehRegistroDeLider) {
 
 async function entrarNaSessao() {
   mostrarTela('carregando');
-  if (AUTH.user.role === 'lider') {
+  if (AUTH.user.role === 'admin') {
+    await carregarTudoAdmin();
+    mostrarTela('admin');
+  } else if (AUTH.user.role === 'lider') {
     renderHeaderLider();
     await carregarTudoLider();
     mostrarTela('lider');
@@ -515,6 +504,7 @@ function sair() {
   STATE.desafios = [];
   STATE.planoGestao = null; STATE.diagnostico = [];
   STATE.meuPerfil = null; STATE.minhasAtividades = []; STATE.minhasMetas = []; STATE.meusFeedbacks = [];
+  STATE.turmas = []; STATE.turmaSelecionadaId = null; STATE.turmaLideres = []; STATE.turmaDesafios = []; STATE.turmaArquivos = []; STATE.lideresSemTurma = [];
   document.getElementById('form-login').reset();
   document.getElementById('auth-erro').style.display = 'none';
   mostrarTela('auth');
@@ -2499,7 +2489,9 @@ function agruparPorPasta(lista) {
   return ordem.map(chave => ({ pasta: chave || 'Sem pasta', itens: grupos.get(chave) }));
 }
 
-function htmlItemArquivo(a, comAcoesLider) {
+// comAcoesAdmin: true só na visão do administrador (única que edita/exclui
+// agora) — líder e liderado sempre veem a lista somente-leitura.
+function htmlItemArquivo(a, comAcoesAdmin) {
   return `
     <div class="arquivo-item">
       <span class="arquivo-icone">${iconeArquivo(a.tipoMime)}</span>
@@ -2510,118 +2502,32 @@ function htmlItemArquivo(a, comAcoesLider) {
       </div>
       <div class="arquivo-acoes">
         <button class="btn-icon" title="Baixar" onclick="baixarArquivo('${a.id}', ${JSON.stringify(a.nome)})">⬇️</button>
-        ${comAcoesLider ? `
-          <button class="btn-icon" title="Editar" onclick="editarArquivo('${a.id}')">✏️</button>
-          <button class="btn-icon btn-icon-danger" title="Excluir" onclick="excluirArquivo('${a.id}')">🗑️</button>
+        ${comAcoesAdmin ? `
+          <button class="btn-icon" title="Editar" onclick="editarArquivoAdmin('${a.id}')">✏️</button>
+          <button class="btn-icon btn-icon-danger" title="Excluir" onclick="excluirArquivoAdminItem('${a.id}')">🗑️</button>
         ` : ''}
       </div>
     </div>`;
 }
 
-function renderListaArquivosAgrupada(containerId, lista, comAcoesLider) {
+function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin) {
   const container = document.getElementById(containerId);
   if (lista.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><p>${comAcoesLider ? 'Nenhum arquivo enviado ainda.' : 'Nenhum material disponível ainda.'}</p></div>`;
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><p>${comAcoesAdmin ? 'Nenhum arquivo enviado ainda.' : 'Nenhum material disponível ainda.'}</p></div>`;
     return;
   }
   const grupos = agruparPorPasta(lista);
   container.innerHTML = grupos.map((g, i) => `
     <details class="pasta-grupo" open>
       <summary class="pasta-titulo">📁 ${g.pasta} <span class="badge">${g.itens.length}</span></summary>
-      ${g.itens.map(a => htmlItemArquivo(a, comAcoesLider)).join('')}
+      ${g.itens.map(a => htmlItemArquivo(a, comAcoesAdmin)).join('')}
     </details>
   `).join('');
 }
 
 function renderArquivos() {
   document.getElementById('badge-total-arquivos').textContent = STATE.arquivos.length;
-  renderListaArquivosAgrupada('lista-arquivos', STATE.arquivos, true);
-  popularDatalistPastas();
-}
-
-function popularDatalistPastas() {
-  const pastas = [...new Set(STATE.arquivos.map(a => a.pasta).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
-  document.getElementById('lista-pastas').innerHTML = pastas.map(p => `<option value="${p}"></option>`).join('');
-}
-
-function initFormArquivo() {
-  document.getElementById('form-arquivo').addEventListener('submit', async e => {
-    e.preventDefault();
-    const id = document.getElementById('ar-id').value;
-    const nome = document.getElementById('ar-nome').value.trim();
-    const descricao = document.getElementById('ar-descricao').value.trim();
-    const pasta = document.getElementById('ar-pasta').value.trim();
-
-    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), id ? 'Salvando...' : 'Enviando...');
-    try {
-      if (id) {
-        if (!nome) { mostrarToast('Dê um nome ao arquivo.', 'error'); return; }
-        const atualizado = mapArquivo(await Api.atualizarArquivo(id, { nome, descricao, pasta }));
-        const idx = STATE.arquivos.findIndex(a => a.id === id);
-        STATE.arquivos[idx] = atualizado;
-        mostrarToast('Arquivo atualizado!');
-      } else {
-        const arquivo = document.getElementById('ar-arquivo').files[0];
-        if (!arquivo) { mostrarToast('Selecione um arquivo.', 'error'); return; }
-        if (arquivo.size > 20 * 1024 * 1024) { mostrarToast('Arquivo maior que o limite de 20MB.', 'error'); return; }
-
-        const formData = new FormData();
-        formData.append('arquivo', arquivo);
-        formData.append('nome', nome);
-        formData.append('descricao', descricao);
-        formData.append('pasta', pasta);
-        const novo = mapArquivo(await Api.enviarArquivo(formData));
-        STATE.arquivos.unshift(novo);
-        mostrarToast('Arquivo enviado! Já está disponível pra turma.');
-      }
-      renderArquivos();
-      resetFormArquivo();
-    } catch (err) {
-      mostrarToast(err.message, 'error');
-    } finally {
-      restaurar();
-    }
-  });
-
-  document.getElementById('btn-cancelar-arquivo').addEventListener('click', resetFormArquivo);
-}
-
-function resetFormArquivo() {
-  document.getElementById('ar-id').value = '';
-  document.getElementById('form-arquivo').reset();
-  document.getElementById('grupo-ar-arquivo').style.display = 'block';
-  document.getElementById('ar-arquivo-hint').style.display = 'none';
-  document.getElementById('arquivo-form-title').textContent = 'Enviar Arquivo';
-  document.querySelector('#form-arquivo button[type=submit]').innerHTML = '⬆️ Enviar';
-  document.getElementById('btn-cancelar-arquivo').style.display = 'none';
-}
-
-function editarArquivo(id) {
-  const a = STATE.arquivos.find(x => x.id === id);
-  if (!a) return;
-  document.getElementById('ar-id').value = a.id;
-  document.getElementById('ar-nome').value = a.nome;
-  document.getElementById('ar-descricao').value = a.descricao || '';
-  document.getElementById('ar-pasta').value = a.pasta || '';
-  document.getElementById('grupo-ar-arquivo').style.display = 'none';
-  document.getElementById('ar-arquivo-hint').style.display = 'block';
-  document.getElementById('arquivo-form-title').textContent = 'Editar Arquivo';
-  document.querySelector('#form-arquivo button[type=submit]').innerHTML = '💾 Salvar';
-  document.getElementById('btn-cancelar-arquivo').style.display = 'inline-flex';
-  irParaSecao('aula');
-  document.querySelector('#section-aula .form-card').scrollIntoView({ behavior: 'smooth' });
-}
-
-async function excluirArquivo(id) {
-  if (!confirm('Excluir este arquivo? A turma deixará de vê-lo.')) return;
-  try {
-    await Api.excluirArquivo(id);
-    STATE.arquivos = STATE.arquivos.filter(a => a.id !== id);
-    renderArquivos();
-    mostrarToast('Arquivo removido.', 'info');
-  } catch (err) {
-    mostrarToast(err.message, 'error');
-  }
+  renderListaArquivosAgrupada('lista-arquivos', STATE.arquivos, false);
 }
 
 async function carregarArquivosTurma() {
@@ -2897,115 +2803,9 @@ async function toggleDesafioConcluido(id) {
   }
 }
 
-// ---- Parametrização da trilha (modal) ----
-function renderModalDesafios() {
-  const container = document.getElementById('lista-parametrizar-desafios');
-  if (!container) return;
-
-  if (STATE.desafios.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><p>Nenhum desafio ainda. Use o formulário abaixo para adicionar o primeiro.</p></div>`;
-  } else {
-    container.innerHTML = STATE.desafios.map((d, i) => `
-      <div class="parametriza-item" data-id="${d.id}">
-        <div class="parametriza-ordem">
-          <button type="button" class="btn-icon btn-icon-sm" title="Mover para cima" ${i === 0 ? 'disabled' : ''} onclick="moverDesafio('${d.id}', -1)">↑</button>
-          <button type="button" class="btn-icon btn-icon-sm" title="Mover para baixo" ${i === STATE.desafios.length - 1 ? 'disabled' : ''} onclick="moverDesafio('${d.id}', 1)">↓</button>
-        </div>
-        <div class="parametriza-campos">
-          <input type="text" data-campo="titulo" placeholder="Título do desafio" value="${d.titulo || ''}" />
-          <input type="text" data-campo="descricao" placeholder="Descrição (opcional)" value="${d.descricao || ''}" />
-          <select data-campo="secaoAlvo">
-            <option value="">Sem seção vinculada</option>
-            ${Object.entries(SECOES_DESAFIO).map(([valor, label]) => `<option value="${valor}" ${d.secaoAlvo === valor ? 'selected' : ''}>${label}</option>`).join('')}
-          </select>
-          <input type="date" data-campo="prazo" title="Prazo" value="${d.prazo || ''}" />
-          <input type="number" data-campo="pontos" title="Pontos se entregar no prazo" min="0" step="1" value="${d.pontos}" />
-        </div>
-        <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" title="Remover" onclick="excluirDesafioParametrizado('${d.id}')">🗑️</button>
-      </div>
-    `).join('');
-
-    container.querySelectorAll('.parametriza-item').forEach(el => {
-      const id = el.dataset.id;
-      el.querySelectorAll('[data-campo]').forEach(campo => {
-        campo.addEventListener('change', async () => {
-          const item = STATE.desafios.find(d => d.id === id);
-          if (!item) return;
-          item[campo.dataset.campo] = campo.dataset.campo === 'pontos' ? (Number(campo.value) || 0) : campo.value;
-          try {
-            await Api.atualizarDesafio(id, {
-              titulo: item.titulo, descricao: item.descricao, secaoAlvo: item.secaoAlvo || null,
-              prazo: item.prazo || null, pontos: item.pontos,
-            });
-            renderDesafios();
-          } catch (err) { mostrarToast(err.message, 'error'); }
-        });
-      });
-    });
-  }
-}
-
-async function excluirDesafioParametrizado(id) {
-  try {
-    await Api.excluirDesafio(id);
-    STATE.desafios = STATE.desafios.filter(d => d.id !== id);
-    renderModalDesafios();
-    renderDesafios();
-  } catch (err) { mostrarToast(err.message, 'error'); }
-}
-
-async function moverDesafio(id, direcao) {
-  const i = STATE.desafios.findIndex(d => d.id === id);
-  const j = i + direcao;
-  if (i < 0 || j < 0 || j >= STATE.desafios.length) return;
-  [STATE.desafios[i], STATE.desafios[j]] = [STATE.desafios[j], STATE.desafios[i]];
-  renderModalDesafios();
-  renderDesafios();
-  try {
-    await Promise.all([
-      Api.atualizarDesafio(STATE.desafios[i].id, { ordem: i }),
-      Api.atualizarDesafio(STATE.desafios[j].id, { ordem: j }),
-    ]);
-  } catch (err) { mostrarToast(err.message, 'error'); }
-}
-
-function initDesafios() {
-  document.getElementById('btn-parametrizar-desafios').addEventListener('click', () => {
-    renderModalDesafios();
-    document.getElementById('modal-parametrizar-desafios').style.display = 'flex';
-  });
-  document.getElementById('modal-parametrizar-desafios-close').addEventListener('click', () => {
-    document.getElementById('modal-parametrizar-desafios').style.display = 'none';
-  });
-  document.getElementById('modal-overlay-parametrizar-desafios').addEventListener('click', () => {
-    document.getElementById('modal-parametrizar-desafios').style.display = 'none';
-  });
-
-  document.getElementById('form-add-desafio').addEventListener('submit', async e => {
-    e.preventDefault();
-    const tituloInput = document.getElementById('pd-titulo');
-    const titulo = tituloInput.value.trim();
-    if (!titulo) { mostrarToast('Dê um título ao desafio.', 'error'); return; }
-    const descricao = document.getElementById('pd-descricao').value.trim();
-    const secaoAlvo = document.getElementById('pd-secao').value;
-    const prazo = document.getElementById('pd-prazo').value || null;
-    const pontos = Number(document.getElementById('pd-pontos').value) || 0;
-
-    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Adicionando...');
-    try {
-      const novo = mapDesafio(await Api.criarDesafio({ titulo, descricao, secaoAlvo, prazo, pontos, ordem: STATE.desafios.length }));
-      STATE.desafios.push(novo);
-      renderModalDesafios();
-      renderDesafios();
-      e.target.reset();
-      tituloInput.focus();
-    } catch (err) {
-      mostrarToast(err.message, 'error');
-    } finally {
-      restaurar();
-    }
-  });
-}
+// A parametrização da trilha (título, descrição, seção, prazo, pontos) é só
+// do administrador agora — ver ADMIN: TRILHA DE DESAFIOS DA TURMA, mais
+// abaixo. Aqui o líder só lê e marca o próprio progresso (toggleDesafioConcluido).
 
 function renderConsolidado() {
   const container = document.getElementById('consolidado-lista');
@@ -3046,6 +2846,328 @@ function renderConsolidado() {
       </div>
     </div>`;
   }).join('');
+}
+
+// ============================================================
+// ADMINISTRADOR — turmas, líderes e a trilha de Desafios de cada turma
+// ============================================================
+function mapTurma(t) {
+  return { id: t.id, nome: t.nome };
+}
+function mapLiderResumo(l) {
+  return { id: l.id, nome: l.nome, email: l.email, cargo: l.cargo || '', area: l.area || '', turmaId: l.turma_id || '' };
+}
+
+async function carregarTudoAdmin() {
+  document.getElementById('admin-nome-topo').textContent = AUTH.user.nome;
+  document.getElementById('admin-avatar').textContent = iniciaisNome(AUTH.user.nome);
+  try {
+    STATE.turmas = (await Api.listarTurmas()).map(mapTurma);
+    STATE.lideresSemTurma = (await Api.listarTodosLideres()).map(mapLiderResumo).filter(l => !l.turmaId);
+    renderTurmas();
+    renderLideresSemTurma();
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
+}
+
+function renderTurmas() {
+  document.getElementById('badge-total-turmas').textContent = STATE.turmas.length;
+  const container = document.getElementById('lista-turmas');
+  container.innerHTML = STATE.turmas.length === 0
+    ? `<div class="empty-state"><div class="empty-icon">🎓</div><p>Nenhuma turma criada ainda.</p></div>`
+    : STATE.turmas.map(t => `
+      <button type="button" class="turma-chip ${t.id === STATE.turmaSelecionadaId ? 'selected' : ''}" onclick="selecionarTurma('${t.id}')">${t.nome}</button>
+    `).join('');
+}
+
+async function selecionarTurma(id) {
+  STATE.turmaSelecionadaId = id;
+  renderTurmas();
+  const turma = STATE.turmas.find(t => t.id === id);
+  document.getElementById('admin-turma-nome').textContent = turma ? turma.nome : '';
+  document.getElementById('admin-turma-detalhe').style.display = '';
+
+  try {
+    STATE.turmaLideres = (await Api.listarLideresDaTurma(id)).map(mapLiderResumo);
+    STATE.turmaDesafios = (await Api.listarDesafiosDaTurma(id)).map(mapDesafio);
+    STATE.turmaArquivos = (await Api.listarArquivosDaTurma(id)).map(mapArquivo);
+    renderTurmaLideres();
+    renderAdminDesafios();
+    renderAdminArquivos();
+    resetFormArquivoAdmin();
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
+}
+
+function renderTurmaLideres() {
+  document.getElementById('badge-turma-lideres').textContent = STATE.turmaLideres.length;
+  const container = document.getElementById('lista-turma-lideres');
+  container.innerHTML = STATE.turmaLideres.length === 0
+    ? `<div class="empty-state"><div class="empty-icon">👤</div><p>Nenhum líder cadastrado nesta turma ainda.</p></div>`
+    : STATE.turmaLideres.map(l => `
+      <div class="diagnostico-item">
+        <span><strong>${l.nome}</strong>${l.cargo ? ' · ' + l.cargo : ''} — ${l.email}</span>
+      </div>
+    `).join('');
+}
+
+function renderLideresSemTurma() {
+  const card = document.getElementById('admin-card-sem-turma');
+  const lista = STATE.lideresSemTurma;
+  card.style.display = lista.length === 0 ? 'none' : '';
+  if (lista.length === 0) return;
+
+  document.getElementById('badge-sem-turma').textContent = lista.length;
+  document.getElementById('lista-lideres-sem-turma').innerHTML = lista.map(l => `
+    <div class="diagnostico-item">
+      <span><strong>${l.nome}</strong> — ${l.email}</span>
+      <select onchange="moverLiderSemTurma('${l.id}', this.value)">
+        <option value="">Mover pra turma...</option>
+        ${STATE.turmas.map(t => `<option value="${t.id}">${t.nome}</option>`).join('')}
+      </select>
+    </div>
+  `).join('');
+}
+
+async function moverLiderSemTurma(liderId, turmaId) {
+  if (!turmaId) return;
+  try {
+    await Api.moverLiderDeTurma(liderId, turmaId);
+    STATE.lideresSemTurma = STATE.lideresSemTurma.filter(l => l.id !== liderId);
+    renderLideresSemTurma();
+    mostrarToast('Líder movido pra turma!');
+    if (turmaId === STATE.turmaSelecionadaId) selecionarTurma(turmaId);
+  } catch (err) { mostrarToast(err.message, 'error'); }
+}
+
+// ---- Trilha de Desafios da turma selecionada (só o admin edita) ----
+function renderAdminDesafios() {
+  document.getElementById('badge-turma-desafios').textContent = STATE.turmaDesafios.length;
+  const container = document.getElementById('lista-admin-desafios');
+
+  if (STATE.turmaDesafios.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><p>Nenhum desafio ainda. Use o formulário abaixo para adicionar o primeiro.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = STATE.turmaDesafios.map((d, i) => `
+    <div class="parametriza-item" data-id="${d.id}">
+      <div class="parametriza-ordem">
+        <button type="button" class="btn-icon btn-icon-sm" title="Mover para cima" ${i === 0 ? 'disabled' : ''} onclick="moverDesafioAdmin('${d.id}', -1)">↑</button>
+        <button type="button" class="btn-icon btn-icon-sm" title="Mover para baixo" ${i === STATE.turmaDesafios.length - 1 ? 'disabled' : ''} onclick="moverDesafioAdmin('${d.id}', 1)">↓</button>
+      </div>
+      <div class="parametriza-campos">
+        <input type="text" data-campo="titulo" placeholder="Título do desafio" value="${d.titulo || ''}" />
+        <input type="text" data-campo="descricao" placeholder="Descrição (opcional)" value="${d.descricao || ''}" />
+        <select data-campo="secaoAlvo">
+          <option value="">Sem seção vinculada</option>
+          ${Object.entries(SECOES_DESAFIO).map(([valor, label]) => `<option value="${valor}" ${d.secaoAlvo === valor ? 'selected' : ''}>${label}</option>`).join('')}
+        </select>
+        <input type="date" data-campo="prazo" title="Prazo" value="${d.prazo || ''}" />
+        <input type="number" data-campo="pontos" title="Pontos se entregar no prazo" min="0" step="1" value="${d.pontos}" />
+      </div>
+      <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" title="Remover" onclick="excluirDesafioAdminItem('${d.id}')">🗑️</button>
+    </div>
+  `).join('');
+
+  container.querySelectorAll('.parametriza-item').forEach(el => {
+    const id = el.dataset.id;
+    el.querySelectorAll('[data-campo]').forEach(campo => {
+      campo.addEventListener('change', async () => {
+        const item = STATE.turmaDesafios.find(d => d.id === id);
+        if (!item) return;
+        item[campo.dataset.campo] = campo.dataset.campo === 'pontos' ? (Number(campo.value) || 0) : campo.value;
+        try {
+          await Api.atualizarDesafioAdmin(id, {
+            titulo: item.titulo, descricao: item.descricao, secaoAlvo: item.secaoAlvo || null,
+            prazo: item.prazo || null, pontos: item.pontos,
+          });
+        } catch (err) { mostrarToast(err.message, 'error'); }
+      });
+    });
+  });
+}
+
+async function excluirDesafioAdminItem(id) {
+  try {
+    await Api.excluirDesafioAdmin(id);
+    STATE.turmaDesafios = STATE.turmaDesafios.filter(d => d.id !== id);
+    renderAdminDesafios();
+  } catch (err) { mostrarToast(err.message, 'error'); }
+}
+
+async function moverDesafioAdmin(id, direcao) {
+  const i = STATE.turmaDesafios.findIndex(d => d.id === id);
+  const j = i + direcao;
+  if (i < 0 || j < 0 || j >= STATE.turmaDesafios.length) return;
+  [STATE.turmaDesafios[i], STATE.turmaDesafios[j]] = [STATE.turmaDesafios[j], STATE.turmaDesafios[i]];
+  renderAdminDesafios();
+  try {
+    await Promise.all([
+      Api.atualizarDesafioAdmin(STATE.turmaDesafios[i].id, { ordem: i }),
+      Api.atualizarDesafioAdmin(STATE.turmaDesafios[j].id, { ordem: j }),
+    ]);
+  } catch (err) { mostrarToast(err.message, 'error'); }
+}
+
+// ---- Arquivos da Aula da turma selecionada (só o admin sobe/edita/exclui) ----
+function renderAdminArquivos() {
+  document.getElementById('badge-turma-arquivos').textContent = STATE.turmaArquivos.length;
+  renderListaArquivosAgrupada('lista-admin-arquivos', STATE.turmaArquivos, true);
+  const pastas = [...new Set(STATE.turmaArquivos.map(a => a.pasta).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'pt-BR'));
+  document.getElementById('lista-pastas-admin').innerHTML = pastas.map(p => `<option value="${p}"></option>`).join('');
+}
+
+function resetFormArquivoAdmin() {
+  document.getElementById('aa-id').value = '';
+  document.getElementById('form-arquivo-admin').reset();
+  document.getElementById('grupo-aa-arquivo').style.display = 'block';
+  document.getElementById('aa-arquivo-hint').style.display = 'none';
+  document.getElementById('admin-arquivo-form-title').textContent = 'Enviar Arquivo da Aula';
+  document.querySelector('#form-arquivo-admin button[type=submit]').innerHTML = '⬆️ Enviar';
+  document.getElementById('btn-cancelar-arquivo-admin').style.display = 'none';
+}
+
+function editarArquivoAdmin(id) {
+  const a = STATE.turmaArquivos.find(x => x.id === id);
+  if (!a) return;
+  document.getElementById('aa-id').value = a.id;
+  document.getElementById('aa-nome').value = a.nome;
+  document.getElementById('aa-descricao').value = a.descricao || '';
+  document.getElementById('aa-pasta').value = a.pasta || '';
+  document.getElementById('grupo-aa-arquivo').style.display = 'none';
+  document.getElementById('aa-arquivo-hint').style.display = 'block';
+  document.getElementById('admin-arquivo-form-title').textContent = 'Editar Arquivo';
+  document.querySelector('#form-arquivo-admin button[type=submit]').innerHTML = '💾 Salvar';
+  document.getElementById('btn-cancelar-arquivo-admin').style.display = 'inline-flex';
+  document.querySelector('#admin-turma-detalhe .form-card').scrollIntoView({ behavior: 'smooth' });
+}
+
+async function excluirArquivoAdminItem(id) {
+  if (!confirm('Excluir este arquivo? A turma deixará de vê-lo.')) return;
+  try {
+    await Api.excluirArquivoAdmin(id);
+    STATE.turmaArquivos = STATE.turmaArquivos.filter(a => a.id !== id);
+    renderAdminArquivos();
+    mostrarToast('Arquivo removido.', 'info');
+  } catch (err) { mostrarToast(err.message, 'error'); }
+}
+
+function initAdmin() {
+  document.getElementById('form-nova-turma').addEventListener('submit', async e => {
+    e.preventDefault();
+    const input = document.getElementById('tu-nome');
+    const nome = input.value.trim();
+    if (!nome) return;
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Criando...');
+    try {
+      const nova = mapTurma(await Api.criarTurma(nome));
+      STATE.turmas.push(nova);
+      renderTurmas();
+      input.value = '';
+      // Seed padrão pra turma não começar do zero — o admin ajusta como quiser depois.
+      for (const item of desafiosPadrao()) {
+        try { await Api.criarDesafioAdmin(nova.id, item); } catch (err) { /* não bloqueia a criação da turma */ }
+      }
+      await selecionarTurma(nova.id);
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
+    }
+  });
+
+  document.getElementById('form-novo-lider').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!STATE.turmaSelecionadaId) return;
+    const dados = {
+      nome: document.getElementById('nl-nome').value.trim(),
+      cargo: document.getElementById('nl-cargo').value.trim(),
+      area: document.getElementById('nl-area').value.trim(),
+      email: document.getElementById('nl-email').value.trim(),
+      senha: document.getElementById('nl-senha').value,
+    };
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Cadastrando...');
+    try {
+      const novo = mapLiderResumo(await Api.criarLiderNaTurma(STATE.turmaSelecionadaId, dados));
+      STATE.turmaLideres.push(novo);
+      renderTurmaLideres();
+      e.target.reset();
+      mostrarToast('Líder cadastrado! Repasse o e-mail e a senha pra ele.');
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
+    }
+  });
+
+  document.getElementById('form-add-desafio-admin').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!STATE.turmaSelecionadaId) return;
+    const tituloInput = document.getElementById('ad-titulo');
+    const titulo = tituloInput.value.trim();
+    if (!titulo) { mostrarToast('Dê um título ao desafio.', 'error'); return; }
+    const descricao = document.getElementById('ad-descricao').value.trim();
+    const secaoAlvo = document.getElementById('ad-secao').value;
+    const prazo = document.getElementById('ad-prazo').value || null;
+    const pontos = Number(document.getElementById('ad-pontos').value) || 0;
+
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Adicionando...');
+    try {
+      const novo = mapDesafio(await Api.criarDesafioAdmin(STATE.turmaSelecionadaId, { titulo, descricao, secaoAlvo, prazo, pontos, ordem: STATE.turmaDesafios.length }));
+      STATE.turmaDesafios.push(novo);
+      renderAdminDesafios();
+      e.target.reset();
+      tituloInput.focus();
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
+    }
+  });
+
+  document.getElementById('form-arquivo-admin').addEventListener('submit', async e => {
+    e.preventDefault();
+    if (!STATE.turmaSelecionadaId) return;
+    const id = document.getElementById('aa-id').value;
+    const nome = document.getElementById('aa-nome').value.trim();
+    const descricao = document.getElementById('aa-descricao').value.trim();
+    const pasta = document.getElementById('aa-pasta').value.trim();
+
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), id ? 'Salvando...' : 'Enviando...');
+    try {
+      if (id) {
+        if (!nome) { mostrarToast('Dê um nome ao arquivo.', 'error'); return; }
+        const atualizado = mapArquivo(await Api.atualizarArquivoAdmin(id, { nome, descricao, pasta }));
+        const idx = STATE.turmaArquivos.findIndex(a => a.id === id);
+        STATE.turmaArquivos[idx] = atualizado;
+        mostrarToast('Arquivo atualizado!');
+      } else {
+        const arquivo = document.getElementById('aa-arquivo').files[0];
+        if (!arquivo) { mostrarToast('Selecione um arquivo.', 'error'); return; }
+        if (arquivo.size > 20 * 1024 * 1024) { mostrarToast('Arquivo maior que o limite de 20MB.', 'error'); return; }
+
+        const formData = new FormData();
+        formData.append('arquivo', arquivo);
+        formData.append('nome', nome);
+        formData.append('descricao', descricao);
+        formData.append('pasta', pasta);
+        const novo = mapArquivo(await Api.enviarArquivoNaTurma(STATE.turmaSelecionadaId, formData));
+        STATE.turmaArquivos.unshift(novo);
+        mostrarToast('Arquivo enviado! Já está disponível pra turma.');
+      }
+      renderAdminArquivos();
+      resetFormArquivoAdmin();
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
+    }
+  });
+
+  document.getElementById('btn-cancelar-arquivo-admin').addEventListener('click', resetFormArquivoAdmin);
 }
 
 function renderTudo() {
@@ -3095,14 +3217,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   initPlanoAcao();
   initAutoavaliacao();
 
-  // Arquivos da Aula
-  initFormArquivo();
-
   // Plano de Gestão / Diagnóstico
   initPlanoGestao();
 
-  // Desafios
-  initDesafios();
+  // Administrador
+  initAdmin();
 
   carregarAuth();
   if (AUTH.token && AUTH.user) {
