@@ -2821,12 +2821,26 @@ const SECOES_DESAFIO = {
 
 // As 3 sub-etapas do Plano de Gestão vivem todas na mesma página
 // (section-plano), só mudando a subaba — "plano" (legado) cai na 1ª por padrão.
-const SUBTAB_DO_SECAO_DESAFIO = { diagnostico: 'diagnostico', 'plano-criacao': 'criacao', 'plano-apresentacao': 'apresentacao', plano: 'diagnostico' };
+// "plano" (legado) não entra aqui de propósito — cai no fallback por título
+// dentro de irParaSecaoDesafio, senão os 3 desafios antigos empurrariam todo
+// mundo pra mesma aba.
+const SUBTAB_DO_SECAO_DESAFIO = { diagnostico: 'diagnostico', 'plano-criacao': 'criacao', 'plano-apresentacao': 'apresentacao' };
 
-function irParaSecaoDesafio(secaoAlvo) {
-  const pagina = secaoAlvo in SUBTAB_DO_SECAO_DESAFIO ? 'plano' : secaoAlvo;
+// Recebe o id (não o secaoAlvo direto) pra poder cair pro título quando o
+// desafio ainda tem a tag genérica "plano" de antes das 3 abas existirem —
+// sem isso, todo desafio criado antes dessa mudança levaria pra mesma aba.
+function irParaSecaoDesafio(desafioId) {
+  const d = STATE.desafios.find(x => x.id === desafioId);
+  if (!d || !d.secaoAlvo) return;
+
+  let subview = SUBTAB_DO_SECAO_DESAFIO[d.secaoAlvo];
+  if (!subview && d.secaoAlvo === 'plano') {
+    const t = (d.titulo || '').toLowerCase();
+    subview = t.includes('apresent') ? 'apresentacao' : t.includes('cri') ? 'criacao' : 'diagnostico';
+  }
+
+  const pagina = (d.secaoAlvo in SUBTAB_DO_SECAO_DESAFIO || d.secaoAlvo === 'plano') ? 'plano' : d.secaoAlvo;
   irParaSecao(pagina);
-  const subview = SUBTAB_DO_SECAO_DESAFIO[secaoAlvo];
   if (subview) {
     const btn = document.querySelector(`#section-plano .subtab-btn[data-subview="${subview}"]`);
     if (btn) btn.click();
@@ -2901,7 +2915,7 @@ function renderDesafios() {
           ${status ? `<span class="desafio-tag ${status.classe}">${status.texto}</span>` : ''}
         </div>
         <div class="desafio-acao">
-          ${d.secaoAlvo ? `<button type="button" class="btn-secondary" onclick="irParaSecaoDesafio('${d.secaoAlvo}')">Ir para ${SECOES_DESAFIO[d.secaoAlvo] || 'lá'}</button>` : ''}
+          ${d.secaoAlvo ? `<button type="button" class="btn-secondary" onclick="irParaSecaoDesafio('${d.id}')">Ir para ${SECOES_DESAFIO[d.secaoAlvo] || 'lá'}</button>` : ''}
         </div>
       </div>`;
     }).join('');
