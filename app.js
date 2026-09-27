@@ -2619,77 +2619,91 @@ function renderPlanoGestao() {
   renderRecapPlano();
 }
 
+// Cada listener é preso separado (initSeguro) — se um bloco falhar (elemento
+// não encontrado, erro qualquer), os outros formulários da mesma tela
+// continuam funcionando em vez de nenhum deles responder ao clique. Sem
+// isso, um erro em qualquer bloco anterior impedia os de baixo de sequer
+// registrar o listener — e um <button type="submit"> sem handler nenhum faz
+// o navegador submeter o form de verdade (recarrega a página e perde tudo).
 function initPlanoGestao() {
-  document.getElementById('form-plano-gestao').addEventListener('submit', async e => {
-    e.preventDefault();
-    const dados = {
-      expectativasAno: document.getElementById('pg-expectativas').value.trim(),
-      visaoMissao: document.getElementById('pg-visao').value.trim(),
-      pontosFortesEquipe: document.getElementById('pg-pontos-fortes').value.trim(),
-      metaDesempenho: document.getElementById('pg-desempenho').value.trim(),
-      metaProcessos: document.getElementById('pg-processos').value.trim(),
-      lemaDoAno: document.getElementById('pg-lema').value.trim(),
-      combinados: document.getElementById('pg-combinados').value.trim(),
-    };
-    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
-    try {
-      STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
-      renderRecapPlano();
-      destacarRecapPlano();
-      const marcados = await marcarDesafiosDaSecaoConcluidos('plano-criacao');
-      mostrarToast(marcados ? `Plano de gestão salvo! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Plano de gestão salvo!');
-    } catch (err) {
-      mostrarToast(err.message, 'error');
-    } finally {
-      restaurar();
-    }
-  });
-
-  document.getElementById('form-ferramenta-aviao').addEventListener('submit', async e => {
-    e.preventDefault();
-    const dados = {
-      deOndeViemos: document.getElementById('av-de-onde-viemos').value.trim(),
-      comoNosGuiamos: document.getElementById('av-como-guiamos').value.trim(),
-      paraQuemValor: document.getElementById('av-para-quem').value.trim(),
-      oQueDaPoder: document.getElementById('av-o-que-poder').value.trim(),
-      paraOndeVamos: document.getElementById('av-para-onde').value.trim(),
-    };
-    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
-    try {
-      STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
-      renderRecapPlano();
-      destacarRecapPlano();
-      const marcados = await marcarDesafiosDaSecaoConcluidos('plano-apresentacao');
-      mostrarToast(marcados ? `Ferramenta Avião salva! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Ferramenta Avião salva!');
-    } catch (err) {
-      mostrarToast(err.message, 'error');
-    } finally {
-      restaurar();
-    }
-  });
-
-  document.getElementById('btn-gerar-apresentacao-plano').addEventListener('click', gerarApresentacaoPlano);
-  document.getElementById('modal-plano-apresentacao-close').addEventListener('click', fecharModalApresentacaoPlano);
-  document.getElementById('modal-overlay-plano-apresentacao').addEventListener('click', fecharModalApresentacaoPlano);
-  document.getElementById('modal-plano-apresentacao-fechar').addEventListener('click', fecharModalApresentacaoPlano);
-  document.getElementById('modal-plano-apresentacao-imprimir').addEventListener('click', () => window.print());
-
-  document.querySelectorAll('.diagnostico-form').forEach(form => {
-    form.addEventListener('submit', async e => {
+  initSeguro('formPlanoGestao', () => {
+    document.getElementById('form-plano-gestao').addEventListener('submit', async e => {
       e.preventDefault();
-      const input = form.querySelector('input');
-      const texto = input.value.trim();
-      if (!texto) return;
-      const tipo = form.dataset.tipo;
+      const dados = {
+        expectativasAno: document.getElementById('pg-expectativas').value.trim(),
+        visaoMissao: document.getElementById('pg-visao').value.trim(),
+        pontosFortesEquipe: document.getElementById('pg-pontos-fortes').value.trim(),
+        metaDesempenho: document.getElementById('pg-desempenho').value.trim(),
+        metaProcessos: document.getElementById('pg-processos').value.trim(),
+        lemaDoAno: document.getElementById('pg-lema').value.trim(),
+        combinados: document.getElementById('pg-combinados').value.trim(),
+      };
+      const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
       try {
-        const novo = mapDiagnostico(await Api.criarDiagnostico({ tipo, texto, ordem: STATE.diagnostico.filter(d => d.tipo === tipo).length }));
-        STATE.diagnostico.push(novo);
-        renderDiagnostico();
+        STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
         renderRecapPlano();
-        input.value = '';
-        input.focus();
-        await marcarDesafiosDaSecaoConcluidos('diagnostico');
-      } catch (err) { mostrarToast(err.message, 'error'); }
+        destacarRecapPlano();
+        const marcados = await marcarDesafiosDaSecaoConcluidos('plano-criacao');
+        mostrarToast(marcados ? `Plano de gestão salvo! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Plano de gestão salvo!');
+      } catch (err) {
+        mostrarToast(err.message, 'error');
+      } finally {
+        restaurar();
+      }
+    });
+  });
+
+  initSeguro('formFerramentaAviao', () => {
+    document.getElementById('form-ferramenta-aviao').addEventListener('submit', async e => {
+      e.preventDefault();
+      const dados = {
+        deOndeViemos: document.getElementById('av-de-onde-viemos').value.trim(),
+        comoNosGuiamos: document.getElementById('av-como-guiamos').value.trim(),
+        paraQuemValor: document.getElementById('av-para-quem').value.trim(),
+        oQueDaPoder: document.getElementById('av-o-que-poder').value.trim(),
+        paraOndeVamos: document.getElementById('av-para-onde').value.trim(),
+      };
+      const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
+      try {
+        STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
+        renderRecapPlano();
+        destacarRecapPlano();
+        const marcados = await marcarDesafiosDaSecaoConcluidos('plano-apresentacao');
+        mostrarToast(marcados ? `Ferramenta Avião salva! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Ferramenta Avião salva!');
+      } catch (err) {
+        mostrarToast(err.message, 'error');
+      } finally {
+        restaurar();
+      }
+    });
+  });
+
+  initSeguro('botoesApresentacaoPlano', () => {
+    document.getElementById('btn-gerar-apresentacao-plano').addEventListener('click', gerarApresentacaoPlano);
+    document.getElementById('modal-plano-apresentacao-close').addEventListener('click', fecharModalApresentacaoPlano);
+    document.getElementById('modal-overlay-plano-apresentacao').addEventListener('click', fecharModalApresentacaoPlano);
+    document.getElementById('modal-plano-apresentacao-fechar').addEventListener('click', fecharModalApresentacaoPlano);
+    document.getElementById('modal-plano-apresentacao-imprimir').addEventListener('click', () => window.print());
+  });
+
+  initSeguro('formsDiagnostico', () => {
+    document.querySelectorAll('.diagnostico-form').forEach(form => {
+      form.addEventListener('submit', async e => {
+        e.preventDefault();
+        const input = form.querySelector('input');
+        const texto = input.value.trim();
+        if (!texto) return;
+        const tipo = form.dataset.tipo;
+        try {
+          const novo = mapDiagnostico(await Api.criarDiagnostico({ tipo, texto, ordem: STATE.diagnostico.filter(d => d.tipo === tipo).length }));
+          STATE.diagnostico.push(novo);
+          renderDiagnostico();
+          renderRecapPlano();
+          input.value = '';
+          input.focus();
+          await marcarDesafiosDaSecaoConcluidos('diagnostico');
+        } catch (err) { mostrarToast(err.message, 'error'); }
+      });
     });
   });
 }
@@ -3407,46 +3421,61 @@ function renderTudo() {
   renderDiagnostico();
 }
 
+// Roda cada init isolado — se um deles quebrar (por causa de um elemento que
+// não existe nessa tela, um dado inesperado etc.), os outros continuam
+// rodando normalmente. Sem isso, uma exceção em qualquer init anterior
+// impedia todos os de baixo de rodar (inclusive os de formulários inteiros),
+// e aí um <button type="submit"> sem listener nenhum faz o navegador
+// submeter o form de verdade — recarrega a página e some com o que não foi
+// salvo. Isso é exatamente o sintoma de "salvar dá refresh e volta vazio".
+function initSeguro(nome, fn) {
+  try {
+    fn();
+  } catch (err) {
+    console.error(`Falha ao iniciar "${nome}":`, err);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
-  initNavegacao();
-  initTagButtons();
-  initTagButtonsMulti();
-  initSidebarToggle();
-  initTelaAuth();
+  initSeguro('navegacao', initNavegacao);
+  initSeguro('tagButtons', initTagButtons);
+  initSeguro('tagButtonsMulti', initTagButtonsMulti);
+  initSeguro('sidebarToggle', initSidebarToggle);
+  initSeguro('telaAuth', initTelaAuth);
 
   // Liderados
-  initFormLiderado();
-  initModalLiderado();
+  initSeguro('formLiderado', initFormLiderado);
+  initSeguro('modalLiderado', initModalLiderado);
 
   // Diário de Bordo
-  initFormConhecer();
-  initFormRegistroDiario();
-  initResumoFeedback();
+  initSeguro('formConhecer', initFormConhecer);
+  initSeguro('formRegistroDiario', initFormRegistroDiario);
+  initSeguro('resumoFeedback', initResumoFeedback);
 
   // Atividades / Kanban
-  initFormAtividade();
-  initFiltrosAtividades();
-  initModalAtividade();
-  initSubtabs();
-  initKanbanDrop();
+  initSeguro('formAtividade', initFormAtividade);
+  initSeguro('filtrosAtividades', initFiltrosAtividades);
+  initSeguro('modalAtividade', initModalAtividade);
+  initSeguro('subtabs', initSubtabs);
+  initSeguro('kanbanDrop', initKanbanDrop);
 
   // Metas
-  initFormMeta();
+  initSeguro('formMeta', initFormMeta);
 
   // Matriz
-  initFormMatriz();
-  initSelectAtividadeMatriz();
+  initSeguro('formMatriz', initFormMatriz);
+  initSeguro('selectAtividadeMatriz', initSelectAtividadeMatriz);
 
   // Dashboard
-  initFormRotina();
-  initPlanoAcao();
-  initAutoavaliacao();
+  initSeguro('formRotina', initFormRotina);
+  initSeguro('planoAcao', initPlanoAcao);
+  initSeguro('autoavaliacao', initAutoavaliacao);
 
   // Plano de Gestão / Diagnóstico
-  initPlanoGestao();
+  initSeguro('planoGestao', initPlanoGestao);
 
   // Administrador
-  initAdmin();
+  initSeguro('admin', initAdmin);
 
   carregarAuth();
   if (AUTH.token && AUTH.user) {
