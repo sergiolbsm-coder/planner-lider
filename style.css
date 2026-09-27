@@ -158,6 +158,12 @@ body {
 }
 .form-card { border-top: 4px solid var(--accent); }
 
+@keyframes destaquePisca {
+  0%, 100% { box-shadow: var(--shadow); }
+  25%, 75% { box-shadow: 0 0 0 3px var(--accent); }
+}
+.card-destaque { animation: destaquePisca 1.4s ease; }
+
 .card-header {
   display: flex;
   align-items: center;
