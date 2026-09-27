@@ -2608,7 +2608,8 @@ function initPlanoGestao() {
     const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Salvando...');
     try {
       STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
-      mostrarToast('Plano de gestão salvo!');
+      const marcados = await marcarDesafiosDaSecaoConcluidos('plano');
+      mostrarToast(marcados ? `Plano de gestão salvo! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Plano de gestão salvo!');
     } catch (err) {
       mostrarToast(err.message, 'error');
     } finally {
@@ -2832,6 +2833,21 @@ async function toggleDesafioConcluido(id) {
     renderDesafios();
     mostrarToast(err.message, 'error');
   }
+}
+
+// Marca como concluído, de uma vez, todo desafio pendente da trilha vinculado
+// a uma seção — usado quando completar uma ação em outro módulo (ex: salvar
+// o Plano de Gestão) já deveria contar como ter cumprido aquele desafio,
+// sem o líder precisar marcar o checkbox manualmente. Retorna quantos marcou.
+async function marcarDesafiosDaSecaoConcluidos(secaoAlvo) {
+  const pendentes = STATE.desafios.filter(d => d.secaoAlvo === secaoAlvo && !d.concluido);
+  if (!pendentes.length) return 0;
+  for (const d of pendentes) {
+    d.concluido = true;
+    try { await Api.atualizarDesafio(d.id, { concluido: true }); } catch (err) { /* não bloqueia a ação principal */ }
+  }
+  renderDesafios();
+  return pendentes.length;
 }
 
 // A parametrização da trilha (título, descrição, seção, prazo, pontos) é só
