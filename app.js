@@ -2635,6 +2635,7 @@ function initPlanoGestao() {
     try {
       STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
       renderRecapPlano();
+      destacarRecapPlano();
       const marcados = await marcarDesafiosDaSecaoConcluidos('plano-criacao');
       mostrarToast(marcados ? `Plano de gestão salvo! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Plano de gestão salvo!');
     } catch (err) {
@@ -2657,6 +2658,7 @@ function initPlanoGestao() {
     try {
       STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao(dados));
       renderRecapPlano();
+      destacarRecapPlano();
       const marcados = await marcarDesafiosDaSecaoConcluidos('plano-apresentacao');
       mostrarToast(marcados ? `Ferramenta Avião salva! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Ferramenta Avião salva!');
     } catch (err) {
@@ -2759,6 +2761,19 @@ function renderRecapPlano() {
   const container = document.getElementById('recap-plano-gestao');
   if (!container) return;
   container.innerHTML = montarHtmlApresentacaoPlano();
+}
+
+// Depois de salvar (Criação do Plano ou Ferramenta Avião), o recap fica lá em
+// cima — fora da tela pra quem está com o formulário aberto embaixo. Rola até
+// ele e pisca a borda, senão o toast passa despercebido e parece que salvar
+// "não fez nada".
+function destacarRecapPlano() {
+  const card = document.getElementById('recap-plano-gestao')?.closest('.card');
+  if (!card) return;
+  card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  card.classList.remove('card-destaque');
+  void card.offsetWidth; // força reflow pra reiniciar a animação se já rodou antes
+  card.classList.add('card-destaque');
 }
 
 // Reaproveita o mesmo modal+CSS de impressão já usados no Resumo p/ Feedback
