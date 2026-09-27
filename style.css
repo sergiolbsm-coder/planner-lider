@@ -1262,3 +1262,10 @@ button:disabled { cursor: default; opacity: .85; }
 .pasta-titulo::before { content: '▸'; font-size: 11px; transition: transform .15s; }
 details[open] > .pasta-titulo::before { transform: rotate(90deg); }
 .pasta-titulo .badge { background: var(--border); color: var(--text-muted); }
+.pasta-titulo .select-vincular { margin-left: auto; }
+
+.select-vincular {
+  font-family: 'DM Sans', sans-serif; text-transform: none; letter-spacing: normal; font-weight: 600;
+  font-size: 12px; padding: 4px 8px; border-radius: var(--radius-sm); border: 1.5px solid var(--border);
+  background: var(--bg-card); color: var(--text); cursor: pointer;
+}
