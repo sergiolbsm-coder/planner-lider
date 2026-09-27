@@ -24,6 +24,7 @@ const STATE = {
   estatisticasDiario: null,
   arquivos: [],        // arquivos da aula que o líder subiu
   arquivosTurma: [],   // (visão do liderado) arquivos disponibilizados pelo seu líder
+  desafios: [],        // trilha de passo a passo, parametrizável pelo próprio líder
   filtroResultado: 'todos',
   filtroTipo: 'todos',
   filtroResponsavel: 'todos',
@@ -196,6 +197,11 @@ const Api = {
   obterAutoavaliacao: mesRef => api('/autoavaliacoes/' + mesRef),
   salvarAutoavaliacao: (mesRef, respostas) => api('/autoavaliacoes/' + mesRef, { method: 'PUT', body: JSON.stringify({ respostas }) }),
 
+  listarDesafios: () => api('/desafios'),
+  criarDesafio: dados => api('/desafios', { method: 'POST', body: JSON.stringify(dados) }),
+  atualizarDesafio: (id, dados) => api('/desafios/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
+  excluirDesafio: id => api('/desafios/' + id, { method: 'DELETE' }),
+
   listarArquivos: () => api('/arquivos'),
   listarArquivosTurma: () => api('/arquivos/minha-turma'),
   atualizarArquivo: (id, dados) => api('/arquivos/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
@@ -253,6 +259,9 @@ function mapDiario(d) {
 }
 function mapPlanoAcao(p) {
   return { id: p.id, acao: p.acao || '', comoFazer: p.como_fazer || '', impacto: p.impacto || '', prazo: p.prazo || '' };
+}
+function mapDesafio(d) {
+  return { id: d.id, titulo: d.titulo, descricao: d.descricao || '', secaoAlvo: d.secao_alvo || '', concluido: !!d.concluido, ordem: Number(d.ordem) || 0 };
 }
 function mapFeedback(f) {
   return { id: f.id, data: String(f.data).slice(0, 10), conversa: f.conversa || '', plano: f.plano || '', criadoEm: f.criado_em };
@@ -424,6 +433,9 @@ async function tentarAuth(botao, chamada, ehRegistroDeLider) {
       for (const item of planoAcaoPadrao()) {
         try { await Api.criarPlanoAcao(item); } catch (e) { /* não bloqueia o cadastro */ }
       }
+      for (const item of desafiosPadrao()) {
+        try { await Api.criarDesafio(item); } catch (e) { /* não bloqueia o cadastro */ }
+      }
     }
     await entrarNaSessao();
   } catch (err) {
@@ -459,6 +471,7 @@ function sair() {
   STATE.diario = []; STATE.diarioResumoEquipe = []; STATE.rotina = []; STATE.planoAcao = [];
   STATE.estatisticasDiario = null;
   STATE.arquivos = []; STATE.arquivosTurma = [];
+  STATE.desafios = [];
   STATE.meuPerfil = null; STATE.minhasAtividades = []; STATE.minhasMetas = []; STATE.meusFeedbacks = [];
   document.getElementById('form-login').reset();
   document.getElementById('auth-erro').style.display = 'none';
@@ -483,6 +496,9 @@ async function carregarTudoLider() {
 
     try { STATE.diarioResumoEquipe = (await Api.diarioResumoEquipe()).map(mapDiario); }
     catch (e) { STATE.diarioResumoEquipe = []; }
+
+    try { STATE.desafios = (await Api.listarDesafios()).map(mapDesafio); }
+    catch (e) { STATE.desafios = []; }
 
     renderTudo();
     await carregarEstatisticasDiario();
@@ -673,6 +689,7 @@ const PERFIL_CORES = {
 };
 
 function renderLiderados() {
+  renderDesafios();
   const container = document.getElementById('lista-liderados');
   const badge = document.getElementById('badge-total-liderados');
   badge.textContent = STATE.liderados.length;
@@ -1034,6 +1051,7 @@ async function excluirRegistroDiario(id) {
 }
 
 function renderDiarioEquipe() {
+  renderDesafios();
   const corpo = document.getElementById('tabela-diario-equipe-body');
   if (!corpo) return;
 
@@ -1331,6 +1349,7 @@ function tagsAtividade(a) {
 }
 
 function renderAtividades() {
+  renderDesafios();
   const container = document.getElementById('lista-atividades');
   const badge = document.getElementById('badge-total-atividades');
   const lista = atividadesFiltradas();
@@ -1665,6 +1684,7 @@ async function refrescarMetas() {
 }
 
 function renderMetas() {
+  renderDesafios();
   const container = document.getElementById('lista-metas');
   document.getElementById('badge-total-metas').textContent = STATE.metas.length;
 
@@ -1797,6 +1817,7 @@ const QUADRANTE_CONFIG = {
 };
 
 function renderMatriz() {
+  renderDesafios();
   ['q1','q2','q3','q4'].forEach(q => {
     const items = STATE.matriz.filter(m => getQuadrante(m.resultado, m.esforco) === q);
     const container = document.getElementById(q + '-items');
@@ -1927,6 +1948,7 @@ function duracaoMin(item) {
 }
 
 function renderTabelaRotina() {
+  renderDesafios();
   const data = document.getElementById('rt-data').value || hojeISO();
   const itens = STATE.rotina.filter(r => r.data === data).sort((a, b) => a.inicio.localeCompare(b.inicio));
   const container = document.getElementById('tabela-rotina');
@@ -2135,6 +2157,7 @@ function renderGargalos() {
 }
 
 function renderPlanoAcao() {
+  renderDesafios();
   const container = document.getElementById('tabela-plano-acao');
   if (STATE.planoAcao.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><p>Nenhuma ação cadastrada.</p></div>`;
@@ -2543,6 +2566,223 @@ function renderArquivosTurma() {
 // ============================================================
 // RENDERIZAÇÃO GERAL / INICIALIZAÇÃO
 // ============================================================
+// DESAFIOS DO LÍDER — trilha de passo a passo (parametrizável) +
+// painel consolidado da equipe
+// ============================================================
+// A trilha em si (STATE.desafios) é 100% definida pelo líder — uma seed
+// padrão entra na conta na hora do cadastro (ver desafiosPadrao()), e a tela
+// de Parametrização deixa adicionar, editar, reordenar e remover itens.
+// "Concluído" é um checkbox manual (não é calculado a partir de outros
+// módulos), porque um desafio pode ser qualquer coisa que o líder queira
+// acompanhar — inclusive uma funcionalidade que ainda nem existe no planner.
+const SECOES_DESAFIO = {
+  liderados: 'Liderados', diario: 'Diário de Bordo', atividades: 'Atividades',
+  metas: 'Metas', matriz: 'Prioridades', dashboard: 'Dashboard', aula: 'Arquivos da Aula',
+};
+
+function desafiosPadrao() {
+  return [
+    { titulo: 'Monte sua equipe', descricao: 'Cadastre pelo menos um liderado.', secaoAlvo: 'liderados' },
+    { titulo: 'Conheça cada liderado', descricao: 'Preencha o perfil comportamental de todos os liderados cadastrados.', secaoAlvo: 'liderados' },
+    { titulo: 'Defina metas organizacionais', descricao: 'Cadastre ao menos uma meta ou indicador.', secaoAlvo: 'metas' },
+    { titulo: 'Vincule atividades às metas', descricao: 'Cadastre uma atividade ligada a uma meta.', secaoAlvo: 'atividades' },
+    { titulo: 'Priorize com a Matriz', descricao: 'Adicione ao menos um item na Matriz de Prioridades.', secaoAlvo: 'matriz' },
+    { titulo: 'Registre no Diário de Bordo', descricao: 'Faça seu primeiro registro de observação ou feedback com um liderado.', secaoAlvo: 'diario' },
+    { titulo: 'Monte seu Plano de Ação', descricao: 'Defina ao menos uma ação no Plano de Ação, dentro do Dashboard.', secaoAlvo: 'dashboard' },
+    { titulo: 'Registre sua rotina diária', descricao: 'Lance ao menos um bloco de tempo na sua rotina, dentro do Dashboard.', secaoAlvo: 'dashboard' },
+    { titulo: 'Faça sua Autoavaliação mensal', descricao: 'Responda a autoavaliação e gere sua Análise de Melhoria, dentro do Dashboard.', secaoAlvo: 'dashboard' },
+  ].map((item, i) => ({ ...item, ordem: i }));
+}
+
+function renderDesafios() {
+  const badge = document.getElementById('desafios-progresso-badge');
+  const barra = document.getElementById('desafios-barra-preenchida');
+  const lista = document.getElementById('lista-desafios');
+  if (!badge || !barra || !lista) return; // seção só existe na visão do líder
+
+  const desafios = STATE.desafios;
+  const concluidos = desafios.filter(d => d.concluido).length;
+  badge.textContent = `${concluidos}/${desafios.length}`;
+  barra.style.width = desafios.length ? `${Math.round((concluidos / desafios.length) * 100)}%` : '0%';
+
+  if (desafios.length === 0) {
+    lista.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><p>Nenhum desafio parametrizado ainda.<br>Clique em "⚙️ Parametrizar" para montar sua trilha.</p></div>`;
+  } else {
+    lista.innerHTML = desafios.map(d => `
+      <div class="desafio-card ${d.concluido ? 'desafio-concluido' : ''}">
+        <button type="button" class="desafio-check" title="${d.concluido ? 'Marcar como pendente' : 'Marcar como concluído'}" onclick="toggleDesafioConcluido('${d.id}')">${d.concluido ? '✅' : '⬜'}</button>
+        <div class="desafio-corpo">
+          <div class="desafio-titulo">${d.titulo}</div>
+          ${d.descricao ? `<p class="desafio-descricao">${d.descricao}</p>` : ''}
+        </div>
+        <div class="desafio-acao">
+          ${d.secaoAlvo ? `<button type="button" class="btn-secondary" onclick="irParaSecao('${d.secaoAlvo}')">Ir para ${SECOES_DESAFIO[d.secaoAlvo] || 'lá'}</button>` : ''}
+        </div>
+      </div>
+    `).join('');
+  }
+
+  renderConsolidado();
+}
+
+async function toggleDesafioConcluido(id) {
+  const item = STATE.desafios.find(d => d.id === id);
+  if (!item) return;
+  item.concluido = !item.concluido;
+  renderDesafios();
+  try {
+    await Api.atualizarDesafio(id, { concluido: item.concluido });
+  } catch (err) {
+    item.concluido = !item.concluido; // desfaz se a API recusar
+    renderDesafios();
+    mostrarToast(err.message, 'error');
+  }
+}
+
+// ---- Parametrização da trilha (modal) ----
+function renderModalDesafios() {
+  const container = document.getElementById('lista-parametrizar-desafios');
+  if (!container) return;
+
+  if (STATE.desafios.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🏆</div><p>Nenhum desafio ainda. Use o formulário abaixo para adicionar o primeiro.</p></div>`;
+  } else {
+    container.innerHTML = STATE.desafios.map((d, i) => `
+      <div class="parametriza-item" data-id="${d.id}">
+        <div class="parametriza-ordem">
+          <button type="button" class="btn-icon btn-icon-sm" title="Mover para cima" ${i === 0 ? 'disabled' : ''} onclick="moverDesafio('${d.id}', -1)">↑</button>
+          <button type="button" class="btn-icon btn-icon-sm" title="Mover para baixo" ${i === STATE.desafios.length - 1 ? 'disabled' : ''} onclick="moverDesafio('${d.id}', 1)">↓</button>
+        </div>
+        <div class="parametriza-campos">
+          <input type="text" data-campo="titulo" placeholder="Título do desafio" value="${d.titulo || ''}" />
+          <input type="text" data-campo="descricao" placeholder="Descrição (opcional)" value="${d.descricao || ''}" />
+          <select data-campo="secaoAlvo">
+            <option value="">Sem seção vinculada</option>
+            ${Object.entries(SECOES_DESAFIO).map(([valor, label]) => `<option value="${valor}" ${d.secaoAlvo === valor ? 'selected' : ''}>${label}</option>`).join('')}
+          </select>
+        </div>
+        <button type="button" class="btn-icon btn-icon-sm btn-icon-danger" title="Remover" onclick="excluirDesafioParametrizado('${d.id}')">🗑️</button>
+      </div>
+    `).join('');
+
+    container.querySelectorAll('.parametriza-item').forEach(el => {
+      const id = el.dataset.id;
+      el.querySelectorAll('[data-campo]').forEach(campo => {
+        campo.addEventListener('change', async () => {
+          const item = STATE.desafios.find(d => d.id === id);
+          if (!item) return;
+          item[campo.dataset.campo] = campo.value;
+          try {
+            await Api.atualizarDesafio(id, { titulo: item.titulo, descricao: item.descricao, secaoAlvo: item.secaoAlvo || null });
+            renderDesafios();
+          } catch (err) { mostrarToast(err.message, 'error'); }
+        });
+      });
+    });
+  }
+}
+
+async function excluirDesafioParametrizado(id) {
+  try {
+    await Api.excluirDesafio(id);
+    STATE.desafios = STATE.desafios.filter(d => d.id !== id);
+    renderModalDesafios();
+    renderDesafios();
+  } catch (err) { mostrarToast(err.message, 'error'); }
+}
+
+async function moverDesafio(id, direcao) {
+  const i = STATE.desafios.findIndex(d => d.id === id);
+  const j = i + direcao;
+  if (i < 0 || j < 0 || j >= STATE.desafios.length) return;
+  [STATE.desafios[i], STATE.desafios[j]] = [STATE.desafios[j], STATE.desafios[i]];
+  renderModalDesafios();
+  renderDesafios();
+  try {
+    await Promise.all([
+      Api.atualizarDesafio(STATE.desafios[i].id, { ordem: i }),
+      Api.atualizarDesafio(STATE.desafios[j].id, { ordem: j }),
+    ]);
+  } catch (err) { mostrarToast(err.message, 'error'); }
+}
+
+function initDesafios() {
+  document.getElementById('btn-parametrizar-desafios').addEventListener('click', () => {
+    renderModalDesafios();
+    document.getElementById('modal-parametrizar-desafios').style.display = 'flex';
+  });
+  document.getElementById('modal-parametrizar-desafios-close').addEventListener('click', () => {
+    document.getElementById('modal-parametrizar-desafios').style.display = 'none';
+  });
+  document.getElementById('modal-overlay-parametrizar-desafios').addEventListener('click', () => {
+    document.getElementById('modal-parametrizar-desafios').style.display = 'none';
+  });
+
+  document.getElementById('form-add-desafio').addEventListener('submit', async e => {
+    e.preventDefault();
+    const tituloInput = document.getElementById('pd-titulo');
+    const titulo = tituloInput.value.trim();
+    if (!titulo) { mostrarToast('Dê um título ao desafio.', 'error'); return; }
+    const descricao = document.getElementById('pd-descricao').value.trim();
+    const secaoAlvo = document.getElementById('pd-secao').value;
+
+    const restaurar = iniciarCarregamentoBotao(e.target.querySelector('button[type=submit]'), 'Adicionando...');
+    try {
+      const novo = mapDesafio(await Api.criarDesafio({ titulo, descricao, secaoAlvo, ordem: STATE.desafios.length }));
+      STATE.desafios.push(novo);
+      renderModalDesafios();
+      renderDesafios();
+      e.target.reset();
+      tituloInput.focus();
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
+    }
+  });
+}
+
+function renderConsolidado() {
+  const container = document.getElementById('consolidado-lista');
+  const badgeTotal = document.getElementById('badge-consolidado-total');
+  if (!container || !badgeTotal) return;
+  badgeTotal.textContent = STATE.liderados.length;
+
+  if (STATE.liderados.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">🧩</div><p>Cadastre seus liderados pra ver o painel consolidado da equipe.</p></div>`;
+    return;
+  }
+
+  container.innerHTML = STATE.liderados.map(l => {
+    const atividades = STATE.atividades.filter(a => a.responsavelId === l.id);
+    const observacao = STATE.diarioResumoEquipe.find(d => d.lideradoId === l.id && d.tipo === 'observacao');
+    const feedback = STATE.diarioResumoEquipe.find(d => d.lideradoId === l.id && d.tipo === 'feedback');
+
+    return `
+    <div class="consolidado-card">
+      <div class="consolidado-nome">${l.nome}${l.cargo ? ' · ' + l.cargo : ''}</div>
+      <div class="consolidado-grid">
+        <div>
+          <div class="consolidado-bloco-titulo">Perfil</div>
+          <p>${l.perfil || 'Perfil ainda não preenchido.'}</p>
+        </div>
+        <div>
+          <div class="consolidado-bloco-titulo">Atividades atribuídas</div>
+          <p>${atividades.length ? atividades.map(a => a.titulo).join(', ') : 'Nenhuma atividade atribuída ainda.'}</p>
+        </div>
+        <div>
+          <div class="consolidado-bloco-titulo">Último feedback formal</div>
+          <p>${feedback ? formatarData(feedback.data) + ' — ' + (feedback.conversa || feedback.plano || 'sem detalhes registrados') : 'Nenhum feedback formal registrado ainda.'}</p>
+        </div>
+        <div>
+          <div class="consolidado-bloco-titulo">Última observação</div>
+          <p>${observacao ? formatarData(observacao.data) : 'Nenhuma observação registrada ainda.'}</p>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 function renderTudo() {
   renderLiderados();
   renderDiarioSeletor();
@@ -2590,6 +2830,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Arquivos da Aula
   initFormArquivo();
+
+  // Desafios
+  initDesafios();
 
   carregarAuth();
   if (AUTH.token && AUTH.user) {
