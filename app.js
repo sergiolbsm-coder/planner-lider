@@ -229,7 +229,9 @@ const Api = {
   listarArquivosTurma: () => api('/arquivos/minha-turma'),
   listarArquivosDaTurma: turmaId => api(`/admin/turmas/${turmaId}/arquivos`),
   atualizarArquivoAdmin: (id, dados) => api(`/admin/arquivos/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
-  excluirArquivoAdmin: id => api(`/admin/arquivos/${id}`, { method: 'DELETE' }),
+  excluirArquivoDaTurma: (turmaId, id) => api(`/admin/turmas/${turmaId}/arquivos/${id}`, { method: 'DELETE' }),
+  vincularArquivoATurma: (id, turmaId) => api(`/admin/arquivos/${id}/vincular`, { method: 'POST', body: JSON.stringify({ turmaId }) }),
+  vincularPastaATurma: (turmaId, pasta, turmaDestinoId) => api(`/admin/turmas/${turmaId}/pastas/vincular`, { method: 'POST', body: JSON.stringify({ pasta: pasta || null, turmaDestinoId }) }),
   // Upload é multipart — não passa pelo helper api() (que sempre manda Content-Type: application/json).
   enviarArquivoNaTurma: async (turmaId, formData) => {
     const res = await fetch(API_BASE + `/admin/turmas/${turmaId}/arquivos`, {
@@ -2491,7 +2493,7 @@ function agruparPorPasta(lista) {
 
 // comAcoesAdmin: true só na visão do administrador (única que edita/exclui
 // agora) — líder e liderado sempre veem a lista somente-leitura.
-function htmlItemArquivo(a, comAcoesAdmin) {
+function htmlItemArquivo(a, comAcoesAdmin, opcoesVincularTurma) {
   return `
     <div class="arquivo-item">
       <span class="arquivo-icone">${iconeArquivo(a.tipoMime)}</span>
@@ -2504,25 +2506,47 @@ function htmlItemArquivo(a, comAcoesAdmin) {
         <button class="btn-icon" title="Baixar" onclick="baixarArquivo('${a.id}', ${JSON.stringify(a.nome)})">⬇️</button>
         ${comAcoesAdmin ? `
           <button class="btn-icon" title="Editar" onclick="editarArquivoAdmin('${a.id}')">✏️</button>
-          <button class="btn-icon btn-icon-danger" title="Excluir" onclick="excluirArquivoAdminItem('${a.id}')">🗑️</button>
+          ${opcoesVincularTurma ? `
+            <select class="select-vincular" title="Vincular a outra turma" onchange="vincularArquivo('${a.id}', this.value); this.value='';">
+              <option value="">🔗 Vincular a...</option>
+              ${opcoesVincularTurma}
+            </select>
+          ` : ''}
+          <button class="btn-icon btn-icon-danger" title="Remover desta turma" onclick="excluirArquivoAdminItem('${a.id}')">🗑️</button>
         ` : ''}
       </div>
     </div>`;
 }
 
+// comAcoesAdmin habilita editar/remover/vincular a outra turma — só faz
+// sentido na visão do administrador, dentro de uma turma selecionada.
 function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin) {
   const container = document.getElementById(containerId);
   if (lista.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><p>${comAcoesAdmin ? 'Nenhum arquivo enviado ainda.' : 'Nenhum material disponível ainda.'}</p></div>`;
     return;
   }
+  const opcoesVincularTurma = comAcoesAdmin
+    ? STATE.turmas.filter(t => t.id !== STATE.turmaSelecionadaId).map(t => `<option value="${t.id}">${t.nome}</option>`).join('')
+    : '';
   const grupos = agruparPorPasta(lista);
-  container.innerHTML = grupos.map((g, i) => `
+  container.innerHTML = grupos.map((g, i) => {
+    const pastaReal = g.itens[0].pasta || '';
+    return `
     <details class="pasta-grupo" open>
-      <summary class="pasta-titulo">📁 ${g.pasta} <span class="badge">${g.itens.length}</span></summary>
-      ${g.itens.map(a => htmlItemArquivo(a, comAcoesAdmin)).join('')}
+      <summary class="pasta-titulo">
+        📁 ${g.pasta} <span class="badge">${g.itens.length}</span>
+        ${opcoesVincularTurma ? `
+          <select class="select-vincular" title="Vincular pasta a outra turma" onclick="event.stopPropagation()" onchange="event.stopPropagation(); vincularPasta(${JSON.stringify(pastaReal)}, this.value); this.value='';">
+            <option value="">🔗 Vincular pasta a...</option>
+            ${opcoesVincularTurma}
+          </select>
+        ` : ''}
+      </summary>
+      ${g.itens.map(a => htmlItemArquivo(a, comAcoesAdmin, opcoesVincularTurma)).join('')}
     </details>
-  `).join('');
+  `;
+  }).join('');
 }
 
 function renderArquivos() {
@@ -3046,12 +3070,30 @@ function editarArquivoAdmin(id) {
 }
 
 async function excluirArquivoAdminItem(id) {
-  if (!confirm('Excluir este arquivo? A turma deixará de vê-lo.')) return;
+  if (!confirm('Remover este arquivo desta turma? (Se ele não estiver vinculado a nenhuma outra turma, é apagado de vez.)')) return;
   try {
-    await Api.excluirArquivoAdmin(id);
+    await Api.excluirArquivoDaTurma(STATE.turmaSelecionadaId, id);
     STATE.turmaArquivos = STATE.turmaArquivos.filter(a => a.id !== id);
     renderAdminArquivos();
-    mostrarToast('Arquivo removido.', 'info');
+    mostrarToast('Arquivo removido desta turma.', 'info');
+  } catch (err) { mostrarToast(err.message, 'error'); }
+}
+
+async function vincularArquivo(id, turmaId) {
+  if (!turmaId) return;
+  try {
+    await Api.vincularArquivoATurma(id, turmaId);
+    const nomeTurma = STATE.turmas.find(t => t.id === turmaId)?.nome || 'turma selecionada';
+    mostrarToast(`Arquivo vinculado à ${nomeTurma}!`);
+  } catch (err) { mostrarToast(err.message, 'error'); }
+}
+
+async function vincularPasta(pasta, turmaDestinoId) {
+  if (!turmaDestinoId) return;
+  try {
+    const resultado = await Api.vincularPastaATurma(STATE.turmaSelecionadaId, pasta, turmaDestinoId);
+    const nomeTurma = STATE.turmas.find(t => t.id === turmaDestinoId)?.nome || 'turma selecionada';
+    mostrarToast(`${resultado.vinculados} arquivo(s) vinculado(s) à ${nomeTurma}!`);
   } catch (err) { mostrarToast(err.message, 'error'); }
 }
 
