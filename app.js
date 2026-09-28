@@ -151,6 +151,8 @@ async function api(caminho, opcoes = {}) {
 
 const Api = {
   login: (email, senha, contaId) => api('/auth/login', { method: 'POST', body: JSON.stringify({ email, senha, contaId }) }),
+  minhasContas: () => api('/auth/minhas-contas'),
+  trocarConta: contaId => api('/auth/trocar-conta', { method: 'POST', body: JSON.stringify({ contaId }) }),
 
   listarTurmas: () => api('/admin/turmas'),
   criarTurma: nome => api('/admin/turmas', { method: 'POST', body: JSON.stringify({ nome }) }),
@@ -474,7 +476,12 @@ function initTelaAuth() {
   document.getElementById('btn-sair').addEventListener('click', sair);
   document.getElementById('btn-sair-liderado').addEventListener('click', sair);
   document.getElementById('btn-sair-admin').addEventListener('click', sair);
+
+  document.getElementById('lider-conta-trocar').addEventListener('change', e => trocarParaConta(e.target.value));
+  document.getElementById('admin-conta-trocar').addEventListener('change', e => trocarParaConta(e.target.value));
 }
+
+const ROTULO_ROLE_CONTA = { admin: 'Administrador', lider: 'Líder', liderado: 'Liderado' };
 
 // Mostra o seletor de conta quando o mesmo e-mail/senha bate com mais de uma
 // conta (ex: administrador que também é líder em uma ou mais turmas) — o
@@ -482,13 +489,42 @@ function initTelaAuth() {
 function mostrarEscolhaDeConta(contas, email, senha) {
   STATE.loginPendente = { email, senha };
   const select = document.getElementById('lg-conta-select');
-  const rotuloRole = { admin: 'Administrador', lider: 'Líder', liderado: 'Liderado' };
   select.innerHTML = contas.map(c => {
     const detalhe = c.turmaNome ? ` — turma ${c.turmaNome}` : '';
-    return `<option value="${c.id}">${rotuloRole[c.role] || c.role} — ${c.nome}${detalhe}</option>`;
+    return `<option value="${c.id}">${ROTULO_ROLE_CONTA[c.role] || c.role} — ${c.nome}${detalhe}</option>`;
   }).join('');
   document.getElementById('form-login').style.display = 'none';
   document.getElementById('auth-escolha-conta').style.display = '';
+}
+
+// Mostra o botão "Trocar de conta" no cabeçalho (admin/líder) quando o e-mail
+// logado também é dono de outra(s) conta(s) — ex: o mesmo e-mail é admin e
+// líder de uma turma. Troca sem pedir senha de novo (ver /auth/trocar-conta).
+async function carregarBotaoTrocarConta(selectId) {
+  const select = document.getElementById(selectId);
+  try {
+    const contas = await Api.minhasContas();
+    const outras = contas.filter(c => c.id !== AUTH.user.id);
+    if (!outras.length) { select.style.display = 'none'; select.innerHTML = ''; return; }
+    select.innerHTML = `<option value="">🔀 Trocar de conta...</option>` + outras.map(c => {
+      const detalhe = c.turmaNome ? ` — turma ${c.turmaNome}` : '';
+      return `<option value="${c.id}">${ROTULO_ROLE_CONTA[c.role] || c.role} — ${c.nome}${detalhe}</option>`;
+    }).join('');
+    select.style.display = '';
+  } catch (err) {
+    select.style.display = 'none'; // não é crítico pro uso normal — falha silenciosa
+  }
+}
+
+async function trocarParaConta(contaId) {
+  if (!contaId) return;
+  try {
+    const { token, user } = await Api.trocarConta(contaId);
+    salvarAuth(token, user);
+    await entrarNaSessao();
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
 }
 
 async function tentarAuth(botao, chamada) {
@@ -524,10 +560,12 @@ async function tentarAuth(botao, chamada) {
 async function entrarNaSessao() {
   mostrarTela('carregando');
   if (AUTH.user.role === 'admin') {
+    carregarBotaoTrocarConta('admin-conta-trocar');
     await carregarTudoAdmin();
     mostrarTela('admin');
   } else if (AUTH.user.role === 'lider') {
     renderHeaderLider();
+    carregarBotaoTrocarConta('lider-conta-trocar');
     await carregarTudoLider();
     mostrarTela('lider');
     irParaSecao('desafios');
