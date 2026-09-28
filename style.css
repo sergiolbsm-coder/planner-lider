@@ -617,6 +617,9 @@ select { cursor: pointer; }
 .diagnostico-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg); margin-bottom: 6px; font-size: 13.5px; }
 .diagnostico-form { display: flex; gap: 8px; margin-top: 10px; }
 .diagnostico-form input { flex: 1; }
+.lider-linha { margin-bottom: 6px; }
+.lider-linha .diagnostico-item { margin-bottom: 0; }
+.lider-linha .form-senha-lider { margin-top: 6px; margin-bottom: 6px; }
 
 /* Campo com salvamento próprio (Criação do Plano / Ferramenta Avião) — mesma
    ideia do diagnóstico: cada resposta tem seu botão, sem formulário gigante. */
