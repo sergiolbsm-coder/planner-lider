@@ -987,6 +987,12 @@ button:disabled { cursor: default; opacity: .85; }
   transition: var(--transition);
 }
 .lider-ativo-trocar:hover { background: rgba(255,255,255,.35); }
+.conta-trocar-select {
+  background: rgba(255,255,255,.2); color: #fff; border: none; border-radius: 14px;
+  padding: 3px 6px; font-size: 11.5px; max-width: 90px; cursor: pointer;
+}
+.conta-trocar-select option { color: var(--text); }
+@media (max-width: 900px) { .conta-trocar-select { display: none !important; } }
 @media (max-width: 900px) { .lider-ativo-nome { display: none; } }
 
 /* ============================================================
