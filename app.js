@@ -2809,7 +2809,16 @@ function montarDocxPautaApresentacao() {
     children: [new TextRun({ text: texto, color: COR_MUTED, italics: true, size: 18 })],
   });
 
-  const celulaTexto = (texto, opts = {}) => new TableCell({
+  // Largura útil da página (Letter, margens padrão de 1" = 1440 twips de
+  // cada lado): 12240 - 2*1440 = 9360 twips. Usamos DXA (twips) explícito
+  // em vez de WidthType.PERCENTAGE porque esta versão do docx.js grava
+  // "100%" literal no XML (w:w="100%"), que não é um valor válido de
+  // ST_MeasurementOrPercent — o Word ignora a tabela e some com um layout
+  // mínimo de ~100 twips por coluna, deixando tudo espremido à esquerda.
+  const LARGURA_PAGINA_TWIPS = 9360;
+
+  const celulaTexto = (texto, largura, opts = {}) => new TableCell({
+    width: { size: largura, type: WidthType.DXA },
     borders: bordasCelula,
     verticalAlign: VerticalAlign.CENTER,
     shading: opts.cabecalho ? { type: ShadingType.CLEAR, fill: COR_TITULO } : undefined,
@@ -2824,13 +2833,19 @@ function montarDocxPautaApresentacao() {
     })],
   });
 
-  const tabela = (cabecalhos, linhas) => new Table({
-    width: { size: 100, type: WidthType.PERCENTAGE },
-    rows: [
-      new TableRow({ children: cabecalhos.map(c => celulaTexto(c, { cabecalho: true })) }),
-      ...linhas.map(linha => new TableRow({ children: linha.map(c => celulaTexto(c)) })),
-    ],
-  });
+  // `larguras` distribui LARGURA_PAGINA_TWIPS entre as colunas; se omitido,
+  // divide igualmente pelo nº de colunas do cabeçalho.
+  const tabela = (cabecalhos, linhas, larguras) => {
+    const colunas = larguras || cabecalhos.map(() => Math.floor(LARGURA_PAGINA_TWIPS / cabecalhos.length));
+    return new Table({
+      width: { size: LARGURA_PAGINA_TWIPS, type: WidthType.DXA },
+      columnWidths: colunas,
+      rows: [
+        new TableRow({ children: cabecalhos.map((c, i) => celulaTexto(c, colunas[i], { cabecalho: true })) }),
+        ...linhas.map(linha => new TableRow({ children: linha.map((c, i) => celulaTexto(c, colunas[i])) })),
+      ],
+    });
+  };
 
   const participantesLinhas = STATE.liderados.length
     ? STATE.liderados.map(l => [l.nome, l.cargo, l.email, '', ''])
@@ -2879,7 +2894,7 @@ function montarDocxPautaApresentacao() {
 
         tituloSecao(2, 'Participantes'),
         nota('(adicione linhas conforme necessário)'),
-        tabela(['Nome', 'Cargo', 'E-mail', 'Telefone', 'Assinatura'], participantesLinhas),
+        tabela(['Nome', 'Cargo', 'E-mail', 'Telefone', 'Assinatura'], participantesLinhas, [2200, 1600, 2400, 1560, 1600]),
 
         tituloSecao(3, 'Pauta da Reunião'),
         ...[
@@ -2914,7 +2929,7 @@ function montarDocxPautaApresentacao() {
 
         tituloSecao(5, 'Itens de Ação'),
         nota('(adicione linhas conforme necessário)'),
-        tabela(['Ação', 'Responsável', 'Data Esperada', 'Situação'], acoesLinhas),
+        tabela(['Ação', 'Responsável', 'Data Esperada', 'Situação'], acoesLinhas, [3600, 2200, 1800, 1760]),
 
         tituloSecao(6, 'Próxima Reunião'),
         nota('[Opcional]'),
