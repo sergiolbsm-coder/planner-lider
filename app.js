@@ -160,6 +160,7 @@ const Api = {
   listarLideresDaTurma: turmaId => api(`/admin/turmas/${turmaId}/lideres`),
   criarLiderNaTurma: (turmaId, dados) => api(`/admin/turmas/${turmaId}/lideres`, { method: 'POST', body: JSON.stringify(dados) }),
   moverLiderDeTurma: (liderId, turmaId) => api(`/admin/lideres/${liderId}`, { method: 'PUT', body: JSON.stringify({ turmaId }) }),
+  redefinirSenhaLider: (liderId, senha) => api(`/admin/lideres/${liderId}/senha`, { method: 'PUT', body: JSON.stringify({ senha }) }),
   listarDesafiosDaTurma: turmaId => api(`/admin/turmas/${turmaId}/desafios`),
   criarDesafioAdmin: (turmaId, dados) => api(`/admin/turmas/${turmaId}/desafios`, { method: 'POST', body: JSON.stringify(dados) }),
   atualizarDesafioAdmin: (id, dados) => api(`/admin/desafios/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
@@ -3309,10 +3310,46 @@ function renderTurmaLideres() {
   container.innerHTML = STATE.turmaLideres.length === 0
     ? `<div class="empty-state"><div class="empty-icon">👤</div><p>Nenhum líder cadastrado nesta turma ainda.</p></div>`
     : STATE.turmaLideres.map(l => `
-      <div class="diagnostico-item">
-        <span><strong>${l.nome}</strong>${l.cargo ? ' · ' + l.cargo : ''} — ${l.email}</span>
+      <div class="lider-linha" data-lider-linha="${l.id}">
+        <div class="diagnostico-item">
+          <span><strong>${l.nome}</strong>${l.cargo ? ' · ' + l.cargo : ''} — ${l.email}</span>
+          <button type="button" class="btn-icon btn-icon-sm btn-toggle-senha-lider" data-id="${l.id}" title="Redefinir senha">🔑</button>
+        </div>
+        <form class="diagnostico-form form-senha-lider" data-id="${l.id}" style="display:none">
+          <input type="password" class="input-senha-lider" placeholder="Nova senha (mín. 6 caracteres)" minlength="6" required />
+          <button type="submit" class="btn-secondary">Salvar senha</button>
+        </form>
       </div>
     `).join('');
+
+  container.querySelectorAll('.btn-toggle-senha-lider').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const form = container.querySelector(`.form-senha-lider[data-id="${btn.dataset.id}"]`);
+      const abrindo = form.style.display === 'none';
+      form.style.display = abrindo ? '' : 'none';
+      if (abrindo) form.querySelector('.input-senha-lider').focus();
+    });
+  });
+
+  container.querySelectorAll('.form-senha-lider').forEach(form => {
+    form.addEventListener('submit', async e => {
+      e.preventDefault();
+      const input = form.querySelector('.input-senha-lider');
+      const senha = input.value;
+      if (senha.length < 6) { mostrarToast('A senha precisa ter pelo menos 6 caracteres.', 'error'); return; }
+      const restaurar = iniciarCarregamentoBotao(form.querySelector('button[type=submit]'), 'Salvando...');
+      try {
+        await Api.redefinirSenhaLider(form.dataset.id, senha);
+        mostrarToast('Senha atualizada! Repasse a nova senha pro líder.');
+        form.reset();
+        form.style.display = 'none';
+      } catch (err) {
+        mostrarToast(err.message, 'error');
+      } finally {
+        restaurar();
+      }
+    });
+  });
 }
 
 function renderLideresSemTurma() {
