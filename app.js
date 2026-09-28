@@ -150,7 +150,7 @@ async function api(caminho, opcoes = {}) {
 }
 
 const Api = {
-  login: (email, senha) => api('/auth/login', { method: 'POST', body: JSON.stringify({ email, senha }) }),
+  login: (email, senha, contaId) => api('/auth/login', { method: 'POST', body: JSON.stringify({ email, senha, contaId }) }),
 
   listarTurmas: () => api('/admin/turmas'),
   criarTurma: nome => api('/admin/turmas', { method: 'POST', body: JSON.stringify({ nome }) }),
@@ -457,9 +457,37 @@ function initTelaAuth() {
     await tentarAuth(document.querySelector('#form-login button[type=submit]'), () => Api.login(email, senha));
   });
 
+  document.getElementById('btn-lg-confirmar-conta').addEventListener('click', async () => {
+    const contaId = document.getElementById('lg-conta-select').value;
+    const { email, senha } = STATE.loginPendente || {};
+    if (!contaId || !email) return;
+    await tentarAuth(document.getElementById('btn-lg-confirmar-conta'), () => Api.login(email, senha, contaId));
+  });
+
+  document.getElementById('btn-lg-voltar').addEventListener('click', () => {
+    document.getElementById('auth-escolha-conta').style.display = 'none';
+    document.getElementById('form-login').style.display = '';
+    STATE.loginPendente = null;
+  });
+
   document.getElementById('btn-sair').addEventListener('click', sair);
   document.getElementById('btn-sair-liderado').addEventListener('click', sair);
   document.getElementById('btn-sair-admin').addEventListener('click', sair);
+}
+
+// Mostra o seletor de conta quando o mesmo e-mail/senha bate com mais de uma
+// conta (ex: administrador que também é líder em uma ou mais turmas) — o
+// backend devolve `{ contas }` em vez de `{ token, user }` nesse caso.
+function mostrarEscolhaDeConta(contas, email, senha) {
+  STATE.loginPendente = { email, senha };
+  const select = document.getElementById('lg-conta-select');
+  const rotuloRole = { admin: 'Administrador', lider: 'Líder', liderado: 'Liderado' };
+  select.innerHTML = contas.map(c => {
+    const detalhe = c.turmaNome ? ` — turma ${c.turmaNome}` : '';
+    return `<option value="${c.id}">${rotuloRole[c.role] || c.role} — ${c.nome}${detalhe}</option>`;
+  }).join('');
+  document.getElementById('form-login').style.display = 'none';
+  document.getElementById('auth-escolha-conta').style.display = '';
 }
 
 async function tentarAuth(botao, chamada) {
@@ -469,8 +497,19 @@ async function tentarAuth(botao, chamada) {
   botao.disabled = true;
   botao.textContent = 'Só um instante...';
   try {
-    const { token, user } = await chamada();
-    salvarAuth(token, user);
+    const resposta = await chamada();
+    if (resposta.contas) {
+      const { email, senha } = STATE.loginPendente || {
+        email: document.getElementById('lg-email').value.trim(),
+        senha: document.getElementById('lg-senha').value,
+      };
+      mostrarEscolhaDeConta(resposta.contas, email, senha);
+      return;
+    }
+    document.getElementById('auth-escolha-conta').style.display = 'none';
+    document.getElementById('form-login').style.display = '';
+    STATE.loginPendente = null;
+    salvarAuth(resposta.token, resposta.user);
     await entrarNaSessao();
   } catch (err) {
     erroEl.textContent = err.message;
@@ -2552,8 +2591,8 @@ function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin) {
             <option value="">🔗 Vincular pasta a...</option>
             ${opcoesVincularTurma}
           </select>
-          <select class="select-vincular select-transferir-pasta" title="Transferir pasta pra outra turma (sai daqui)" data-pasta="${escapeAtributo(pastaReal)}" onclick="event.stopPropagation()">
-            <option value="">📦 Transferir pasta pra...</option>
+          <select class="select-vincular select-transferir-pasta" title="Transferir pasta pra outra turma (fica uma cópia lá e outra aqui)" data-pasta="${escapeAtributo(pastaReal)}" onclick="event.stopPropagation()">
+            <option value="">📦 Transferir (com cópia) pra...</option>
             ${opcoesVincularTurma}
           </select>
         ` : ''}
@@ -3439,10 +3478,10 @@ async function vincularPasta(pasta, turmaDestinoId) {
 async function transferirPasta(pasta, turmaDestinoId) {
   if (!turmaDestinoId) return;
   const nomeTurma = STATE.turmas.find(t => t.id === turmaDestinoId)?.nome || 'turma selecionada';
-  if (!confirm(`Transferir esta pasta pra ${nomeTurma}? Ela vai sair da turma atual.`)) return;
+  if (!confirm(`Transferir esta pasta pra ${nomeTurma}? Fica uma cópia lá e outra continua aqui na turma atual.`)) return;
   try {
     const resultado = await Api.transferirPastaATurma(STATE.turmaSelecionadaId, pasta, turmaDestinoId);
-    mostrarToast(`${resultado.transferidos} arquivo(s) transferido(s) pra ${nomeTurma}!`);
+    mostrarToast(`${resultado.transferidos} arquivo(s) transferido(s) (com cópia) pra ${nomeTurma}!`);
     await selecionarTurma(STATE.turmaSelecionadaId);
   } catch (err) { mostrarToast(err.message, 'error'); }
 }
