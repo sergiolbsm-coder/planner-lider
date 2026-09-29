@@ -2392,6 +2392,258 @@ function renderTabelaRotina() {
     </table>`;
 }
 
+// ============================================================
+// IMPORTAÇÃO DE PLANILHA (Excel) — Rotina Diária e Metas
+// ============================================================
+// Reaproveita os mesmos endpoints de criação (POST /rotina, POST /metas),
+// uma chamada por linha — não existe (nem precisa existir) uma rota de
+// carga em lote no backend. O ganho pro líder é não digitar registro por
+// registro na tela: preenche a planilha uma vez, importa, e cada linha vira
+// exatamente a mesma chamada que o formulário já faz.
+function normalizarTexto(s) {
+  return String(s == null ? '' : s).trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+
+// Aceita tanto a chave técnica ("estrategico") quanto o rótulo em português
+// ("Estratégico") na planilha, sem diferenciar maiúsculas/acentos — reduz o
+// risco de uma linha inteira falhar só por causa de uma vírgula fora do lugar.
+function mapearOpcao(valor, mapa) {
+  const chave = normalizarTexto(valor);
+  if (!chave) return '';
+  if (mapa[chave] !== undefined) return mapa[chave];
+  const achado = Object.values(mapa).find(v => normalizarTexto(v) === chave);
+  return achado || '';
+}
+
+const OPCOES_TIPO_PLANILHA = { estrategico: 'estrategico', tatico: 'tatico', operacional: 'operacional' };
+const OPCOES_IMPACTO_PLANILHA = { alto: 'alto', medio: 'medio', baixo: 'baixo' };
+const OPCOES_ENERGIA_PLANILHA = { alta: 'alta', media: 'media', baixa: 'baixa' };
+const OPCOES_FREQUENCIA_PLANILHA = { semanal: 'semanal', quinzenal: 'quinzenal', mensal: 'mensal', trimestral: 'trimestral' };
+const OPCOES_BSC_PLANILHA = {
+  aprendizado: 'aprendizado', 'aprendizado e crescimento': 'aprendizado',
+  processos: 'processos', 'processos internos': 'processos',
+  clientes: 'clientes',
+  financeira: 'financeira', 'financeira / resultado': 'financeira', financeiro: 'financeira',
+};
+const OPCOES_STATUS_EXEC_PLANILHA = { 'no prazo': 'no_prazo', atencao: 'atencao', atrasado: 'atrasado', concluido: 'concluido' };
+
+// Datas/horas do Excel chegam como objeto Date (quando a célula tem formato
+// de data/hora) OU como texto puro (quando a célula é texto livre) — aceita
+// os dois pra não depender de como cada pessoa formatou a planilha.
+function excelParaDataISO(valor) {
+  if (valor === '' || valor == null) return '';
+  if (valor instanceof Date) return valor.toISOString().slice(0, 10);
+  const s = String(valor).trim();
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})$/);
+  if (m) {
+    const ano = m[3].length === 2 ? '20' + m[3] : m[3];
+    return `${ano}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`;
+  }
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10);
+  return '';
+}
+
+function excelParaHora(valor) {
+  if (valor === '' || valor == null) return '';
+  if (valor instanceof Date) return `${String(valor.getUTCHours()).padStart(2, '0')}:${String(valor.getUTCMinutes()).padStart(2, '0')}`;
+  const m = String(valor).trim().match(/^(\d{1,2}):(\d{2})/);
+  return m ? `${m[1].padStart(2, '0')}:${m[2]}` : '';
+}
+
+const IMPORTACOES = {
+  rotina: {
+    titulo: 'Registro da Rotina Diária',
+    colunas: [
+      { header: 'Data (dd/mm/aaaa)', campo: 'data', tipo: 'data' },
+      { header: 'Início (hh:mm)', campo: 'inicio', tipo: 'hora' },
+      { header: 'Fim (hh:mm)', campo: 'fim', tipo: 'hora' },
+      { header: 'Atividade', campo: 'atividade', tipo: 'texto' },
+      { header: 'Tipo (Estratégico/Tático/Operacional)', campo: 'tipo', tipo: 'opcao', mapa: OPCOES_TIPO_PLANILHA },
+      { header: 'Impacto (Alto/Médio/Baixo)', campo: 'impacto', tipo: 'opcao', mapa: OPCOES_IMPACTO_PLANILHA },
+      { header: 'Energia (Alta/Média/Baixa)', campo: 'energia', tipo: 'opcao', mapa: OPCOES_ENERGIA_PLANILHA },
+    ],
+    linhaExemplo: ['01/10/2026', '08:00', '09:00', 'Reunião de alinhamento com o time', 'Estratégico', 'Alto', 'Alta'],
+    validar(dados) {
+      const erros = [];
+      if (!dados.data) erros.push('data inválida (use dd/mm/aaaa)');
+      if (!dados.inicio) erros.push('início inválido (use hh:mm)');
+      if (!dados.fim) erros.push('fim inválido (use hh:mm)');
+      if (dados.inicio && dados.fim && dados.fim <= dados.inicio) erros.push('fim deve ser depois do início');
+      if (!dados.atividade) erros.push('atividade em branco');
+      if (!dados.tipo) erros.push('tipo inválido (Estratégico/Tático/Operacional)');
+      return erros;
+    },
+    resumo: d => `${d.data || '—'} ${d.inicio || ''}–${d.fim || ''} · ${d.atividade || '(sem atividade)'}`,
+    importar: dados => Api.criarRotina(dados).then(mapRotina),
+    aoImportarTudo(novos) {
+      STATE.rotina.push(...novos);
+      renderDashboardAll();
+    },
+  },
+  metas: {
+    titulo: 'Metas & Indicadores',
+    colunas: [
+      { header: 'Nome da meta', campo: 'nome', tipo: 'texto' },
+      { header: 'Categoria (Estratégico/Tático/Operacional)', campo: 'tipo', tipo: 'opcao', mapa: OPCOES_TIPO_PLANILHA },
+      { header: 'Indicador (KPI)', campo: 'indicador', tipo: 'texto' },
+      { header: 'Ponto de partida', campo: 'pontoPartida', tipo: 'texto' },
+      { header: 'Resultado esperado', campo: 'valor', tipo: 'texto' },
+      { header: 'Prazo (dd/mm/aaaa)', campo: 'prazo', tipo: 'data' },
+      { header: 'Frequência (Semanal/Quinzenal/Mensal/Trimestral)', campo: 'frequenciaAcompanhamento', tipo: 'opcao', mapa: OPCOES_FREQUENCIA_PLANILHA },
+      { header: 'Por que é importante', campo: 'porqueImporta', tipo: 'texto' },
+      { header: 'Perspectiva BSC (Aprendizado/Processos/Clientes/Financeira)', campo: 'perspectivaBsc', tipo: 'opcao', mapa: OPCOES_BSC_PLANILHA },
+      { header: 'Descrição', campo: 'descricao', tipo: 'texto' },
+      { header: 'OKR - Objetivo', campo: 'okrObjetivo', tipo: 'texto' },
+      { header: 'OKR - KR1', campo: 'okrKr1', tipo: 'texto' },
+      { header: 'OKR - KR2', campo: 'okrKr2', tipo: 'texto' },
+      { header: 'OKR - KR3', campo: 'okrKr3', tipo: 'texto' },
+      { header: 'Ação prioritária', campo: 'acaoPrioritaria', tipo: 'texto' },
+      { header: 'Responsável pela ação', campo: 'responsavelAcao', tipo: 'texto' },
+      { header: 'Evidência de conclusão', campo: 'evidenciaConclusao', tipo: 'texto' },
+      { header: 'Próxima verificação (dd/mm/aaaa)', campo: 'proximaVerificacao', tipo: 'data' },
+      { header: 'Status (No prazo/Atenção/Atrasado/Concluído)', campo: 'statusExecucao', tipo: 'opcao', mapa: OPCOES_STATUS_EXEC_PLANILHA },
+    ],
+    linhaExemplo: [
+      'Aumentar NPS da área', 'Estratégico', 'NPS', '42', '60', '31/12/2026', 'Mensal',
+      'NPS baixo está gerando churn de clientes internos.', 'Clientes', '',
+      'Elevar a satisfação percebida pelos clientes internos', 'NPS de 42 para 60', 'Reduzir tempo de resposta em 30%', '',
+      'Mapear os 3 principais motivos de detração', 'Carla Mendes', '', '01/11/2026', 'Atenção',
+    ],
+    validar(dados) {
+      const erros = [];
+      if (!dados.nome) erros.push('nome em branco');
+      if (!dados.tipo) erros.push('categoria inválida (Estratégico/Tático/Operacional)');
+      return erros;
+    },
+    resumo: d => d.nome || '(sem nome)',
+    importar: dados => Api.criarMeta(dados).then(mapMeta),
+    aoImportarTudo(novos) {
+      STATE.metas.push(...novos);
+      renderMetas();
+    },
+  },
+};
+
+function baixarModeloPlanilha(tipoImportacao) {
+  const cfg = IMPORTACOES[tipoImportacao];
+  const cabecalho = cfg.colunas.map(c => c.header);
+  const ws = XLSX.utils.aoa_to_sheet([cabecalho, cfg.linhaExemplo]);
+  ws['!cols'] = cabecalho.map(h => ({ wch: Math.max(18, h.length) }));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, cfg.titulo.slice(0, 31));
+  XLSX.writeFile(wb, `modelo-${tipoImportacao}.xlsx`);
+}
+
+let IMPORTACAO_EM_ANDAMENTO = null;
+
+function processarArquivoImportado(tipoImportacao, file) {
+  if (!file) return;
+  const cfg = IMPORTACOES[tipoImportacao];
+  const leitor = new FileReader();
+  leitor.onload = e => {
+    let linhas;
+    try {
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      linhas = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+    } catch (err) {
+      mostrarToast('Não foi possível ler essa planilha. Confira se é um arquivo .xlsx válido.', 'error');
+      return;
+    }
+    if (linhas.length < 2) { mostrarToast('A planilha está vazia.', 'error'); return; }
+
+    const cabecalho = linhas[0].map(normalizarTexto);
+    const indices = cfg.colunas.map(c => cabecalho.indexOf(normalizarTexto(c.header)));
+
+    const linhasProcessadas = linhas.slice(1)
+      .filter(linha => linha.some(v => String(v == null ? '' : v).trim() !== ''))
+      .map((linha, i) => {
+        const dados = {};
+        cfg.colunas.forEach((c, idx) => {
+          const bruto = indices[idx] >= 0 ? linha[indices[idx]] : '';
+          if (c.tipo === 'data') dados[c.campo] = excelParaDataISO(bruto);
+          else if (c.tipo === 'hora') dados[c.campo] = excelParaHora(bruto);
+          else if (c.tipo === 'opcao') dados[c.campo] = mapearOpcao(bruto, c.mapa);
+          else dados[c.campo] = String(bruto == null ? '' : bruto).trim();
+        });
+        return { numero: i + 2, dados, erros: cfg.validar(dados) };
+      });
+
+    IMPORTACAO_EM_ANDAMENTO = { tipoImportacao, linhas: linhasProcessadas };
+    mostrarPreviewImportacao();
+  };
+  leitor.readAsArrayBuffer(file);
+}
+
+function mostrarPreviewImportacao() {
+  const { tipoImportacao, linhas } = IMPORTACAO_EM_ANDAMENTO;
+  const cfg = IMPORTACOES[tipoImportacao];
+  const validas = linhas.filter(l => l.erros.length === 0);
+  const invalidas = linhas.filter(l => l.erros.length > 0);
+
+  document.getElementById('modal-importar-titulo').textContent = `Importar — ${cfg.titulo}`;
+  document.getElementById('modal-importar-resumo').textContent =
+    `${linhas.length} linha(s) na planilha · ${validas.length} pronta(s) pra importar` +
+    (invalidas.length ? ` · ${invalidas.length} com erro (serão ignoradas)` : '') + '.';
+
+  document.getElementById('modal-importar-tabela').innerHTML = linhas.length === 0
+    ? `<p class="label-hint">Nenhuma linha preenchida foi encontrada na planilha.</p>`
+    : `<table class="tabela-importar-preview">
+        <thead><tr><th>Linha</th><th>Resumo</th><th>Situação</th></tr></thead>
+        <tbody>
+          ${linhas.map(l => `
+            <tr class="${l.erros.length ? 'linha-invalida' : ''}">
+              <td>${l.numero}</td>
+              <td>${cfg.resumo(l.dados)}</td>
+              <td>${l.erros.length ? `<span class="erro-linha">⚠️ ${l.erros.join('; ')}</span>` : '<span class="ok-linha">✅ pronta</span>'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+
+  document.getElementById('modal-importar-confirmar').disabled = validas.length === 0;
+  document.getElementById('modal-importar-planilha').style.display = 'flex';
+}
+
+function fecharModalImportar() {
+  document.getElementById('modal-importar-planilha').style.display = 'none';
+  IMPORTACAO_EM_ANDAMENTO = null;
+}
+
+function initImportarPlanilha() {
+  document.getElementById('modal-importar-close').addEventListener('click', fecharModalImportar);
+  document.getElementById('modal-overlay-importar-planilha').addEventListener('click', fecharModalImportar);
+  document.getElementById('modal-importar-cancelar').addEventListener('click', fecharModalImportar);
+
+  document.getElementById('modal-importar-confirmar').addEventListener('click', async () => {
+    if (!IMPORTACAO_EM_ANDAMENTO) return;
+    const { tipoImportacao, linhas } = IMPORTACAO_EM_ANDAMENTO;
+    const cfg = IMPORTACOES[tipoImportacao];
+    const validas = linhas.filter(l => l.erros.length === 0);
+    if (!validas.length) return;
+
+    const botao = document.getElementById('modal-importar-confirmar');
+    const restaurar = iniciarCarregamentoBotao(botao, `Importando 0/${validas.length}...`);
+    const importados = [];
+    let falhas = 0;
+    for (let i = 0; i < validas.length; i++) {
+      botao.innerHTML = `<span class="spinner-inline"></span> Importando ${i + 1}/${validas.length}...`;
+      try {
+        importados.push(await cfg.importar(validas[i].dados));
+      } catch (err) {
+        falhas++;
+      }
+    }
+    cfg.aoImportarTudo(importados);
+    restaurar();
+    fecharModalImportar();
+    mostrarToast(
+      falhas ? `${importados.length} importado(s), ${falhas} falharam.` : `${importados.length} registro(s) importado(s) com sucesso!`,
+      falhas ? 'error' : 'success'
+    );
+  });
+}
+
 function initFormRotina() {
   document.getElementById('rt-data').value = hojeISO();
   document.getElementById('rt-data').addEventListener('change', renderTabelaRotina);
@@ -4109,6 +4361,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Dashboard
   initSeguro('formRotina', initFormRotina);
+  initSeguro('importarPlanilha', initImportarPlanilha);
   initSeguro('planoAcao', initPlanoAcao);
   initSeguro('autoavaliacao', initAutoavaliacao);
 
