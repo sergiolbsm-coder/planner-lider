@@ -1335,6 +1335,8 @@ button:disabled { cursor: default; opacity: .85; }
 }
 .tabela-simples td { padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .tabela-plano input[type="text"] { padding: 6px 8px; font-size: 12.5px; min-width: 120px; }
+.tabela-plano input[type="date"], .tabela-plano select { padding: 6px 8px; font-size: 12.5px; font-family: inherit; border-radius: 6px; border: 1.5px solid var(--border); }
+.tabela-plano .celula-vazia { color: var(--text-muted); font-style: italic; font-size: 12.5px; }
 .btn-add-linha { margin-top: 10px; }
 
 .dashboard-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 20px; }

@@ -10,7 +10,7 @@
        vendo a versão antiga por até 4h mesmo depois do deploy. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Cormorant+Garamond:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260927w" />
+  <link rel="stylesheet" href="style.css?v=20260927y" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@9.7.2/dist/index.iife.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -80,6 +80,7 @@
         <button class="nav-btn" data-section="atividades"><span class="nav-icon">🗂️</span><span>Atividades</span></button>
         <button class="nav-btn" data-section="metas"><span class="nav-icon">🎯</span><span>Metas</span></button>
         <button class="nav-btn" data-section="matriz"><span class="nav-icon">📐</span><span>Prioridades</span></button>
+        <button class="nav-btn" data-section="plano-acao"><span class="nav-icon">✅</span><span>Plano de Ação</span></button>
         <button class="nav-btn" data-section="dashboard"><span class="nav-icon">📊</span><span>Dashboard</span></button>
         <button class="nav-btn" data-section="aula"><span class="nav-icon">📚</span><span>Arquivos da Aula</span></button>
       </nav>
@@ -1128,6 +1129,40 @@
     </section>
 
     <!-- ============================================
+         MÓDULO NOVO — PLANO DE AÇÃO / PROJETOS
+    ============================================ -->
+    <section id="section-plano-acao" class="section">
+
+      <div class="section-hero">
+        <h1>Plano de Ação / Projetos</h1>
+        <p>Planeje projetos e iniciativas da equipe e acompanhe o andamento de cada um — responsável, prazo, meta vinculada e status.</p>
+      </div>
+
+      <div class="subtabs">
+        <button class="subtab-btn active" data-subview="plano-projetos">📋 Projetos / Iniciativas</button>
+        <button class="subtab-btn" data-subview="plano-acompanhamento">📊 Acompanhamento por Equipe</button>
+      </div>
+
+      <div id="view-plano-projetos" class="subview active">
+        <div class="card">
+          <div class="card-header"><span class="card-icon">📋</span><h2>Projetos / Iniciativas</h2></div>
+          <p class="label-hint">O planejamento: o que vai ser feito, com quais recursos e quais são os checkpoints. Vincule uma meta quando o projeto contribuir diretamente pra ela.</p>
+          <div id="tabela-projetos-iniciativas" class="tabela-plano"></div>
+          <button type="button" class="btn-secondary btn-add-linha" id="btn-add-projeto">➕ Adicionar projeto/iniciativa</button>
+        </div>
+      </div>
+
+      <div id="view-plano-acompanhamento" class="subview">
+        <div class="card">
+          <div class="card-header"><span class="card-icon">📊</span><h2>Acompanhamento de Planos por Equipe</h2></div>
+          <p class="label-hint">O acompanhamento: quem é o responsável, prazo, status e o que já foi aprendido. Cadastre o projeto na aba ao lado antes de acompanhar aqui.</p>
+          <div id="tabela-acompanhamento-planos" class="tabela-plano"></div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ============================================
          MÓDULO NOVO — DASHBOARD DE GESTÃO DO TEMPO
     ============================================ -->
     <section id="section-dashboard" class="section">
@@ -1163,10 +1198,16 @@
         </div>
       </div>
 
+      <div class="card">
+        <div class="card-header"><span class="card-icon">✅</span><h2>Plano de Ação / Projetos</h2></div>
+        <p class="label-hint">O cadastro de projetos, iniciativas e acompanhamento por equipe agora tem uma tela própria.</p>
+        <button type="button" class="btn-primary" onclick="irParaSecao('plano-acao')">📋 Ir para Plano de Ação / Projetos</button>
+      </div>
+
       <div class="card form-card">
         <div class="card-header">
           <span class="card-icon">⏱️</span>
-          <h2>Registro da Rotina Diária</h2>
+          <h2>Registro do Diário de Gestão</h2>
           <input type="date" id="rt-data" class="rt-data-input" />
         </div>
 
@@ -1256,12 +1297,6 @@
           <div class="grafico-wrap-dash"><canvas id="grafico-dash-ideal"></canvas></div>
           <div class="ideal-inputs" id="ideal-inputs"></div>
         </div>
-      </div>
-
-      <div class="card">
-        <div class="card-header"><span class="card-icon">✅</span><h2>Plano de Ação para Melhorar a Gestão do Tempo</h2></div>
-        <div id="tabela-plano-acao" class="tabela-plano-acao"></div>
-        <button class="btn-secondary btn-add-linha" id="btn-add-plano-acao">➕ Adicionar ação</button>
       </div>
 
       <div class="card">
@@ -1681,6 +1716,6 @@
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <script src="app.js?v=20260927w"></script>
+  <script src="app.js?v=20260927y"></script>
 </body>
 </html>
