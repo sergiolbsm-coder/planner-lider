@@ -12,7 +12,6 @@
 // ============================================================
 const STATE = {
   liderados: [],
-  insercaoDiretaLinhas: [], // linhas em edição da tabela de cadastro rápido de liderados
   atividades: [],
   matriz: [],
   metas: [],
@@ -630,7 +629,6 @@ function sair() {
   STATE.meuPerfil = null; STATE.minhasAtividades = []; STATE.minhasMetas = []; STATE.meusFeedbacks = [];
   STATE.turmas = []; STATE.turmaSelecionadaId = null; STATE.turmaLideres = []; STATE.turmaDesafios = []; STATE.turmaArquivos = []; STATE.lideresSemTurma = [];
   STATE.agendaRotinaSemana = null;
-  STATE.insercaoDiretaLinhas = [];
   document.getElementById('form-login').reset();
   document.getElementById('auth-erro').style.display = 'none';
   mostrarTela('auth');
@@ -957,99 +955,6 @@ function resetFormLiderado() {
   document.getElementById('grupo-senha-liderado').style.display = 'block';
   document.getElementById('liderado-form-title').textContent = 'Cadastrar Liderado';
   document.getElementById('btn-cancelar-liderado').style.display = 'none';
-}
-
-// ============================================================
-// INSERÇÃO DIRETA — tabela de cadastro rápido de liderados (Nome, Cargo,
-// E-mail e Senha opcionais), pra quem tem vários nomes pra lançar de uma vez
-// sem abrir o formulário completo a cada um. Os inputs não são recriados a
-// cada tecla digitada (só quando uma linha é adicionada/removida/salva),
-// senão perderia o foco a cada letra — mesmo cuidado da tabela de Plano de
-// Ação.
-// ============================================================
-function gerarIdLinhaInsercaoDireta() {
-  return 'linha-' + Math.random().toString(36).slice(2, 9);
-}
-
-function renderInsercaoDiretaLiderados() {
-  const corpo = document.getElementById('tabela-insercao-direta-corpo');
-  if (!corpo) return;
-  if (STATE.insercaoDiretaLinhas.length === 0) {
-    STATE.insercaoDiretaLinhas = [gerarIdLinhaInsercaoDireta(), gerarIdLinhaInsercaoDireta(), gerarIdLinhaInsercaoDireta()];
-  }
-  corpo.innerHTML = STATE.insercaoDiretaLinhas.map(id => `
-    <tr data-linha-id="${id}">
-      <td><input type="text" class="id-linha-nome" placeholder="Nome completo" /></td>
-      <td><input type="text" class="id-linha-cargo" placeholder="Cargo" /></td>
-      <td><input type="email" class="id-linha-email" placeholder="opcional" /></td>
-      <td><input type="password" class="id-linha-senha" placeholder="opcional" minlength="6" /></td>
-      <td class="tabela-insercao-direta-acoes">
-        <button type="button" class="btn-icon btn-icon-sm btn-salvar-linha" title="Salvar liderado">✓</button>
-        <button type="button" class="btn-icon btn-icon-sm btn-icon-danger btn-remover-linha" title="Remover linha">🗑️</button>
-      </td>
-    </tr>
-  `).join('');
-}
-
-async function salvarLinhaInsercaoDireta(tr) {
-  const nome = tr.querySelector('.id-linha-nome').value.trim();
-  const cargo = tr.querySelector('.id-linha-cargo').value.trim();
-  const email = tr.querySelector('.id-linha-email').value.trim();
-  const senha = tr.querySelector('.id-linha-senha').value;
-
-  if (!nome) { mostrarToast('Informe o nome do liderado.', 'error'); return; }
-  if ((email && !senha) || (!email && senha)) {
-    mostrarToast('Informe e-mail e senha juntos, ou deixe os dois em branco pra liberar o acesso depois.', 'error');
-    return;
-  }
-  if (senha && senha.length < 6) { mostrarToast('A senha precisa ter pelo menos 6 caracteres.', 'error'); return; }
-
-  const dados = { nome, cargo };
-  if (email) { dados.email = email; dados.senha = senha; }
-
-  const linhaId = tr.dataset.linhaId;
-  const restaurar = iniciarCarregamentoBotao(tr.querySelector('.btn-salvar-linha'), '');
-  try {
-    const criado = mapLiderado(await Api.criarLiderado(dados));
-    STATE.liderados.push(criado);
-    renderLiderados();
-    STATE.insercaoDiretaLinhas = STATE.insercaoDiretaLinhas.filter(id => id !== linhaId);
-    if (STATE.insercaoDiretaLinhas.length === 0) STATE.insercaoDiretaLinhas.push(gerarIdLinhaInsercaoDireta());
-    renderInsercaoDiretaLiderados();
-    mostrarToast(`${nome} cadastrado!`);
-  } catch (err) {
-    mostrarToast(err.message, 'error');
-    restaurar();
-  }
-}
-
-function initInsercaoDiretaLiderados() {
-  renderInsercaoDiretaLiderados();
-
-  document.getElementById('btn-add-linha-insercao-direta').addEventListener('click', () => {
-    STATE.insercaoDiretaLinhas.push(gerarIdLinhaInsercaoDireta());
-    renderInsercaoDiretaLiderados();
-  });
-
-  const corpo = document.getElementById('tabela-insercao-direta-corpo');
-  corpo.addEventListener('click', e => {
-    const tr = e.target.closest('tr');
-    if (!tr) return;
-    if (e.target.closest('.btn-salvar-linha')) { salvarLinhaInsercaoDireta(tr); return; }
-    if (e.target.closest('.btn-remover-linha')) {
-      const linhaId = tr.dataset.linhaId;
-      STATE.insercaoDiretaLinhas = STATE.insercaoDiretaLinhas.filter(id => id !== linhaId);
-      if (STATE.insercaoDiretaLinhas.length === 0) STATE.insercaoDiretaLinhas.push(gerarIdLinhaInsercaoDireta());
-      renderInsercaoDiretaLiderados();
-    }
-  });
-
-  corpo.addEventListener('keydown', e => {
-    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
-    e.preventDefault();
-    const tr = e.target.closest('tr');
-    if (tr) salvarLinhaInsercaoDireta(tr);
-  });
 }
 
 function editarLiderado(id) {
@@ -2822,6 +2727,49 @@ const IMPORTACOES = {
     aoImportarTudo(novos) {
       STATE.metas.push(...novos);
       renderMetas();
+    },
+  },
+  liderados: {
+    titulo: 'Liderados',
+    colunas: [
+      { header: 'Nome completo', campo: 'nome', tipo: 'texto' },
+      { header: 'Cargo / Função', campo: 'cargo', tipo: 'texto' },
+      { header: 'E-mail de acesso (opcional)', campo: 'email', tipo: 'texto' },
+      { header: 'Senha de acesso (opcional)', campo: 'senha', tipo: 'texto' },
+      { header: 'Data de início (dd/mm/aaaa)', campo: 'dataInicio', tipo: 'data' },
+      { header: 'Perfil comportamental', campo: 'perfilComportamental', tipo: 'texto' },
+      { header: 'Principais habilidades', campo: 'habilidades', tipo: 'texto' },
+      { header: 'Expectativas do líder', campo: 'expectativas', tipo: 'texto' },
+      { header: 'Metas individuais', campo: 'metasTexto', tipo: 'texto' },
+      { header: 'Plano de desenvolvimento', campo: 'desenvolvimento', tipo: 'texto' },
+      { header: 'Observações', campo: 'obs', tipo: 'texto' },
+    ],
+    linhaExemplo: [
+      'Ana Beatriz Souza', 'Analista de Marketing', '', '', '15/03/2025', 'Comunicador',
+      'Boa comunicação, organização', 'Assumir mais autonomia em projetos',
+      'Concluir a certificação X até dezembro', 'Mentoria quinzenal com o líder', '',
+    ],
+    validar(dados) {
+      const erros = [];
+      if (!dados.nome) erros.push('nome em branco');
+      if ((dados.email && !dados.senha) || (!dados.email && dados.senha)) erros.push('e-mail e senha devem vir juntos (ou os dois em branco)');
+      if (dados.senha && dados.senha.length < 6) erros.push('senha precisa ter pelo menos 6 caracteres');
+      return erros;
+    },
+    resumo: d => `${d.nome || '(sem nome)'}${d.cargo ? ' — ' + d.cargo : ''}`,
+    importar(dados) {
+      const payload = {
+        nome: dados.nome, cargo: dados.cargo, dataInicio: dados.dataInicio,
+        perfilComportamental: dados.perfilComportamental, habilidades: dados.habilidades,
+        expectativas: dados.expectativas, metasTexto: dados.metasTexto,
+        desenvolvimento: dados.desenvolvimento, obs: dados.obs,
+      };
+      if (dados.email) { payload.email = dados.email; payload.senha = dados.senha; }
+      return Api.criarLiderado(payload).then(mapLiderado);
+    },
+    aoImportarTudo(novos) {
+      STATE.liderados.push(...novos);
+      renderLiderados();
     },
   },
 };
@@ -4755,7 +4703,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Liderados
   initSeguro('formLiderado', initFormLiderado);
-  initSeguro('insercaoDiretaLiderados', initInsercaoDiretaLiderados);
   initSeguro('modalLiderado', initModalLiderado);
 
   // Diário de Bordo
