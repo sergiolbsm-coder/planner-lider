@@ -96,6 +96,22 @@ const RISCOS_LABELS = {
   pressao: '🧱 Pressão excessiva',
 };
 
+// Contraponto positivo da checagem de riscos — mesmo padrão de múltipla
+// escolha, só que pra registrar o que está indo bem.
+const EVOLUCAO_LABELS = {
+  superou_expectativa: '🌟 Superou a expectativa',
+  iniciativa: '🚀 Iniciativa',
+  inovacao: '💡 Inovação',
+};
+
+// Feedback formal — 3 ferramentas do material de aula, cada uma com seus
+// próprios campos (ver diario_registros no schema.sql).
+const FERRAMENTAS_FEEDBACK_LABELS = {
+  sanduiche: '🥪 Sanduíche',
+  feedforward: '🔄 Feedforward (+ e Delta)',
+  comece_pare_continue: '🚦 Comece, Pare e Continue',
+};
+
 // Seed do Plano de Ação padrão de um líder novo: agora fica no backend (ver
 // PLANO_ACAO_PADRAO em src/routes/admin.js), aplicado quando o admin cadastra
 // o líder — antes disso, era feito daqui mesmo, no frontend, na hora que o
@@ -295,7 +311,15 @@ function mapRotina(r) {
   return { id: r.id, data: String(r.data).slice(0, 10), inicio: r.inicio.slice(0, 5), fim: r.fim.slice(0, 5), atividade: r.atividade, tipo: r.tipo, impacto: r.impacto || '', energia: r.energia || '', criadoEm: r.criado_em };
 }
 function mapDiario(d) {
-  return { id: d.id, lideradoId: d.liderado_id, tipo: d.tipo, data: String(d.data).slice(0, 10), riscos: d.riscos || [], sinais: d.sinais || '', conversa: d.conversa || '', plano: d.plano || '', criadoEm: d.criado_em };
+  return {
+    id: d.id, lideradoId: d.liderado_id, tipo: d.tipo, data: String(d.data).slice(0, 10),
+    riscos: d.riscos || [], evolucao: d.evolucao || [],
+    sinais: d.sinais || '', conversa: d.conversa || '', plano: d.plano || '', criadoEm: d.criado_em,
+    ferramentaFeedback: d.ferramenta_feedback || '',
+    fbSanduichePositivo1: d.fb_sanduiche_positivo1 || '', fbSanduicheMelhoria: d.fb_sanduiche_melhoria || '', fbSanduichePositivo2: d.fb_sanduiche_positivo2 || '',
+    fbFeedforwardMais: d.fb_feedforward_mais || '', fbFeedforwardDelta: d.fb_feedforward_delta || '',
+    fbCpcComece: d.fb_cpc_comece || '', fbCpcPare: d.fb_cpc_pare || '', fbCpcContinue: d.fb_cpc_continue || '',
+  };
 }
 function mapPlanoAcao(p) {
   return { id: p.id, acao: p.acao || '', comoFazer: p.como_fazer || '', impacto: p.impacto || '', prazo: p.prazo || '' };
@@ -337,7 +361,13 @@ function mapDiagnostico(d) {
   return { id: d.id, tipo: d.tipo, texto: d.texto, ordem: Number(d.ordem) || 0 };
 }
 function mapFeedback(f) {
-  return { id: f.id, data: String(f.data).slice(0, 10), conversa: f.conversa || '', plano: f.plano || '', criadoEm: f.criado_em };
+  return {
+    id: f.id, data: String(f.data).slice(0, 10), conversa: f.conversa || '', plano: f.plano || '', criadoEm: f.criado_em,
+    ferramentaFeedback: f.ferramenta_feedback || '',
+    fbSanduichePositivo1: f.fb_sanduiche_positivo1 || '', fbSanduicheMelhoria: f.fb_sanduiche_melhoria || '', fbSanduichePositivo2: f.fb_sanduiche_positivo2 || '',
+    fbFeedforwardMais: f.fb_feedforward_mais || '', fbFeedforwardDelta: f.fb_feedforward_delta || '',
+    fbCpcComece: f.fb_cpc_comece || '', fbCpcPare: f.fb_cpc_pare || '', fbCpcContinue: f.fb_cpc_continue || '',
+  };
 }
 function mapArquivo(a) {
   return { id: a.id, nome: a.nome, descricao: a.descricao || '', pasta: a.pasta || '', tipoMime: a.tipo_mime, tamanhoBytes: Number(a.tamanho_bytes), criadoEm: a.criado_em };
@@ -724,6 +754,7 @@ function renderVisaoLiderado() {
       <div class="liderado-feedback-item">
         <div class="diario-timeline-data">🗣️ ${formatarData(f.data)}</div>
         ${f.conversa ? `<div class="diario-timeline-campo"><strong>💬 Conversa:</strong> ${f.conversa}</div>` : ''}
+        ${htmlFerramentaFeedback(f)}
         ${f.plano ? `<div class="diario-timeline-campo"><strong>📋 Plano de ação:</strong> ${f.plano}</div>` : ''}
       </div>`).join('');
   }
@@ -1063,9 +1094,7 @@ function renderDiarioConteudo() {
 
   atualizarPillUltimoFeedback(l.id);
 
-  document.getElementById('rd-data').value = hojeISO();
-  clearMultiGroup('riscos');
-  setTagValue('registro-tipo', 'observacao');
+  resetCamposRegistroDiario();
 
   renderTimelineDiario();
 }
@@ -1113,25 +1142,100 @@ function renderTimelineDiario() {
     <div class="diario-timeline-item ${r.tipo === 'feedback' ? 'feedback' : ''}">
       <div class="diario-timeline-data">${r.tipo === 'feedback' ? '🗣️ Feedback formal — ' : '📅 '}${formatarData(r.data)}</div>
       ${(r.riscos && r.riscos.length) ? `<div class="atividade-tags">${r.riscos.map(v => `<span class="tag-pill tag-risco">${RISCOS_LABELS[v] || v}</span>`).join('')}</div>` : ''}
+      ${(r.evolucao && r.evolucao.length) ? `<div class="atividade-tags">${r.evolucao.map(v => `<span class="tag-pill tag-evolucao">${EVOLUCAO_LABELS[v] || v}</span>`).join('')}</div>` : ''}
       ${r.sinais ? `<div class="diario-timeline-campo"><strong>👁️ Sinais observados:</strong> ${r.sinais}</div>` : ''}
       ${r.conversa ? `<div class="diario-timeline-campo"><strong>💬 Conversa:</strong> ${r.conversa}</div>` : ''}
+      ${htmlFerramentaFeedback(r)}
       ${r.plano ? `<div class="diario-timeline-campo"><strong>📋 Plano de ação:</strong> ${r.plano}</div>` : ''}
       <button class="btn-icon btn-icon-sm btn-icon-danger diario-timeline-excluir" title="Excluir registro" onclick="excluirRegistroDiario('${r.id}')">🗑️</button>
     </div>
   `).join('');
 }
 
+// Monta o bloco da ferramenta de feedback usada (Sanduíche/Feedforward/
+// Comece-Pare-Continue) pra exibir na linha do tempo — cada uma com seus
+// próprios campos, então o HTML muda conforme qual foi escolhida.
+function htmlFerramentaFeedback(r) {
+  if (!r.ferramentaFeedback) return '';
+  const titulo = FERRAMENTAS_FEEDBACK_LABELS[r.ferramentaFeedback] || r.ferramentaFeedback;
+  let campos = '';
+  if (r.ferramentaFeedback === 'sanduiche') {
+    campos = `
+      ${r.fbSanduichePositivo1 ? `<div>😊 <strong>Positivo:</strong> ${r.fbSanduichePositivo1}</div>` : ''}
+      ${r.fbSanduicheMelhoria ? `<div>🎯 <strong>A melhorar:</strong> ${r.fbSanduicheMelhoria}</div>` : ''}
+      ${r.fbSanduichePositivo2 ? `<div>😊 <strong>Positivo:</strong> ${r.fbSanduichePositivo2}</div>` : ''}`;
+  } else if (r.ferramentaFeedback === 'feedforward') {
+    campos = `
+      ${r.fbFeedforwardMais ? `<div>➕ <strong>O que funcionou:</strong> ${r.fbFeedforwardMais}</div>` : ''}
+      ${r.fbFeedforwardDelta ? `<div>Δ <strong>O que fazer diferente:</strong> ${r.fbFeedforwardDelta}</div>` : ''}`;
+  } else if (r.ferramentaFeedback === 'comece_pare_continue') {
+    campos = `
+      ${r.fbCpcComece ? `<div>▶️ <strong>Comece:</strong> ${r.fbCpcComece}</div>` : ''}
+      ${r.fbCpcPare ? `<div>⏹️ <strong>Pare:</strong> ${r.fbCpcPare}</div>` : ''}
+      ${r.fbCpcContinue ? `<div>⏩ <strong>Continue:</strong> ${r.fbCpcContinue}</div>` : ''}`;
+  }
+  if (!campos.trim()) return '';
+  return `<div class="diario-timeline-ferramenta"><div class="diario-timeline-ferramenta-titulo">${titulo}</div>${campos}</div>`;
+}
+
+// Mostra/esconde o seletor de ferramenta (só faz sentido em Feedback formal)
+// e os campos específicos da ferramenta escolhida.
+function atualizarVisibilidadeRegistroDiario() {
+  const tipo = getTagValue('registro-tipo') || 'observacao';
+  document.getElementById('wrap-feedback-ferramenta').style.display = tipo === 'feedback' ? '' : 'none';
+
+  const ferramenta = tipo === 'feedback' ? getTagValue('feedback-ferramenta') : '';
+  document.getElementById('wrap-fb-sanduiche').style.display = ferramenta === 'sanduiche' ? '' : 'none';
+  document.getElementById('wrap-fb-feedforward').style.display = ferramenta === 'feedforward' ? '' : 'none';
+  document.getElementById('wrap-fb-cpc').style.display = ferramenta === 'comece_pare_continue' ? '' : 'none';
+}
+
+function resetCamposRegistroDiario() {
+  document.getElementById('form-registro-diario').reset();
+  document.getElementById('rd-data').value = hojeISO();
+  clearMultiGroup('riscos');
+  clearMultiGroup('evolucao');
+  clearTagGroup('feedback-ferramenta');
+  setTagValue('registro-tipo', 'observacao');
+  atualizarVisibilidadeRegistroDiario();
+}
+
 function initFormRegistroDiario() {
+  // Escuta no document (não nos grupos), e registrado DEPOIS de initTagButtons
+  // no cascade de init — assim o clique já trocou a classe "selected" antes
+  // de ler o estado aqui. Ouvir direto no grupo faria o bubbling chegar
+  // primeiro no listener local (lendo o estado ainda desatualizado) e só
+  // depois no listener de document que faz o toggle de fato.
+  document.addEventListener('click', e => {
+    if (e.target.closest('#grupo-registro-tipo, #grupo-feedback-ferramenta')) {
+      atualizarVisibilidadeRegistroDiario();
+    }
+  });
+
   document.getElementById('form-registro-diario').addEventListener('submit', async e => {
     e.preventDefault();
     if (!STATE.diarioSelecionadoId) return;
     const riscos = getMultiValues('riscos');
+    const evolucao = getMultiValues('evolucao');
     const sinais = document.getElementById('rd-sinais').value.trim();
     const conversa = document.getElementById('rd-conversa').value.trim();
     const plano = document.getElementById('rd-plano').value.trim();
     const tipo = getTagValue('registro-tipo') || 'observacao';
+    const ferramentaFeedback = tipo === 'feedback' ? getTagValue('feedback-ferramenta') : '';
 
-    if (!riscos.length && !sinais && !conversa && !plano) {
+    const dadosFerramenta = {
+      fbSanduichePositivo1: document.getElementById('fb-sanduiche-positivo1').value.trim(),
+      fbSanduicheMelhoria: document.getElementById('fb-sanduiche-melhoria').value.trim(),
+      fbSanduichePositivo2: document.getElementById('fb-sanduiche-positivo2').value.trim(),
+      fbFeedforwardMais: document.getElementById('fb-feedforward-mais').value.trim(),
+      fbFeedforwardDelta: document.getElementById('fb-feedforward-delta').value.trim(),
+      fbCpcComece: document.getElementById('fb-cpc-comece').value.trim(),
+      fbCpcPare: document.getElementById('fb-cpc-pare').value.trim(),
+      fbCpcContinue: document.getElementById('fb-cpc-continue').value.trim(),
+    };
+    const temCampoFerramenta = Object.values(dadosFerramenta).some(Boolean);
+
+    if (!riscos.length && !evolucao.length && !sinais && !conversa && !plano && !temCampoFerramenta) {
       mostrarToast('Preencha ao menos um campo do registro.', 'error');
       return;
     }
@@ -1141,7 +1245,7 @@ function initFormRegistroDiario() {
       const novo = mapDiario(await Api.criarRegistroDiario({
         liderado_id: STATE.diarioSelecionadoId, tipo,
         data: document.getElementById('rd-data').value || hojeISO(),
-        riscos, sinais, conversa, plano,
+        riscos, evolucao, sinais, conversa, plano, ferramentaFeedback, ...dadosFerramenta,
       }));
       STATE.diario.push(novo);
       STATE.diarioResumoEquipe = STATE.diarioResumoEquipe.filter(d => !(d.lideradoId === novo.lideradoId && d.tipo === novo.tipo));
@@ -1149,10 +1253,7 @@ function initFormRegistroDiario() {
 
       renderTimelineDiario();
       renderDiarioEquipe();
-      document.getElementById('form-registro-diario').reset();
-      document.getElementById('rd-data').value = hojeISO();
-      clearMultiGroup('riscos');
-      setTagValue('registro-tipo', 'observacao');
+      resetCamposRegistroDiario();
       atualizarPillUltimoFeedback(STATE.diarioSelecionadoId);
       mostrarToast(tipo === 'feedback' ? 'Feedback lançado com sucesso!' : 'Registro adicionado ao diário de bordo!');
       carregarEstatisticasDiario();
@@ -1274,8 +1375,10 @@ function gerarResumoFeedback() {
         <div class="resumo-registro">
           <div class="resumo-registro-data">${r.tipo === 'feedback' ? '🗣️ Feedback formal — ' : '📅 '}${formatarData(r.data)}</div>
           ${(r.riscos && r.riscos.length) ? `<p><strong>Riscos observados:</strong> ${r.riscos.map(v => RISCOS_LABELS[v] || v).join(', ')}</p>` : ''}
+          ${(r.evolucao && r.evolucao.length) ? `<p><strong>Evolução:</strong> ${r.evolucao.map(v => EVOLUCAO_LABELS[v] || v).join(', ')}</p>` : ''}
           ${r.sinais ? `<p><strong>Sinais:</strong> ${r.sinais}</p>` : ''}
           ${r.conversa ? `<p><strong>Conversa:</strong> ${r.conversa}</p>` : ''}
+          ${htmlFerramentaFeedback(r)}
           ${r.plano ? `<p><strong>Plano de ação:</strong> ${r.plano}</p>` : ''}
         </div>
       `).join('')}

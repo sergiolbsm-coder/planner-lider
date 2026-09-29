@@ -10,7 +10,7 @@
        vendo a versão antiga por até 4h mesmo depois do deploy. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Cormorant+Garamond:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260927o" />
+  <link rel="stylesheet" href="style.css?v=20260927p" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@9.7.2/dist/index.iife.js"></script>
 </head>
@@ -468,16 +468,51 @@
             <div class="form-group">
               <label>🛡️ Checagem de riscos psicossociais <span class="label-hint">(marque o que se aplica)</span></label>
               <div class="btn-group" id="grupo-riscos">
-                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="sobrecarga">😓 Sobrecarga</button>
-                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="isolamento">🚪 Isolamento</button>
-                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="desmotivacao">📉 Desmotivação</button>
-                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="conflito">⚡ Conflito</button>
-                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="mudanca">🔄 Mudança pessoal</button>
-                <button type="button" class="tag-btn tag-btn-multi" data-group-multi="riscos" data-value="pressao">🧱 Pressão excessiva</button>
+                <button type="button" class="tag-btn tag-btn-multi tag-btn-risco" data-group-multi="riscos" data-value="sobrecarga">😓 Sobrecarga</button>
+                <button type="button" class="tag-btn tag-btn-multi tag-btn-risco" data-group-multi="riscos" data-value="isolamento">🚪 Isolamento</button>
+                <button type="button" class="tag-btn tag-btn-multi tag-btn-risco" data-group-multi="riscos" data-value="desmotivacao">📉 Desmotivação</button>
+                <button type="button" class="tag-btn tag-btn-multi tag-btn-risco" data-group-multi="riscos" data-value="conflito">⚡ Conflito</button>
+                <button type="button" class="tag-btn tag-btn-multi tag-btn-risco" data-group-multi="riscos" data-value="mudanca">🔄 Mudança pessoal</button>
+                <button type="button" class="tag-btn tag-btn-multi tag-btn-risco" data-group-multi="riscos" data-value="pressao">🧱 Pressão excessiva</button>
+              </div>
+            </div>
+            <div class="form-group">
+              <label>🌱 Evolução <span class="label-hint">(marque o que se aplica)</span></label>
+              <div class="btn-group" id="grupo-evolucao">
+                <button type="button" class="tag-btn tag-btn-multi tag-btn-evolucao" data-group-multi="evolucao" data-value="superou_expectativa">🌟 Superou a expectativa</button>
+                <button type="button" class="tag-btn tag-btn-multi tag-btn-evolucao" data-group-multi="evolucao" data-value="iniciativa">🚀 Iniciativa</button>
+                <button type="button" class="tag-btn tag-btn-multi tag-btn-evolucao" data-group-multi="evolucao" data-value="inovacao">💡 Inovação</button>
               </div>
             </div>
             <div class="form-group"><label for="rd-sinais">👁️ Sinais observados</label><textarea id="rd-sinais" rows="2" placeholder="O que tenho observado?"></textarea></div>
             <div class="form-group"><label for="rd-conversa">💬 Conversas realizadas</label><textarea id="rd-conversa" rows="2" placeholder="Resumo da conversa..."></textarea></div>
+
+            <div class="form-group" id="wrap-feedback-ferramenta" style="display:none">
+              <label>🗣️ Ferramenta de feedback</label>
+              <div class="btn-group" id="grupo-feedback-ferramenta">
+                <button type="button" class="tag-btn" data-group="feedback-ferramenta" data-value="sanduiche">🥪 Sanduíche</button>
+                <button type="button" class="tag-btn" data-group="feedback-ferramenta" data-value="feedforward">🔄 Feedforward (+ e Delta)</button>
+                <button type="button" class="tag-btn" data-group="feedback-ferramenta" data-value="comece_pare_continue">🚦 Comece, Pare e Continue</button>
+              </div>
+            </div>
+
+            <div id="wrap-fb-sanduiche" style="display:none">
+              <div class="form-group"><label for="fb-sanduiche-positivo1">😊 Ponto positivo 1</label><textarea id="fb-sanduiche-positivo1" rows="2" placeholder="O que está indo bem..."></textarea></div>
+              <div class="form-group"><label for="fb-sanduiche-melhoria">🎯 Ponto a melhorar</label><textarea id="fb-sanduiche-melhoria" rows="2" placeholder="O que pode evoluir..."></textarea></div>
+              <div class="form-group"><label for="fb-sanduiche-positivo2">😊 Ponto positivo 2</label><textarea id="fb-sanduiche-positivo2" rows="2" placeholder="Outro ponto forte, pra fechar..."></textarea></div>
+            </div>
+
+            <div id="wrap-fb-feedforward" style="display:none">
+              <div class="form-group"><label for="fb-feedforward-mais">➕ O que funcionou (+)</label><textarea id="fb-feedforward-mais" rows="2" placeholder="O que deu certo e vale repetir..."></textarea></div>
+              <div class="form-group"><label for="fb-feedforward-delta">Δ O que fazer diferente (Delta)</label><textarea id="fb-feedforward-delta" rows="2" placeholder="O que mudar da próxima vez..."></textarea></div>
+            </div>
+
+            <div id="wrap-fb-cpc" style="display:none">
+              <div class="form-group"><label for="fb-cpc-comece">▶️ Comece</label><textarea id="fb-cpc-comece" rows="2" placeholder="O que ele(a) deveria passar a fazer..."></textarea></div>
+              <div class="form-group"><label for="fb-cpc-pare">⏹️ Pare</label><textarea id="fb-cpc-pare" rows="2" placeholder="O que ele(a) deveria deixar de fazer..."></textarea></div>
+              <div class="form-group"><label for="fb-cpc-continue">⏩ Continue</label><textarea id="fb-cpc-continue" rows="2" placeholder="O que ele(a) já faz bem e deve manter..."></textarea></div>
+            </div>
+
             <div class="form-group"><label for="rd-plano">📋 Plano de ação e acompanhamento</label><textarea id="rd-plano" rows="2" placeholder="O que será feito, por quem e prazo..."></textarea></div>
             <div class="form-actions">
               <button type="submit" class="btn-primary">💾 Registrar</button>
@@ -1567,6 +1602,6 @@
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <script src="app.js?v=20260927o"></script>
+  <script src="app.js?v=20260927p"></script>
 </body>
 </html>
