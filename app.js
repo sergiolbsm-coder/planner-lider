@@ -3070,12 +3070,14 @@ function initAutoavaliacao() {
   document.getElementById('modal-analise-close').addEventListener('click', fecharModalAnalise);
   document.getElementById('modal-overlay-analise').addEventListener('click', fecharModalAnalise);
   document.getElementById('modal-analise-fechar').addEventListener('click', fecharModalAnalise);
-  document.getElementById('modal-analise-imprimir').addEventListener('click', () => window.print());
+  document.getElementById('modal-analise-imprimir').addEventListener('click', gerarDocAnaliseMelhoria);
 }
 
 function fecharModalAnalise() {
   document.getElementById('modal-analise').style.display = 'none';
 }
+
+let ANALISE_MELHORIA_ATUAL = null;
 
 async function gerarAnaliseMelhoria() {
   const mes = document.getElementById('aa-mes').value || mesAtualISO();
@@ -3129,6 +3131,114 @@ async function gerarAnaliseMelhoria() {
 
   document.getElementById('modal-analise-body').innerHTML = html;
   document.getElementById('modal-analise').style.display = 'flex';
+
+  ANALISE_MELHORIA_ATUAL = { mesLabel, estat, pontosAtencao, pontosPositivos };
+}
+
+// Monta a Análise de Melhoria como .docx de verdade (biblioteca docx.js, via
+// CDN — mesma usada na Pauta - Roteiro de Apresentação), no lugar do antigo
+// "Imprimir/Salvar PDF" via window.print(), que dependia do CSS de tela e
+// bagunçava a paginação em outras exportações deste mesmo app.
+function montarDocxAnaliseMelhoria() {
+  const { Document, Paragraph, TextRun, HeadingLevel } = docx;
+  const { mesLabel, estat, pontosAtencao, pontosPositivos } = ANALISE_MELHORIA_ATUAL;
+
+  const COR_TITULO = '391694';
+  const COR_TEXTO = '24153E';
+  const COR_MUTED = '6F667E';
+  const COR_ATENCAO = 'B9770E';
+  const COR_POSITIVO = '1E8449';
+
+  const paragrafo = (texto, opts = {}) => new Paragraph({
+    spacing: { after: 120 },
+    children: [new TextRun({ text: texto || '', color: opts.color || COR_TEXTO, bold: !!opts.bold, size: 22 })],
+  });
+
+  const tituloSecao = titulo => new Paragraph({
+    heading: HeadingLevel.HEADING_1,
+    spacing: { before: 320, after: 160 },
+    children: [new TextRun({ text: titulo, color: COR_TITULO, bold: true, size: 26 })],
+  });
+
+  const itemComDica = (texto, dica) => [
+    new Paragraph({
+      bullet: { level: 0 },
+      spacing: { after: 20 },
+      children: [new TextRun({ text: texto, color: COR_TEXTO, bold: true, size: 22 })],
+    }),
+    new Paragraph({
+      indent: { left: 360 },
+      spacing: { after: 140 },
+      children: [new TextRun({ text: dica || '', color: COR_MUTED, italics: true, size: 20 })],
+    }),
+  ];
+
+  const itemSimples = (texto, cor) => new Paragraph({
+    bullet: { level: 0 },
+    spacing: { after: 80 },
+    children: [new TextRun({ text: texto, color: cor, size: 22 })],
+  });
+
+  const secaoConexao = [];
+  if (estat) {
+    secaoConexao.push(
+      tituloSecao('📅 Como anda sua conexão com o time'),
+      paragrafo(`${estat.ultimos30Dias} conversa(s)/feedback(s) nos últimos 30 dias · ${estat.acumuladoAno} no acumulado do ano.`),
+      paragrafo(
+        estat.diasSemReuniao === null
+          ? 'Você ainda não registrou nenhuma conversa com o time — comece pelo Diário de Bordo.'
+          : estat.diasSemReuniao === 0
+            ? 'Você registrou uma conversa com o time hoje.'
+            : `Já são ${estat.diasSemReuniao} dia${estat.diasSemReuniao !== 1 ? 's' : ''} sem registrar uma conversa com o time.`
+      )
+    );
+  }
+
+  return new Document({
+    sections: [{
+      properties: {},
+      children: [
+        new Paragraph({
+          spacing: { after: 40 },
+          children: [new TextRun({ text: `Análise de Melhoria — ${mesLabel}`, color: COR_TITULO, bold: true, size: 36 })],
+        }),
+        new Paragraph({
+          spacing: { after: 240 },
+          children: [new TextRun({ text: `Gerado em ${formatarData(hojeISO())}`, color: COR_MUTED, size: 18 })],
+        }),
+
+        ...secaoConexao,
+
+        tituloSecao(`⚠️ Pontos de atenção (${pontosAtencao.length})`),
+        ...(pontosAtencao.length
+          ? pontosAtencao.flatMap(p => itemComDica(p.texto, p.dica))
+          : [paragrafo('Nenhum ponto de atenção identificado nas respostas deste mês.', { color: COR_POSITIVO })]),
+
+        tituloSecao(`✅ Pontos fortes (${pontosPositivos.length})`),
+        ...(pontosPositivos.length
+          ? pontosPositivos.map(t => itemSimples(t, COR_POSITIVO))
+          : [paragrafo('Responda a autoavaliação do mês pra ver seus pontos fortes aqui.', { color: COR_MUTED })]),
+      ],
+    }],
+  });
+}
+
+async function gerarDocAnaliseMelhoria() {
+  if (!ANALISE_MELHORIA_ATUAL) return;
+  if (typeof docx === 'undefined') {
+    mostrarToast('Não foi possível carregar o gerador de Word. Verifique sua conexão e tente novamente.', 'error');
+    return;
+  }
+  const doc = montarDocxAnaliseMelhoria();
+  const blob = await docx.Packer.toBlob(doc);
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Analise de Melhoria - ${ANALISE_MELHORIA_ATUAL.mesLabel} - ${AUTH.user.nome}.docx`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
 }
 
 // ============================================================
