@@ -268,7 +268,8 @@ function mapAtividade(a) {
     id: a.id, titulo: a.titulo, resultado: a.resultado, tipo: a.tipo, status: a.status,
     prazo: a.prazo ? String(a.prazo).slice(0, 10) : '',
     responsavelId: a.responsavel_eu ? 'eu' : (a.responsavel_id || ''),
-    metaId: a.meta_id || '', obs: a.obs || '', criadoEm: a.criado_em,
+    metaId: a.meta_id || '', tipoVinculo: a.tipo_vinculo || '', planoAcaoId: a.plano_acao_id || '',
+    obs: a.obs || '', criadoEm: a.criado_em,
   };
 }
 function mapMeta(m) {
@@ -276,6 +277,13 @@ function mapMeta(m) {
     id: m.id, nome: m.nome, tipo: m.tipo, indicador: m.indicador || '', valor: m.valor || '',
     prazo: m.prazo ? String(m.prazo).slice(0, 10) : '', descricao: m.descricao || '',
     criadoEm: m.criado_em,
+    // Painel do Líder — Direção/Objetivo, Meta e Medição completa, Mini-BSC, OKR e Execução.
+    porqueImporta: m.porque_importa || '', pontoPartida: m.ponto_partida || '',
+    frequenciaAcompanhamento: m.frequencia_acompanhamento || '', perspectivaBsc: m.perspectiva_bsc || '',
+    okrObjetivo: m.okr_objetivo || '', okrKr1: m.okr_kr1 || '', okrKr2: m.okr_kr2 || '', okrKr3: m.okr_kr3 || '',
+    acaoPrioritaria: m.acao_prioritaria || '', responsavelAcao: m.responsavel_acao || '',
+    evidenciaConclusao: m.evidencia_conclusao || '', proximaVerificacao: m.proxima_verificacao ? String(m.proxima_verificacao).slice(0, 10) : '',
+    statusExecucao: m.status_execucao || 'no_prazo',
     _totalAtividades: m.total_atividades !== undefined ? Number(m.total_atividades) : undefined,
     _atividadesConcluidas: m.atividades_concluidas !== undefined ? Number(m.atividades_concluidas) : undefined,
   };
@@ -1296,6 +1304,27 @@ const TIPO_CONFIG = {
   operacional: { label: '🔧 Operacional', cor: '#27ae60', bg: '#eafaf1' },
 };
 
+// Painel do Líder — item 3 (Mini-BSC): cada meta pode marcar UMA das 4
+// perspectivas; o Dashboard agrega as metas por perspectiva pra formar a
+// visão de conjunto das 4 juntas, em vez de pedir o preenchimento repetido
+// das 4 em cada meta individual.
+const BSC_CONFIG = {
+  aprendizado: { label: '🌱 Aprendizado e Crescimento', cor: '#16a085', bg: '#eafaf6' },
+  processos:   { label: '⚙️ Processos Internos',        cor: '#2980b9', bg: '#eaf4fb' },
+  clientes:    { label: '👥 Clientes',                  cor: '#8e44ad', bg: '#f5eef8' },
+  financeira:  { label: '📊 Financeira / Resultado',    cor: '#c0392b', bg: '#fdf0ef' },
+};
+
+// Painel do Líder — item 5 (Execução e Acompanhamento).
+const EXECUCAO_STATUS_CONFIG = {
+  no_prazo:  { label: '🟢 No prazo',  cor: '#27ae60', bg: '#eafaf1' },
+  atencao:   { label: '🟡 Atenção',   cor: '#f39c12', bg: '#fef9ec' },
+  atrasado:  { label: '🔴 Atrasado',  cor: '#e74c3c', bg: '#fdf0ef' },
+  concluido: { label: '✅ Concluído', cor: '#2980b9', bg: '#eaf4fb' },
+};
+
+const FREQUENCIA_LABELS = { semanal: 'Semanal', quinzenal: 'Quinzenal', mensal: 'Mensal', trimestral: 'Trimestral' };
+
 const STATUS_CONFIG = {
   novo:       { label: '📥 A Fazer',      cor: '#7f8c8d', bg: '#f2f3f4' },
   andamento:  { label: '🔄 Em Andamento', cor: '#2980b9', bg: '#eaf4fb' },
@@ -1318,14 +1347,56 @@ function popularSelectsResponsavel() {
   document.getElementById('filtro-responsavel').value = atualFiltro || 'todos';
 }
 
+// A atividade pode se vincular a uma Meta/Indicador, ao OKR ou à perspectiva
+// do BSC de uma meta (as 3 opções listam metas, só filtradas de forma
+// diferente — OKR só mostra metas com OKR preenchido, BSC só as que têm
+// perspectiva marcada), ou a um item do Plano de Ação. `prefixo` é 'a'
+// (formulário da tela) ou 'ma' (modal de edição rápida) — os dois têm os
+// mesmos ids de elemento com prefixos diferentes.
+function opcoesMetaParaVinculo(tipoVinculo) {
+  if (tipoVinculo === 'okr') return STATE.metas.filter(m => m.okrObjetivo);
+  if (tipoVinculo === 'bsc') return STATE.metas.filter(m => m.perspectivaBsc);
+  return STATE.metas;
+}
+
+const ROTULO_LABEL_META_VINCULO = {
+  meta: 'Meta / Indicador', okr: 'Meta com OKR definido', bsc: 'Meta com perspectiva do BSC',
+};
+
+function atualizarVinculoAtividade(prefixo) {
+  const selectTipo = document.getElementById(`${prefixo}-tipovinculo`);
+  const wrapMeta = document.getElementById(`wrap-${prefixo}-meta`);
+  const wrapPlano = document.getElementById(`wrap-${prefixo}-plano-acao`);
+  const selectMeta = document.getElementById(`${prefixo}-meta`);
+  const selectPlano = document.getElementById(`${prefixo}-plano-acao`);
+  const labelMeta = document.getElementById(`label-${prefixo}-meta`);
+  if (!selectTipo || !selectMeta) return;
+
+  const tipoVinculo = selectTipo.value;
+  const ehPlanoAcao = tipoVinculo === 'plano_acao';
+  const ehMetaOkrOuBsc = ['meta', 'okr', 'bsc'].includes(tipoVinculo);
+
+  wrapMeta.style.display = ehMetaOkrOuBsc ? '' : 'none';
+  wrapPlano.style.display = ehPlanoAcao ? '' : 'none';
+  labelMeta.textContent = ROTULO_LABEL_META_VINCULO[tipoVinculo] || 'Meta / Indicador';
+
+  const metasFiltradas = opcoesMetaParaVinculo(tipoVinculo);
+  const metaAtual = selectMeta.value;
+  selectMeta.innerHTML = '<option value="">— Selecione —</option>' +
+    metasFiltradas.map(m => `<option value="${m.id}">${TIPO_CONFIG[m.tipo]?.label.split(' ')[0] || ''} ${m.nome}</option>`).join('');
+  if (metasFiltradas.some(m => m.id === metaAtual)) selectMeta.value = metaAtual;
+
+  const acoesComTexto = STATE.planoAcao.filter(p => p.acao);
+  const planoAtual = selectPlano.value;
+  selectPlano.innerHTML = '<option value="">— Selecione —</option>' +
+    acoesComTexto.map(p => `<option value="${p.id}">${p.acao}</option>`).join('');
+  if (acoesComTexto.some(p => p.id === planoAtual)) selectPlano.value = planoAtual;
+}
+
 function popularSelectsMeta() {
-  const opcoes = '<option value="">— Nenhuma —</option>' +
-    STATE.metas.map(m => `<option value="${m.id}">${TIPO_CONFIG[m.tipo]?.label.split(' ')[0] || ''} ${m.nome}</option>`).join('');
-  ['a-meta', 'ma-meta'].forEach(id => {
-    const atual = document.getElementById(id).value;
-    document.getElementById(id).innerHTML = opcoes;
-    document.getElementById(id).value = atual;
-  });
+  atualizarVinculoAtividade('a');
+  atualizarVinculoAtividade('ma');
+
   const atualFiltro = document.getElementById('filtro-meta').value;
   document.getElementById('filtro-meta').innerHTML = '<option value="todos">Todas</option>' +
     STATE.metas.map(m => `<option value="${m.id}">${m.nome}</option>`).join('');
@@ -1344,6 +1415,20 @@ function nomeResponsavel(a) {
 function metaNome(a) {
   const m = STATE.metas.find(x => x.id === a.metaId);
   return m ? m.nome : '';
+}
+
+const ICONE_TIPO_VINCULO = { meta: '🎯', okr: '🔑', bsc: '🧭', plano_acao: '✅' };
+
+// Rótulo do vínculo da atividade (Meta/OKR/BSC apontam pra metas.id — o que
+// muda é só o enquadramento; Plano de Ação aponta pra plano_acao_itens).
+function vinculoAtividadeTexto(a) {
+  if (!a.tipoVinculo) return '';
+  if (a.tipoVinculo === 'plano_acao') {
+    const item = STATE.planoAcao.find(p => p.id === a.planoAcaoId);
+    return item && item.acao ? `${ICONE_TIPO_VINCULO.plano_acao} ${item.acao}` : '';
+  }
+  const m = STATE.metas.find(x => x.id === a.metaId);
+  return m ? `${ICONE_TIPO_VINCULO[a.tipoVinculo] || '🎯'} ${m.nome}` : '';
 }
 
 function estaAtrasada(a) {
@@ -1461,13 +1546,13 @@ function tagsAtividade(a) {
   const rc = RESULTADO_CONFIG[a.resultado] || {};
   const tc = TIPO_CONFIG[a.tipo] || {};
   const resp = nomeResponsavel(a);
-  const meta = metaNome(a);
+  const vinculo = vinculoAtividadeTexto(a);
   return `
     ${a.resultado ? `<span class="tag-pill" style="background:${rc.bg};color:${rc.cor}">${rc.label}</span>` : ''}
     ${a.tipo ? `<span class="tag-pill" style="background:${tc.bg};color:${tc.cor}">${tc.label}</span>` : ''}
     ${a.prazo ? `<span class="tag-pill tag-prazo ${estaAtrasada(a) ? 'tag-prazo-atrasado' : ''}">📅 ${formatarData(a.prazo)}</span>` : ''}
     ${resp ? `<span class="tag-pill tag-responsavel">${resp}</span>` : ''}
-    ${meta ? `<span class="tag-pill tag-meta">🎯 ${meta}</span>` : ''}
+    ${vinculo ? `<span class="tag-pill tag-meta">${vinculo}</span>` : ''}
   `;
 }
 
@@ -1604,6 +1689,7 @@ function initSubtabs() {
 
 function initFormAtividade() {
   const form = document.getElementById('form-atividade');
+  document.getElementById('a-tipovinculo').addEventListener('change', () => atualizarVinculoAtividade('a'));
   form.addEventListener('submit', async e => {
     e.preventDefault();
     const titulo = document.getElementById('a-titulo').value.trim();
@@ -1619,7 +1705,9 @@ function initFormAtividade() {
       status: getTagValue('status') || 'novo',
       prazo: document.getElementById('a-prazo').value,
       responsavelId: document.getElementById('a-responsavel').value,
+      tipoVinculo: document.getElementById('a-tipovinculo').value,
       metaId: document.getElementById('a-meta').value,
+      planoAcaoId: document.getElementById('a-plano-acao').value,
       obs: document.getElementById('a-obs').value.trim(),
     };
 
@@ -1656,7 +1744,10 @@ function resetFormAtividade() {
   clearTagGroup('tipo');
   setTagValue('status', 'novo');
   document.getElementById('a-responsavel').value = '';
+  document.getElementById('a-tipovinculo').value = '';
   document.getElementById('a-meta').value = '';
+  document.getElementById('a-plano-acao').value = '';
+  atualizarVinculoAtividade('a');
   document.getElementById('atividade-form-title').textContent = 'Nova Atividade';
   document.getElementById('btn-cancelar-atividade').style.display = 'none';
 }
@@ -1668,7 +1759,10 @@ function editarAtividade(id) {
   document.getElementById('a-titulo').value = a.titulo;
   document.getElementById('a-prazo').value = a.prazo || '';
   document.getElementById('a-responsavel').value = a.responsavelId || '';
+  document.getElementById('a-tipovinculo').value = a.tipoVinculo || '';
+  atualizarVinculoAtividade('a');
   document.getElementById('a-meta').value = a.metaId || '';
+  document.getElementById('a-plano-acao').value = a.planoAcaoId || '';
   document.getElementById('a-obs').value = a.obs || '';
   setTagValue('resultado', a.resultado);
   setTagValue('tipo', a.tipo);
@@ -1685,7 +1779,10 @@ function abrirModalAtividade(id) {
   document.getElementById('ma-titulo').value = a.titulo;
   document.getElementById('ma-prazo').value = a.prazo || '';
   document.getElementById('ma-responsavel').value = a.responsavelId || '';
+  document.getElementById('ma-tipovinculo').value = a.tipoVinculo || '';
+  atualizarVinculoAtividade('ma');
   document.getElementById('ma-meta').value = a.metaId || '';
+  document.getElementById('ma-plano-acao').value = a.planoAcaoId || '';
   document.getElementById('ma-obs').value = a.obs || '';
   setTagValue('ma-resultado', a.resultado);
   setTagValue('ma-tipo', a.tipo);
@@ -1705,6 +1802,7 @@ function initModalAtividade() {
   document.getElementById('modal-atividade-close').addEventListener('click', fecharModalAtividade);
   document.getElementById('modal-overlay-atividade').addEventListener('click', fecharModalAtividade);
   document.getElementById('modal-atividade-cancelar').addEventListener('click', fecharModalAtividade);
+  document.getElementById('ma-tipovinculo').addEventListener('change', () => atualizarVinculoAtividade('ma'));
 
   document.getElementById('modal-atividade-salvar').addEventListener('click', async () => {
     const id = document.getElementById('ma-id').value;
@@ -1721,7 +1819,9 @@ function initModalAtividade() {
       status: getTagValue('ma-status') || 'novo',
       prazo: document.getElementById('ma-prazo').value,
       responsavelId: document.getElementById('ma-responsavel').value,
+      tipoVinculo: document.getElementById('ma-tipovinculo').value,
       metaId: document.getElementById('ma-meta').value,
+      planoAcaoId: document.getElementById('ma-plano-acao').value,
       obs: document.getElementById('ma-obs').value.trim(),
     };
 
@@ -1806,6 +1906,18 @@ async function refrescarMetas() {
   } catch (err) { /* não é crítico — a próxima navegação já traz os dados corretos */ }
 }
 
+// Checklist de validação do material (Perguntas de Validação) — calculado a
+// partir do que já foi preenchido, em vez de mais uma lista de checkboxes
+// manuais: só aponta o que falta pra meta ficar completa.
+function sugestoesMetaSmart(m) {
+  const faltando = [];
+  if (!(m.valor && m.prazo)) faltando.push('número e prazo');
+  if (!m.indicador) faltando.push('indicador que comprove o resultado');
+  if (!m.pontoPartida) faltando.push('ponto de partida');
+  if (!m.perspectivaBsc) faltando.push('perspectiva do BSC');
+  return faltando;
+}
+
 function renderMetas() {
   renderDesafios();
   const container = document.getElementById('lista-metas');
@@ -1816,24 +1928,47 @@ function renderMetas() {
   } else {
     container.innerHTML = STATE.metas.map(m => {
       const tc = TIPO_CONFIG[m.tipo] || {};
+      const bsc = BSC_CONFIG[m.perspectivaBsc];
+      const execCfg = EXECUCAO_STATUS_CONFIG[m.statusExecucao] || EXECUCAO_STATUS_CONFIG.no_prazo;
       const prog = metaProgresso(m.id);
+      const krs = [m.okrKr1, m.okrKr2, m.okrKr3].filter(Boolean);
+      const faltando = sugestoesMetaSmart(m);
       return `
       <div class="meta-card" data-id="${m.id}">
         <div class="meta-card-topo">
           <span class="tag-pill" style="background:${tc.bg};color:${tc.cor}">${tc.label || ''}</span>
+          ${bsc ? `<span class="tag-pill" style="background:${bsc.bg};color:${bsc.cor}">${bsc.label}</span>` : ''}
+          <span class="tag-pill" style="background:${execCfg.bg};color:${execCfg.cor}">${execCfg.label}</span>
           <div class="meta-card-acoes">
             <button class="btn-icon btn-icon-sm" title="Editar" onclick="editarMeta('${m.id}')">✏️</button>
             <button class="btn-icon btn-icon-sm btn-icon-danger" title="Excluir" onclick="excluirMeta('${m.id}')">🗑️</button>
           </div>
         </div>
         <div class="meta-card-nome">${m.nome}</div>
-        ${m.indicador ? `<div class="meta-card-indicador">📈 ${m.indicador}${m.valor ? ' · Meta: ' + m.valor : ''}</div>` : (m.valor ? `<div class="meta-card-indicador">Meta: ${m.valor}</div>` : '')}
-        ${m.prazo ? `<div class="meta-card-prazo">📅 ${formatarData(m.prazo)}</div>` : ''}
+        ${m.porqueImporta ? `<div class="meta-card-porque">💭 ${m.porqueImporta}</div>` : ''}
+        ${(m.indicador || m.pontoPartida || m.valor) ? `
+          <div class="meta-card-indicador">
+            ${m.indicador ? `📈 ${m.indicador}` : ''}${(m.pontoPartida || m.valor) ? `${m.indicador ? ' · ' : ''}${m.pontoPartida || '?'} → ${m.valor || '?'}` : ''}
+          </div>` : ''}
+        ${m.prazo ? `<div class="meta-card-prazo">📅 ${formatarData(m.prazo)}${m.frequenciaAcompanhamento ? ' · 🔁 ' + FREQUENCIA_LABELS[m.frequenciaAcompanhamento] : ''}</div>` : ''}
         ${m.descricao ? `<div class="meta-card-desc">${m.descricao}</div>` : ''}
+        ${(m.okrObjetivo || krs.length) ? `
+          <div class="meta-card-okr">
+            <div class="meta-card-okr-titulo">🔑 OKR${m.okrObjetivo ? ': ' + m.okrObjetivo : ''}</div>
+            ${krs.length ? `<ul>${krs.map(k => `<li>${k}</li>`).join('')}</ul>` : ''}
+          </div>` : ''}
+        ${(m.acaoPrioritaria || m.responsavelAcao || m.proximaVerificacao || m.evidenciaConclusao) ? `
+          <div class="meta-card-execucao">
+            ${m.acaoPrioritaria ? `<div>🚀 <strong>Próxima ação:</strong> ${m.acaoPrioritaria}</div>` : ''}
+            ${m.responsavelAcao ? `<div>👤 <strong>Responsável:</strong> ${m.responsavelAcao}</div>` : ''}
+            ${m.proximaVerificacao ? `<div>🔎 <strong>Próxima verificação:</strong> ${formatarData(m.proximaVerificacao)}</div>` : ''}
+            ${m.evidenciaConclusao ? `<div>📎 <strong>Evidência:</strong> ${m.evidenciaConclusao}</div>` : ''}
+          </div>` : ''}
         <div class="meta-progresso">
           <div class="meta-progresso-barra"><div class="meta-progresso-fill" style="width:${prog.pct}%;background:${tc.cor || '#667eea'}"></div></div>
           <div class="meta-progresso-texto">${prog.concluidas}/${prog.total} atividades concluídas (${prog.pct}%)</div>
         </div>
+        <div class="meta-card-checklist">${faltando.length ? `💡 Falta: ${faltando.join(', ')}` : '✅ Meta completa (SMART)'}</div>
       </div>`;
     }).join('');
   }
@@ -1855,6 +1990,19 @@ function initFormMeta() {
       valor: document.getElementById('me-valor').value.trim(),
       prazo: document.getElementById('me-prazo').value,
       descricao: document.getElementById('me-desc').value.trim(),
+      porqueImporta: document.getElementById('me-porque').value.trim(),
+      pontoPartida: document.getElementById('me-ponto-partida').value.trim(),
+      frequenciaAcompanhamento: getTagValue('me-frequencia'),
+      perspectivaBsc: getTagValue('me-bsc'),
+      okrObjetivo: document.getElementById('me-okr-objetivo').value.trim(),
+      okrKr1: document.getElementById('me-okr-kr1').value.trim(),
+      okrKr2: document.getElementById('me-okr-kr2').value.trim(),
+      okrKr3: document.getElementById('me-okr-kr3').value.trim(),
+      acaoPrioritaria: document.getElementById('me-acao').value.trim(),
+      responsavelAcao: document.getElementById('me-responsavel').value.trim(),
+      evidenciaConclusao: document.getElementById('me-evidencia').value.trim(),
+      proximaVerificacao: document.getElementById('me-proxima-verificacao').value,
+      statusExecucao: getTagValue('me-status') || 'no_prazo',
     };
 
     const id = document.getElementById('me-id').value;
@@ -1886,6 +2034,10 @@ function resetFormMeta() {
   document.getElementById('me-id').value = '';
   document.getElementById('form-meta').reset();
   clearTagGroup('me-tipo');
+  clearTagGroup('me-frequencia');
+  clearTagGroup('me-bsc');
+  setTagValue('me-status', 'no_prazo');
+  document.querySelectorAll('#form-meta details.meta-secao-opcional').forEach(d => { d.open = false; });
   document.getElementById('meta-form-title').textContent = 'Nova Meta / Indicador';
   document.getElementById('btn-cancelar-meta').style.display = 'none';
 }
@@ -1899,7 +2051,30 @@ function editarMeta(id) {
   document.getElementById('me-valor').value = m.valor || '';
   document.getElementById('me-prazo').value = m.prazo || '';
   document.getElementById('me-desc').value = m.descricao || '';
+  document.getElementById('me-porque').value = m.porqueImporta || '';
+  document.getElementById('me-ponto-partida').value = m.pontoPartida || '';
+  document.getElementById('me-okr-objetivo').value = m.okrObjetivo || '';
+  document.getElementById('me-okr-kr1').value = m.okrKr1 || '';
+  document.getElementById('me-okr-kr2').value = m.okrKr2 || '';
+  document.getElementById('me-okr-kr3').value = m.okrKr3 || '';
+  document.getElementById('me-acao').value = m.acaoPrioritaria || '';
+  document.getElementById('me-responsavel').value = m.responsavelAcao || '';
+  document.getElementById('me-evidencia').value = m.evidenciaConclusao || '';
+  document.getElementById('me-proxima-verificacao').value = m.proximaVerificacao || '';
   setTagValue('me-tipo', m.tipo);
+  setTagValue('me-frequencia', m.frequenciaAcompanhamento || '');
+  setTagValue('me-bsc', m.perspectivaBsc || '');
+  setTagValue('me-status', m.statusExecucao || 'no_prazo');
+
+  // Abre as seções opcionais que já têm conteúdo, pra quem tá editando não
+  // precisar clicar pra descobrir o que já foi preenchido.
+  const secaoBsc = document.getElementById('grupo-me-bsc').closest('details');
+  const secaoOkr = document.getElementById('me-okr-objetivo').closest('details');
+  const secaoExecucao = document.getElementById('me-acao').closest('details');
+  secaoBsc.open = !!m.perspectivaBsc;
+  secaoOkr.open = !!(m.okrObjetivo || m.okrKr1 || m.okrKr2 || m.okrKr3);
+  secaoExecucao.open = !!(m.acaoPrioritaria || m.responsavelAcao || m.evidenciaConclusao || m.proximaVerificacao || (m.statusExecucao && m.statusExecucao !== 'no_prazo'));
+
   document.getElementById('meta-form-title').textContent = 'Editar Meta / Indicador';
   document.getElementById('btn-cancelar-meta').style.display = 'inline-flex';
   irParaSecao('metas');
@@ -1911,7 +2086,7 @@ async function excluirMeta(id) {
   try {
     await Api.excluirMeta(id);
     STATE.metas = STATE.metas.filter(m => m.id !== id);
-    STATE.atividades.forEach(a => { if (a.metaId === id) a.metaId = ''; });
+    STATE.atividades.forEach(a => { if (a.metaId === id) { a.metaId = ''; a.tipoVinculo = ''; } });
     renderMetas();
     renderAtividades();
     mostrarToast('Meta removida.', 'info');
@@ -2310,16 +2485,22 @@ function renderPlanoAcao() {
       item[input.dataset.campo] = input.value;
       try {
         await Api.atualizarPlanoAcao(id, { acao: item.acao, comoFazer: item.comoFazer, impacto: item.impacto, prazo: item.prazo });
+        if (input.dataset.campo === 'acao') { atualizarVinculoAtividade('a'); atualizarVinculoAtividade('ma'); }
       } catch (err) { mostrarToast(err.message, 'error'); }
     });
   });
+
+  atualizarVinculoAtividade('a');
+  atualizarVinculoAtividade('ma');
 }
 
 async function excluirLinhaPlanoAcao(id) {
   try {
     await Api.excluirPlanoAcao(id);
     STATE.planoAcao = STATE.planoAcao.filter(p => p.id !== id);
+    STATE.atividades.forEach(a => { if (a.planoAcaoId === id) { a.planoAcaoId = ''; a.tipoVinculo = ''; } });
     renderPlanoAcao();
+    renderAtividades();
   } catch (err) {
     mostrarToast(err.message, 'error');
   }
@@ -2342,6 +2523,41 @@ function renderDashboardAll() {
   renderGargalos();
   renderPlanoAcao();
   renderDashboardDesafios();
+  renderDashboardMetas();
+}
+
+// Espelha as Metas & Indicadores no Dashboard: status de execução (item 5 —
+// Execução e Acompanhamento) e o Mini-BSC agregado (item 3 — cada meta marca
+// UMA perspectiva; aqui juntamos todas pra formar a visão das 4 juntas), lido
+// direto de STATE.metas — mesma fonte da aba Metas, sem duplicar dado.
+function renderDashboardMetas() {
+  const badge = document.getElementById('dash-metas-badge');
+  const vazio = document.getElementById('dash-metas-vazio');
+  const conteudo = document.getElementById('dash-metas-conteudo');
+  if (!badge) return;
+
+  badge.textContent = STATE.metas.length;
+  vazio.style.display = STATE.metas.length === 0 ? '' : 'none';
+  conteudo.style.display = STATE.metas.length === 0 ? 'none' : '';
+  if (STATE.metas.length === 0) return;
+
+  const statusEl = document.getElementById('dash-metas-status');
+  statusEl.innerHTML = Object.entries(EXECUCAO_STATUS_CONFIG).map(([chave, cfg]) => {
+    const qtd = STATE.metas.filter(m => (m.statusExecucao || 'no_prazo') === chave).length;
+    return `<div class="stat-card"><div class="stat-num" style="color:${cfg.cor}">${qtd}</div><div class="stat-label">${cfg.label}</div></div>`;
+  }).join('');
+
+  const bscEl = document.getElementById('dash-metas-bsc');
+  bscEl.innerHTML = Object.entries(BSC_CONFIG).map(([chave, cfg]) => {
+    const metasDaPerspectiva = STATE.metas.filter(m => m.perspectivaBsc === chave);
+    return `
+      <div class="dash-metas-bsc-quadrante" style="background:${cfg.bg}">
+        <div class="dash-metas-bsc-quadrante-titulo" style="color:${cfg.cor}"><span>${cfg.label}</span><span>${metasDaPerspectiva.length}</span></div>
+        ${metasDaPerspectiva.length
+          ? `<ul>${metasDaPerspectiva.map(m => `<li>${m.nome}</li>`).join('')}</ul>`
+          : `<p class="label-hint">Nenhuma meta marcada ainda.</p>`}
+      </div>`;
+  }).join('');
 }
 
 // Espelha o progresso e a pontuação da trilha de Desafios direto no

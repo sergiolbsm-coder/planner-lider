@@ -10,7 +10,7 @@
        vendo a versão antiga por até 4h mesmo depois do deploy. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Cormorant+Garamond:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260927n" />
+  <link rel="stylesheet" href="style.css?v=20260927o" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@9.7.2/dist/index.iife.js"></script>
 </head>
@@ -598,11 +598,25 @@
               </select>
             </div>
           </div>
-          <div class="form-group">
-            <label for="a-meta">Meta / Indicador vinculado</label>
-            <select id="a-meta">
-              <option value="">— Nenhuma —</option>
-            </select>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="a-tipovinculo">Vincular a</label>
+              <select id="a-tipovinculo">
+                <option value="">— Nenhum —</option>
+                <option value="meta">🎯 Meta / Indicador</option>
+                <option value="okr">🔑 OKR (Resultado-Chave)</option>
+                <option value="bsc">🧭 Objetivo do BSC</option>
+                <option value="plano_acao">✅ Item do Plano de Ação</option>
+              </select>
+            </div>
+            <div class="form-group" id="wrap-a-meta">
+              <label for="a-meta" id="label-a-meta">Meta / Indicador</label>
+              <select id="a-meta"><option value="">— Selecione —</option></select>
+            </div>
+          </div>
+          <div class="form-group" id="wrap-a-plano-acao" style="display:none">
+            <label for="a-plano-acao">Item do Plano de Ação</label>
+            <select id="a-plano-acao"><option value="">— Selecione —</option></select>
           </div>
           <div class="form-group">
             <label for="a-obs">Observações</label>
@@ -767,10 +781,18 @@
         </div>
         <form id="form-meta" novalidate>
           <input type="hidden" id="me-id" value="" />
+
+          <p class="label-hint">Passo 1 — Direção e Objetivo</p>
           <div class="form-group">
-            <label for="me-nome">Nome da meta *</label>
+            <label for="me-nome">Qual resultado precisa melhorar? *</label>
             <input type="text" id="me-nome" placeholder="Ex: Reduzir retrabalho na linha 2" required />
           </div>
+          <div class="form-group">
+            <label for="me-porque">Por que isso é importante pra área/negócio?</label>
+            <textarea id="me-porque" rows="2" placeholder="O que essa meta destrava se for alcançada..."></textarea>
+          </div>
+
+          <p class="label-hint">Passo 2 — Meta e Medição</p>
           <div class="form-grid-2">
             <div class="form-group">
               <label for="me-indicador">Indicador (KPI)</label>
@@ -787,18 +809,82 @@
           </div>
           <div class="form-grid-2">
             <div class="form-group">
-              <label for="me-valor">Valor da meta</label>
-              <input type="text" id="me-valor" placeholder="Ex: 95%, 10 dias, R$ 50 mil..." />
+              <label for="me-ponto-partida">Ponto de partida</label>
+              <input type="text" id="me-ponto-partida" placeholder="Ex: 42 pts, 12 dias, R$ 30 mil..." />
             </div>
             <div class="form-group">
-              <label for="me-prazo">Prazo</label>
+              <label for="me-valor">Resultado esperado</label>
+              <input type="text" id="me-valor" placeholder="Ex: 95%, 10 dias, R$ 50 mil..." />
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="me-prazo">Prazo final</label>
               <input type="date" id="me-prazo" />
+            </div>
+            <div class="form-group">
+              <label>Frequência de acompanhamento</label>
+              <div class="btn-group" id="grupo-me-frequencia">
+                <button type="button" class="tag-btn" data-group="me-frequencia" data-value="semanal">Semanal</button>
+                <button type="button" class="tag-btn" data-group="me-frequencia" data-value="quinzenal">Quinzenal</button>
+                <button type="button" class="tag-btn" data-group="me-frequencia" data-value="mensal">Mensal</button>
+                <button type="button" class="tag-btn" data-group="me-frequencia" data-value="trimestral">Trimestral</button>
+              </div>
             </div>
           </div>
           <div class="form-group">
             <label for="me-desc">Descrição</label>
             <textarea id="me-desc" rows="2" placeholder="Contexto da meta..."></textarea>
           </div>
+
+          <details class="meta-secao-opcional">
+            <summary>Passo 3 — Mini-BSC: em qual perspectiva essa meta se encaixa? <span class="label-hint-inline">(opcional)</span></summary>
+            <div class="form-group">
+              <div class="btn-group" id="grupo-me-bsc">
+                <button type="button" class="tag-btn" data-group="me-bsc" data-value="aprendizado">🌱 Aprendizado e Crescimento</button>
+                <button type="button" class="tag-btn" data-group="me-bsc" data-value="processos">⚙️ Processos Internos</button>
+                <button type="button" class="tag-btn" data-group="me-bsc" data-value="clientes">👥 Clientes</button>
+                <button type="button" class="tag-btn" data-group="me-bsc" data-value="financeira">📊 Financeira / Resultado</button>
+              </div>
+            </div>
+          </details>
+
+          <details class="meta-secao-opcional">
+            <summary>Passo 4 — OKR: quebrar em Resultados-Chave <span class="label-hint-inline">(opcional)</span></summary>
+            <div class="form-group">
+              <label for="me-okr-objetivo">Objetivo (se diferente do nome da meta)</label>
+              <input type="text" id="me-okr-objetivo" placeholder="Ex: Elevar a satisfação percebida pelos clientes..." />
+            </div>
+            <div class="form-group"><label for="me-okr-kr1">KR 1</label><input type="text" id="me-okr-kr1" placeholder="Um resultado-chave mensurável..." /></div>
+            <div class="form-group"><label for="me-okr-kr2">KR 2</label><input type="text" id="me-okr-kr2" placeholder="Um resultado-chave mensurável..." /></div>
+            <div class="form-group"><label for="me-okr-kr3">KR 3</label><input type="text" id="me-okr-kr3" placeholder="Um resultado-chave mensurável..." /></div>
+          </details>
+
+          <details class="meta-secao-opcional">
+            <summary>Passo 5 — Execução e Acompanhamento <span class="label-hint-inline">(opcional)</span></summary>
+            <div class="form-group">
+              <label for="me-acao">Ação prioritária</label>
+              <input type="text" id="me-acao" placeholder="Qual é o próximo passo mais importante?" />
+            </div>
+            <div class="form-grid-2">
+              <div class="form-group"><label for="me-responsavel">Responsável</label><input type="text" id="me-responsavel" placeholder="Quem toca essa ação?" /></div>
+              <div class="form-group"><label for="me-proxima-verificacao">Próxima verificação</label><input type="date" id="me-proxima-verificacao" /></div>
+            </div>
+            <div class="form-group">
+              <label for="me-evidencia">Evidência de conclusão</label>
+              <input type="text" id="me-evidencia" placeholder="O que prova que a ação foi feita?" />
+            </div>
+            <div class="form-group">
+              <label>Status</label>
+              <div class="btn-group" id="grupo-me-status">
+                <button type="button" class="tag-btn" data-group="me-status" data-value="no_prazo">🟢 No prazo</button>
+                <button type="button" class="tag-btn" data-group="me-status" data-value="atencao">🟡 Atenção</button>
+                <button type="button" class="tag-btn" data-group="me-status" data-value="atrasado">🔴 Atrasado</button>
+                <button type="button" class="tag-btn" data-group="me-status" data-value="concluido">✅ Concluído</button>
+              </div>
+            </div>
+          </details>
+
           <div class="form-actions">
             <button type="button" id="btn-cancelar-meta" class="btn-secondary" style="display:none">Cancelar</button>
             <button type="submit" class="btn-primary">💾 Salvar Meta</button>
@@ -1001,6 +1087,21 @@
         </div>
         <div class="desafios-barra-fundo"><div class="desafios-barra-preenchida" id="dash-desafios-barra"></div></div>
         <div class="stats-grid-3col" id="dash-gestao-stats"></div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">🎯</span>
+          <h2>Metas & Indicadores</h2>
+          <span class="badge" id="dash-metas-badge">0</span>
+          <button type="button" class="btn-secondary" onclick="irParaSecao('metas')">Ver todas as metas</button>
+        </div>
+        <div id="dash-metas-vazio" class="empty-state" style="display:none"><div class="empty-icon">🎯</div><p>Nenhuma meta cadastrada ainda. Comece pela aba Metas.</p></div>
+        <div id="dash-metas-conteudo">
+          <div class="stats-grid-4col" id="dash-metas-status"></div>
+          <div class="dash-metas-bsc-titulo">Mini-BSC — metas por perspectiva</div>
+          <div class="dash-metas-bsc-grid" id="dash-metas-bsc"></div>
+        </div>
       </div>
 
       <div class="card form-card">
@@ -1383,11 +1484,25 @@
             </select>
           </div>
         </div>
-        <div class="form-group">
-          <label for="ma-meta">Meta / Indicador vinculado</label>
-          <select id="ma-meta">
-            <option value="">— Nenhuma —</option>
-          </select>
+        <div class="form-grid-2">
+          <div class="form-group">
+            <label for="ma-tipovinculo">Vincular a</label>
+            <select id="ma-tipovinculo">
+              <option value="">— Nenhum —</option>
+              <option value="meta">🎯 Meta / Indicador</option>
+              <option value="okr">🔑 OKR (Resultado-Chave)</option>
+              <option value="bsc">🧭 Objetivo do BSC</option>
+              <option value="plano_acao">✅ Item do Plano de Ação</option>
+            </select>
+          </div>
+          <div class="form-group" id="wrap-ma-meta">
+            <label for="ma-meta" id="label-ma-meta">Meta / Indicador</label>
+            <select id="ma-meta"><option value="">— Selecione —</option></select>
+          </div>
+        </div>
+        <div class="form-group" id="wrap-ma-plano-acao" style="display:none">
+          <label for="ma-plano-acao">Item do Plano de Ação</label>
+          <select id="ma-plano-acao"><option value="">— Selecione —</option></select>
         </div>
         <div class="form-group">
           <label for="ma-obs">Observações</label>
@@ -1452,6 +1567,6 @@
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <script src="app.js?v=20260927n"></script>
+  <script src="app.js?v=20260927o"></script>
 </body>
 </html>
