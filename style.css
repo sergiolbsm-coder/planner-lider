@@ -1005,6 +1005,13 @@ button:disabled { cursor: default; opacity: .85; }
   color: #fff; border-color: transparent;
   box-shadow: 0 2px 8px rgba(230,126,34,.3);
 }
+/* Evolução é o contraponto positivo dos riscos — verde em vez do laranja de
+   alerta, pra ficar visualmente claro que é um registro bom, não um risco. */
+.tag-btn-evolucao.selected {
+  background: linear-gradient(135deg, #27ae60, #1e8449);
+  color: #fff; border-color: transparent;
+  box-shadow: 0 2px 8px rgba(39,174,96,.3);
+}
 .label-hint { text-transform: none; font-weight: 400; letter-spacing: 0; color: var(--text-muted); font-size: 11.5px; }
 .label-hint-inline { font-weight: 400; color: var(--text-muted); font-size: 12px; }
 
@@ -1105,6 +1112,14 @@ button:disabled { cursor: default; opacity: .85; }
 
 .tag-meta { background: #fdf6e3; color: #b8860b; }
 .tag-risco { background: #fdf2e9; color: #a04000; }
+.tag-evolucao { background: #eafaf1; color: #1e8449; }
+
+/* Feedback formal — campos das 3 ferramentas (Sanduíche/Feedforward/CPC) na
+   linha do tempo do diário: um bloco levemente destacado, coerente com o
+   resto do timeline mas separando visualmente da conversa/plano genéricos. */
+.diario-timeline-ferramenta { margin: 8px 0; padding: 8px 10px; background: var(--bg); border-radius: var(--radius-sm); font-size: 13px; }
+.diario-timeline-ferramenta-titulo { font-weight: 700; margin-bottom: 4px; color: var(--primary); }
+.diario-timeline-ferramenta div { margin-bottom: 2px; }
 .tag-prazo-atrasado { background: #fdf0ef !important; color: #e74c3c !important; }
 
 /* ============================================================
