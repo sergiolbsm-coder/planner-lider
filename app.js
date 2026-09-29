@@ -469,7 +469,11 @@ function iconeArquivo(tipoMime) {
 
 // Baixa o arquivo via fetch (pra levar o Authorization) e dispara o download
 // como se fosse um link normal — usado tanto no líder quanto no liderado.
-async function baixarArquivo(id, nome) {
+// Arquivos grandes demoram pra vir do servidor, então o botão troca pra um
+// spinner nesse meio tempo (mesmo padrão de iniciarCarregamentoBotao),
+// evitando a impressão de que o clique não fez nada.
+async function baixarArquivo(id, nome, botao) {
+  const restaurar = botao ? iniciarCarregamentoBotao(botao, 'Baixando...') : () => {};
   try {
     const res = await fetch(API_BASE + '/arquivos/' + id + '/download', {
       headers: { Authorization: 'Bearer ' + AUTH.token },
@@ -489,6 +493,8 @@ async function baixarArquivo(id, nome) {
     URL.revokeObjectURL(url);
   } catch (err) {
     mostrarToast(err.message, 'error');
+  } finally {
+    restaurar();
   }
 }
 
@@ -3865,7 +3871,7 @@ function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin) {
   }).join('');
 
   container.querySelectorAll('.btn-baixar-arquivo').forEach(btn => {
-    btn.addEventListener('click', () => baixarArquivo(btn.dataset.id, btn.dataset.nome));
+    btn.addEventListener('click', () => baixarArquivo(btn.dataset.id, btn.dataset.nome, btn));
   });
   container.querySelectorAll('.select-vincular-pasta').forEach(sel => {
     sel.addEventListener('change', () => { vincularPasta(sel.dataset.pasta, sel.value); sel.value = ''; });
