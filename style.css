@@ -1376,6 +1376,23 @@ button:disabled { cursor: default; opacity: .85; }
 .stats-grid-4col { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 16px; }
 @media (max-width: 768px) { .stats-grid-4col { grid-template-columns: repeat(2, 1fr); } }
 
+/* Dashboard — Plano de Ação: 4 status + "Atrasado" calculado, mais uma
+   lista compacta das próximas entregas (item 2 do pedido de status). */
+#dash-plano-acao-status.stats-grid-4col { grid-template-columns: repeat(5, 1fr); }
+@media (max-width: 900px) { #dash-plano-acao-status.stats-grid-4col { grid-template-columns: repeat(3, 1fr); } }
+.dash-plano-acao-lista { display: flex; flex-direction: column; gap: 8px; }
+.dash-plano-acao-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: var(--radius-sm); background: var(--surface-alt, #f5f6f8); font-size: 13px; }
+.dash-plano-acao-item.atrasado { background: rgba(231, 76, 60, 0.1); }
+.dash-plano-acao-item-nome { font-weight: 600; flex: 1; }
+.dash-plano-acao-item-resp { color: var(--text-muted); }
+.dash-plano-acao-item-data { white-space: nowrap; font-weight: 600; }
+
+/* Matriz de Prioridade — filtro de visão (área x pessoa) e o rótulo de
+   responsável mostrado em cada card quando a visão é "Toda a área". */
+.matriz-filtro-card { display: flex; align-items: center; padding: 14px 18px; }
+.matriz-filtro-card select { min-width: 220px; }
+.q-item-responsavel { font-size: 11.5px; color: var(--text-muted); margin-top: 4px; font-weight: 600; }
+
 /* Dashboard — Mini-BSC agregado (item 3 do Painel do Líder): cada quadrante
    soma as metas que marcaram aquela perspectiva. */
 .dash-metas-bsc-titulo { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 10px; }
