@@ -10,9 +10,10 @@
        vendo a versão antiga por até 4h mesmo depois do deploy. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Cormorant+Garamond:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260927q" />
+  <link rel="stylesheet" href="style.css?v=20260927r" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@9.7.2/dist/index.iife.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -814,6 +815,16 @@
           <span class="card-icon">➕</span>
           <h2 id="meta-form-title">Nova Meta / Indicador</h2>
         </div>
+
+        <div class="importar-planilha-sugestao">
+          <span>💡 Muitas metas pra cadastrar? Baixe o modelo, preencha e importe de uma vez.</span>
+          <div class="importar-planilha-acoes">
+            <button type="button" class="btn-secondary" onclick="baixarModeloPlanilha('metas')">📥 Baixar modelo (Excel)</button>
+            <button type="button" class="btn-secondary" onclick="document.getElementById('input-importar-metas').click()">📤 Importar planilha</button>
+            <input type="file" id="input-importar-metas" accept=".xlsx,.xls" style="display:none" onchange="processarArquivoImportado('metas', this.files[0]); this.value='';" />
+          </div>
+        </div>
+
         <form id="form-meta" novalidate>
           <input type="hidden" id="me-id" value="" />
 
@@ -1146,6 +1157,16 @@
           <h2>Registro da Rotina Diária</h2>
           <input type="date" id="rt-data" class="rt-data-input" />
         </div>
+
+        <div class="importar-planilha-sugestao">
+          <span>💡 Muitos registros pra cadastrar? Baixe o modelo, preencha e importe de uma vez.</span>
+          <div class="importar-planilha-acoes">
+            <button type="button" class="btn-secondary" onclick="baixarModeloPlanilha('rotina')">📥 Baixar modelo (Excel)</button>
+            <button type="button" class="btn-secondary" onclick="document.getElementById('input-importar-rotina').click()">📤 Importar planilha</button>
+            <input type="file" id="input-importar-rotina" accept=".xlsx,.xls" style="display:none" onchange="processarArquivoImportado('rotina', this.files[0]); this.value='';" />
+          </div>
+        </div>
+
         <form id="form-rotina" class="rotina-form-grid" novalidate>
           <div class="form-group"><label for="rt-inicio">Início</label><input type="time" id="rt-inicio" required /></div>
           <div class="form-group"><label for="rt-fim">Fim</label><input type="time" id="rt-fim" required /></div>
@@ -1568,6 +1589,25 @@
     </div>
   </div>
 
+  <!-- Modal de pré-visualização da importação de planilha (Rotina/Metas) -->
+  <div id="modal-importar-planilha" class="modal" style="display:none">
+    <div class="modal-overlay" id="modal-overlay-importar-planilha"></div>
+    <div class="modal-box modal-box-resumo">
+      <div class="modal-header">
+        <h3 id="modal-importar-titulo">Pré-visualização da importação</h3>
+        <button class="modal-close" id="modal-importar-close">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="modal-importar-resumo" class="label-hint"></p>
+        <div id="modal-importar-tabela"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="modal-importar-cancelar">Cancelar</button>
+        <button class="btn-primary" id="modal-importar-confirmar">✅ Confirmar importação</button>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal de análise de melhoria (autoavaliação mensal) -->
   <div id="modal-analise" class="modal" style="display:none">
     <div class="modal-overlay" id="modal-overlay-analise"></div>
@@ -1603,6 +1643,6 @@
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <script src="app.js?v=20260927q"></script>
+  <script src="app.js?v=20260927r"></script>
 </body>
 </html>

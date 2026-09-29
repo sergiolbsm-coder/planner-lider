@@ -158,6 +158,25 @@ body {
 }
 .form-card { border-top: 4px solid var(--accent); }
 
+/* Sugestão de importar planilha (Rotina Diária / Metas) — uma faixa discreta
+   dentro do próprio card do formulário, não uma tela separada, pra quem tem
+   muitos registros pra cadastrar de uma vez só. */
+.importar-planilha-sugestao {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+  background: var(--bg); border: 1px dashed var(--border); border-radius: var(--radius-sm);
+  padding: 10px 14px; margin: 14px 0; font-size: 13px; color: var(--text-muted);
+}
+.importar-planilha-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 640px) { .importar-planilha-sugestao { flex-direction: column; align-items: stretch; } }
+
+/* Tabela de pré-visualização da importação */
+.tabela-importar-preview { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.tabela-importar-preview th, .tabela-importar-preview td { padding: 6px 8px; border: 1px solid var(--border); text-align: left; vertical-align: top; }
+.tabela-importar-preview th { background: var(--bg); font-weight: 700; }
+.tabela-importar-preview tr.linha-invalida { background: #fdf2e9; }
+.tabela-importar-preview .erro-linha { color: #c0392b; font-size: 11.5px; font-weight: 600; }
+.tabela-importar-preview .ok-linha { color: #1e8449; font-size: 11.5px; font-weight: 600; }
+
 @keyframes destaquePisca {
   0%, 100% { box-shadow: var(--shadow); }
   25%, 75% { box-shadow: 0 0 0 3px var(--accent); }
