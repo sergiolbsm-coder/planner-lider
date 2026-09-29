@@ -346,14 +346,16 @@ function mapPlanoAcao(p) {
   };
 }
 
-// Projetos/Iniciativas é o planejamento (Passo 5, item 1): nome, meta
-// vinculada, responsável, escopo e checkpoints — entidade própria,
-// separada do Plano de Ação.
+// Projetos/Iniciativas segue o modelo "Estrutura de Acompanhamento de
+// Projetos e Iniciativas" do material impresso: nome, objetivo, responsável,
+// prazo, impedimentos, status, resultado esperado.
 function mapProjeto(p) {
   return {
-    id: p.id, nome: p.nome || '', metaId: p.meta_id || '',
+    id: p.id, nome: p.nome || '', objetivo: p.objetivo || '',
     responsavelId: p.responsavel_eu ? 'eu' : (p.responsavel_id || ''),
-    recursos: p.recursos || '', checkpoints: p.checkpoints || '',
+    prazo: p.prazo ? String(p.prazo).slice(0, 10) : '',
+    impedimentos: p.impedimentos || '', status: p.status || 'novo',
+    resultadoEsperado: p.resultado_esperado || '',
   };
 }
 function mapDesafio(d) {
@@ -3176,8 +3178,9 @@ function renderGargalos() {
 // ============================================================
 // PLANO DE AÇÃO / PROJETOS — tela própria (Passo 5 do material). Duas listas
 // INDEPENDENTES (cada uma com seu próprio cadastro, edição e exclusão):
-// - Projetos/Iniciativas (STATE.projetos): planejamento — nome, meta
-//   vinculada, responsável, escopo, checkpoints.
+// - Projetos/Iniciativas (STATE.projetos): modelo "Estrutura de
+//   Acompanhamento de Projetos e Iniciativas" do material impresso — nome,
+//   objetivo, responsável, prazo, impedimentos, status, resultado esperado.
 // - Plano de Ação (STATE.planoAcao): itens de ação — nome, responsável,
 //   início/fim, meta, status, lições aprendidas.
 // Não há vínculo 1:1 entre as duas — um item do Plano de Ação não "puxa"
@@ -3194,6 +3197,12 @@ function opcoesResponsavel(respAtual) {
   `;
 }
 
+// Opções de status reutilizadas por Projetos e Plano de Ação — mesmo domínio
+// novo/andamento/bloqueado/concluido em toda a tela.
+function opcoesStatus(statusAtual) {
+  return STATUS_ORDEM.map(k => `<option value="${k}" ${k === statusAtual ? 'selected' : ''}>${STATUS_CONFIG[k].label}</option>`).join('');
+}
+
 function renderProjetosIniciativas() {
   const container = document.getElementById('tabela-projetos-iniciativas');
   if (!container) return; // seção só existe na visão do líder
@@ -3203,20 +3212,19 @@ function renderProjetosIniciativas() {
     return;
   }
 
-  const opcoesMeta = metaIdAtual => `<option value="">— Nenhuma —</option>` +
-    STATE.metas.map(m => `<option value="${m.id}" ${m.id === metaIdAtual ? 'selected' : ''}>${m.nome}</option>`).join('');
-
   container.innerHTML = `
     <table class="tabela-simples tabela-plano">
-      <thead><tr><th>Projeto / Iniciativa</th><th>Meta vinculada</th><th>Responsável</th><th>Escopo</th><th>Checkpoints</th><th></th></tr></thead>
+      <thead><tr><th>Projeto / Iniciativa</th><th>Objetivo</th><th>Responsável</th><th>Prazo</th><th>Impedimentos</th><th>Status</th><th>Resultado Esperado</th><th></th></tr></thead>
       <tbody>
         ${STATE.projetos.map(p => `
           <tr data-id="${p.id}">
             <td><input type="text" data-campo="nome" value="${p.nome || ''}" placeholder="Nome do projeto/iniciativa" /></td>
-            <td><select data-campo="metaId">${opcoesMeta(p.metaId)}</select></td>
+            <td><input type="text" data-campo="objetivo" value="${p.objetivo || ''}" placeholder="O que se quer alcançar..." /></td>
             <td><select data-campo="responsavelId">${opcoesResponsavel(p.responsavelId)}</select></td>
-            <td><input type="text" data-campo="recursos" value="${p.recursos || ''}" placeholder="O que está incluído/fora do escopo..." /></td>
-            <td><input type="text" data-campo="checkpoints" value="${p.checkpoints || ''}" placeholder="Marcos de revisão..." /></td>
+            <td><input type="date" data-campo="prazo" value="${p.prazo || ''}" /></td>
+            <td><input type="text" data-campo="impedimentos" value="${p.impedimentos || ''}" placeholder="O que pode travar..." /></td>
+            <td><select data-campo="status">${opcoesStatus(p.status)}</select></td>
+            <td><input type="text" data-campo="resultadoEsperado" value="${p.resultadoEsperado || ''}" placeholder="O que se espera entregar..." /></td>
             <td><button class="btn-icon btn-icon-sm btn-icon-danger" title="Remover" onclick="excluirLinhaProjeto('${p.id}')">🗑️</button></td>
           </tr>
         `).join('')}
@@ -3262,7 +3270,6 @@ function renderPlanoAcaoItens() {
   } else {
     const opcoesMeta = metaIdAtual => `<option value="">— Nenhuma —</option>` +
       STATE.metas.map(m => `<option value="${m.id}" ${m.id === metaIdAtual ? 'selected' : ''}>${m.nome}</option>`).join('');
-    const opcoesStatus = statusAtual => STATUS_ORDEM.map(k => `<option value="${k}" ${k === statusAtual ? 'selected' : ''}>${STATUS_CONFIG[k].label}</option>`).join('');
 
     container.innerHTML = `
       <table class="tabela-simples tabela-plano">
