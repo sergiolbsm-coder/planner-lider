@@ -2675,24 +2675,35 @@ function renderArquivosTurma() {
 // PLANO DE GESTÃO — "Passo 1: Criação do Plano" + Diagnóstico
 // (Desafios e Oportunidades) do material oficial do Instituto
 // ============================================================
+// Mostra (ou esconde, se vazio) a resposta atual salva de um campo-avulso
+// acima do formulário de preenchimento — mesmo padrão visual do Diagnóstico
+// (diagnostico-item), só que aqui é um valor único, não uma lista: "incluir"
+// substitui a resposta anterior em vez de somar mais um item.
+function atualizarRespostaAtualCampo(campo, valor) {
+  const el = document.querySelector(`.campo-resposta-atual[data-campo="${campo}"]`);
+  if (!el) return;
+  if (valor) {
+    el.querySelector('span').textContent = valor;
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
 function renderPlanoGestao() {
   const p = STATE.planoGestao;
   const campo = document.getElementById('pg-expectativas');
   if (!p || !campo) return; // seção só existe na visão do líder
 
-  document.getElementById('pg-expectativas').value = p.expectativasAno;
-  document.getElementById('pg-visao').value = p.visaoMissao;
-  document.getElementById('pg-pontos-fortes').value = p.pontosFortesEquipe;
-  document.getElementById('pg-desempenho').value = p.metaDesempenho;
-  document.getElementById('pg-processos').value = p.metaProcessos;
-  document.getElementById('pg-lema').value = p.lemaDoAno;
-  document.getElementById('pg-combinados').value = p.combinados;
-
-  document.getElementById('av-de-onde-viemos').value = p.deOndeViemos;
-  document.getElementById('av-como-guiamos').value = p.comoNosGuiamos;
-  document.getElementById('av-para-quem').value = p.paraQuemValor;
-  document.getElementById('av-o-que-poder').value = p.oQueDaPoder;
-  document.getElementById('av-para-onde').value = p.paraOndeVamos;
+  [
+    ['expectativasAno', 'pg-expectativas'], ['visaoMissao', 'pg-visao'], ['pontosFortesEquipe', 'pg-pontos-fortes'],
+    ['metaDesempenho', 'pg-desempenho'], ['metaProcessos', 'pg-processos'], ['lemaDoAno', 'pg-lema'], ['combinados', 'pg-combinados'],
+    ['deOndeViemos', 'av-de-onde-viemos'], ['comoNosGuiamos', 'av-como-guiamos'], ['paraQuemValor', 'av-para-quem'],
+    ['oQueDaPoder', 'av-o-que-poder'], ['paraOndeVamos', 'av-para-onde'],
+  ].forEach(([nomeCampo, idInput]) => {
+    atualizarRespostaAtualCampo(nomeCampo, p[nomeCampo]);
+    document.getElementById(idInput).value = ''; // o campo fica livre pra uma nova resposta, como no Diagnóstico
+  });
 
   renderRecapPlano();
 }
@@ -2715,14 +2726,17 @@ function initPlanoGestao() {
         const campo = form.dataset.campo;
         const input = form.querySelector('textarea, input');
         const valor = input.value.trim();
+        if (!valor) return; // mesmo comportamento do Diagnóstico: não inclui resposta vazia
         const ehAviao = form.classList.contains('form-campo-aviao');
-        const restaurar = iniciarCarregamentoBotao(form.querySelector('button[type=submit]'), 'Salvando...');
+        const restaurar = iniciarCarregamentoBotao(form.querySelector('button[type=submit]'), 'Incluindo...');
         try {
           STATE.planoGestao = mapPlanoGestao(await Api.salvarPlanoGestao({ [campo]: valor }));
+          atualizarRespostaAtualCampo(campo, valor);
+          input.value = '';
           renderRecapPlano();
           destacarRecapPlano();
           const marcados = await marcarDesafiosDaSecaoConcluidos(ehAviao ? 'plano-apresentacao' : 'plano-criacao');
-          mostrarToast(marcados ? `Salvo! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Salvo!');
+          mostrarToast(marcados ? `Incluído! ${marcados} desafio(s) da trilha marcado(s) como concluído.` : 'Incluído!');
         } catch (err) {
           mostrarToast(err.message, 'error');
         } finally {
