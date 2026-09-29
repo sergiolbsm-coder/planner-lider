@@ -2012,13 +2012,19 @@ async function refrescarMetas() {
 // Checklist de validação do material (Perguntas de Validação) — calculado a
 // partir do que já foi preenchido, em vez de mais uma lista de checkboxes
 // manuais: só aponta o que falta pra meta ficar completa.
-function sugestoesMetaSmart(m) {
-  const faltando = [];
-  if (!(m.valor && m.prazo)) faltando.push('número e prazo');
-  if (!m.indicador) faltando.push('indicador que comprove o resultado');
-  if (!m.pontoPartida) faltando.push('ponto de partida');
-  if (!m.perspectivaBsc) faltando.push('perspectiva do BSC');
-  return faltando;
+// Checklist SMART — cada letra checada a partir do que já foi preenchido no
+// formulário, sem exigir mais nenhum checkbox manual. "Atingível" não tem
+// como ser verificado automaticamente (é um julgamento de quem está
+// definindo a meta), então fica como "não avaliável" em vez de forçar uma
+// resposta certa/errada.
+function checklistSmart(m) {
+  return [
+    { letra: 'S', rotulo: 'Específica', ok: !!m.nome },
+    { letra: 'M', rotulo: 'Mensurável', ok: !!(m.indicador && m.pontoPartida && m.valor) },
+    { letra: 'A', rotulo: 'Atingível', ok: null },
+    { letra: 'R', rotulo: 'Relevante', ok: !!m.porqueImporta },
+    { letra: 'T', rotulo: 'Temporal', ok: !!(m.prazo && m.frequenciaAcompanhamento) },
+  ];
 }
 
 function renderMetas() {
@@ -2035,7 +2041,7 @@ function renderMetas() {
       const execCfg = EXECUCAO_STATUS_CONFIG[m.statusExecucao] || EXECUCAO_STATUS_CONFIG.no_prazo;
       const prog = metaProgresso(m.id);
       const krs = [m.okrKr1, m.okrKr2, m.okrKr3].filter(Boolean);
-      const faltando = sugestoesMetaSmart(m);
+      const smart = checklistSmart(m);
       return `
       <div class="meta-card" data-id="${m.id}">
         <div class="meta-card-topo">
@@ -2071,7 +2077,13 @@ function renderMetas() {
           <div class="meta-progresso-barra"><div class="meta-progresso-fill" style="width:${prog.pct}%;background:${tc.cor || '#667eea'}"></div></div>
           <div class="meta-progresso-texto">${prog.concluidas}/${prog.total} atividades concluídas (${prog.pct}%)</div>
         </div>
-        <div class="meta-card-checklist">${faltando.length ? `💡 Falta: ${faltando.join(', ')}` : '✅ Meta completa (SMART)'}</div>
+        <div class="meta-card-checklist meta-card-checklist-smart">
+          ${smart.map(s => {
+            const icone = s.ok === null ? '➖' : (s.ok ? '✅' : '⚠️');
+            const classe = s.ok === null ? 'smart-pill-na' : (s.ok ? 'smart-pill-ok' : 'smart-pill-falta');
+            return `<span class="smart-pill ${classe}" title="${s.rotulo}${s.ok === null ? ' — julgamento de quem definiu a meta, não dá pra checar sozinho' : ''}">${icone} ${s.letra}</span>`;
+          }).join('')}
+        </div>
       </div>`;
     }).join('');
   }

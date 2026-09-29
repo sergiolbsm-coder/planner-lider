@@ -1034,6 +1034,20 @@ button:disabled { cursor: default; opacity: .85; }
 .meta-card-execucao div { margin-bottom: 2px; }
 .meta-card-checklist { margin-top: 8px; font-size: 11.5px; color: var(--text-muted); }
 .meta-card-checklist div { margin-bottom: 2px; }
+.meta-card-checklist-smart { display: flex; gap: 6px; flex-wrap: wrap; }
+.smart-pill { display: inline-flex; align-items: center; gap: 3px; padding: 2px 7px; border-radius: 10px; font-size: 11px; font-weight: 700; cursor: default; }
+.smart-pill-ok { background: #eafaf1; color: #1e8449; }
+.smart-pill-falta { background: #fef9ec; color: #b9770e; }
+.smart-pill-na { background: var(--bg); color: var(--text-muted); }
+
+/* Badge de letra SMART ao lado do rótulo de um campo no formulário de Meta —
+   deixa explícito qual critério do SMART aquele campo alimenta. */
+.smart-tag { display: inline-flex; align-items: center; justify-content: center; width: 16px; height: 16px; border-radius: 4px; font-size: 10px; font-weight: 800; color: #fff; margin-right: 4px; vertical-align: middle; }
+.smart-s { background: #2980b9; }
+.smart-m { background: #16a085; }
+.smart-a { background: #8e44ad; }
+.smart-r { background: #d35400; }
+.smart-t { background: #c0392b; }
 
 /* ============================================================
    SUB-ABAS (Kanban / Lista)
