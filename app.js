@@ -2463,7 +2463,7 @@ function renderAgendaRotina() {
     ${dias.map(d => {
       const itensDoDia = STATE.rotina.filter(r => r.data === d).sort((a, b) => a.inicio.localeCompare(b.inicio));
       return `
-      <div class="agenda-rotina-coluna ${d === hoje ? 'hoje' : ''}" style="height:${alturaTotal}px; background-size:100% ${AGENDA_ROTINA_ALTURA_HORA}px">
+      <div class="agenda-rotina-coluna ${d === hoje ? 'hoje' : ''}" data-dia="${d}" style="height:${alturaTotal}px; background-size:100% ${AGENDA_ROTINA_ALTURA_HORA}px">
         ${itensDoDia.map(r => {
           const tc = TIPO_CONFIG[r.tipo] || {};
           const top = Math.max(0, minutosDesdeInicioAgenda(r.inicio)) / 60 * AGENDA_ROTINA_ALTURA_HORA;
@@ -2479,6 +2479,109 @@ function renderAgendaRotina() {
       </div>`;
     }).join('')}
   `;
+}
+
+// Criar direto na Agenda, clicando exatamente no dia/horário desejado (como
+// no Google Agenda) — sem precisar rolar até o formulário e clicar em
+// "Adicionar ao Registro". Um mini-formulário (popover) abre ancorado no
+// ponto clicado, já com o horário de início naquele ponto (arredondado pros
+// 30 minutos mais próximos) e 1h de duração padrão, tudo editável antes de
+// salvar.
+function minutosParaHHMM(minutos) {
+  const h = Math.floor(minutos / 60);
+  const m = minutos % 60;
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+}
+
+function fecharPopoverAgenda() {
+  document.querySelectorAll('.agenda-rotina-popover').forEach(el => el.remove());
+  clearTagGroup('agenda-popover-tipo');
+}
+
+function abrirPopoverNovoRegistro(coluna, offsetY) {
+  fecharPopoverAgenda();
+  const dia = coluna.dataset.dia;
+
+  const minutosClicados = AGENDA_ROTINA_HORA_INICIO * 60 + (offsetY / AGENDA_ROTINA_ALTURA_HORA) * 60;
+  let minutosSnap = Math.round(minutosClicados / 30) * 30;
+  minutosSnap = Math.max(AGENDA_ROTINA_HORA_INICIO * 60, Math.min(AGENDA_ROTINA_HORA_FIM * 60 - 30, minutosSnap));
+  const horaInicio = minutosParaHHMM(minutosSnap);
+  const horaFim = minutosParaHHMM(Math.min(AGENDA_ROTINA_HORA_FIM * 60, minutosSnap + 60));
+  const top = (minutosSnap - AGENDA_ROTINA_HORA_INICIO * 60) / 60 * AGENDA_ROTINA_ALTURA_HORA;
+
+  const diasSemana = [0, 1, 2, 3, 4].map(i => somarDias(STATE.agendaRotinaSemana, i));
+  const ancoraDireita = diasSemana.indexOf(dia) >= 3; // qui/sex: abre pra esquerda, senão vaza da tela
+
+  coluna.insertAdjacentHTML('beforeend', `
+    <div class="agenda-rotina-popover" style="top:${top}px; ${ancoraDireita ? 'right:2px' : 'left:2px'}" data-dia="${dia}">
+      <div class="agenda-rotina-popover-horarios">
+        <input type="time" class="agenda-popover-inicio" value="${horaInicio}" step="900" />
+        <span>–</span>
+        <input type="time" class="agenda-popover-fim" value="${horaFim}" step="900" />
+      </div>
+      <input type="text" class="agenda-popover-atividade" placeholder="O que você vai fazer?" />
+      <div class="btn-group agenda-rotina-popover-tipo">
+        <button type="button" class="tag-btn tag-btn-sm" data-group="agenda-popover-tipo" data-value="estrategico" title="Estratégico">🏆</button>
+        <button type="button" class="tag-btn tag-btn-sm" data-group="agenda-popover-tipo" data-value="tatico" title="Tático">⚙️</button>
+        <button type="button" class="tag-btn tag-btn-sm" data-group="agenda-popover-tipo" data-value="operacional" title="Operacional">🔧</button>
+      </div>
+      <div class="agenda-rotina-popover-acoes">
+        <button type="button" class="btn-secondary btn-sm agenda-popover-cancelar">Cancelar</button>
+        <button type="button" class="btn-primary btn-sm agenda-popover-salvar">✓ Adicionar</button>
+      </div>
+    </div>`);
+
+  const input = coluna.querySelector('.agenda-popover-atividade');
+  if (input) input.focus();
+}
+
+async function salvarPopoverAgenda() {
+  const popover = document.querySelector('.agenda-rotina-popover');
+  if (!popover) return;
+  const dia = popover.dataset.dia;
+  const inicio = popover.querySelector('.agenda-popover-inicio').value;
+  const fim = popover.querySelector('.agenda-popover-fim').value;
+  const atividade = popover.querySelector('.agenda-popover-atividade').value.trim();
+  const tipo = getTagValue('agenda-popover-tipo');
+
+  if (!atividade) { mostrarToast('Descreva a atividade.', 'error'); return; }
+  if (!tipo) { mostrarToast('Selecione o tipo da atividade.', 'error'); return; }
+  if (!inicio || !fim || fim <= inicio) { mostrarToast('Confira os horários — o fim deve ser depois do início.', 'error'); return; }
+
+  const botao = popover.querySelector('.agenda-popover-salvar');
+  const restaurar = iniciarCarregamentoBotao(botao, '...');
+  try {
+    const novo = mapRotina(await Api.criarRotina({ data: dia, inicio, fim, atividade, tipo, impacto: '', energia: '' }));
+    STATE.rotina.push(novo);
+    renderDashboardAll(); // recria o corpo da agenda, o que já remove o popover da tela
+    mostrarToast('Registrado na rotina do dia!');
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+    restaurar();
+  }
+}
+
+function initAgendaRotinaCliqueParaCriar() {
+  const corpo = document.getElementById('agenda-rotina-corpo');
+  if (!corpo) return;
+
+  corpo.addEventListener('click', e => {
+    if (e.target.closest('.agenda-popover-salvar')) { salvarPopoverAgenda(); return; }
+    if (e.target.closest('.agenda-popover-cancelar')) { fecharPopoverAgenda(); return; }
+    if (e.target.closest('.agenda-rotina-popover')) return; // clique dentro do popover não abre outro
+    if (e.target.closest('.agenda-rotina-bloco')) return; // registro existente já tem seu próprio botão de excluir
+
+    const coluna = e.target.closest('.agenda-rotina-coluna');
+    if (!coluna) return;
+    const rect = coluna.getBoundingClientRect();
+    abrirPopoverNovoRegistro(coluna, e.clientY - rect.top);
+  });
+
+  corpo.addEventListener('keydown', e => {
+    if (!e.target.closest('.agenda-rotina-popover')) return;
+    if (e.key === 'Enter') { e.preventDefault(); salvarPopoverAgenda(); }
+    else if (e.key === 'Escape') { fecharPopoverAgenda(); }
+  });
 }
 
 // ============================================================
@@ -4565,6 +4668,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Dashboard
   initSeguro('formRotina', initFormRotina);
+  initSeguro('agendaRotinaCliqueParaCriar', initAgendaRotinaCliqueParaCriar);
   initSeguro('importarPlanilha', initImportarPlanilha);
   initSeguro('planoAcao', initPlanoAcao);
   initSeguro('autoavaliacao', initAutoavaliacao);

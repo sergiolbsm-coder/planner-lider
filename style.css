@@ -1287,12 +1287,12 @@ button:disabled { cursor: default; opacity: .85; }
   border-bottom: 1px dashed var(--border); box-sizing: border-box; transform: translateY(-6px);
 }
 .agenda-rotina-coluna {
-  position: relative; border-left: 1px solid var(--border);
+  position: relative; border-left: 1px solid var(--border); cursor: pointer;
   background-image: repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 1px, transparent 1px, transparent 100%);
 }
 .agenda-rotina-coluna.hoje { background-color: #fffaf9; }
 .agenda-rotina-bloco {
-  position: absolute; left: 3px; right: 3px; min-height: 18px;
+  position: absolute; left: 3px; right: 3px; min-height: 18px; cursor: default;
   border-left: 3px solid; border-radius: 4px; padding: 3px 5px;
   overflow: hidden; font-size: 10.5px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
 }
@@ -1303,6 +1303,26 @@ button:disabled { cursor: default; opacity: .85; }
   font-size: 10px; opacity: 0; transition: var(--transition); padding: 1px 3px;
 }
 .agenda-rotina-bloco:hover .agenda-rotina-bloco-excluir { opacity: 1; }
+
+/* Popover de criação rápida — clicar num horário vazio da agenda abre isso
+   ancorado exatamente no ponto clicado, como no Google Agenda. */
+.agenda-rotina-popover {
+  position: absolute; z-index: 30; width: 210px; cursor: default;
+  background: var(--bg-card); border: 1.5px solid var(--accent); border-radius: 8px;
+  box-shadow: 0 4px 18px rgba(0,0,0,.2); padding: 8px; display: flex; flex-direction: column; gap: 6px;
+}
+.agenda-rotina-popover-horarios { display: flex; align-items: center; gap: 4px; }
+.agenda-rotina-popover-horarios input[type="time"] {
+  width: 78px; font-size: 11px; padding: 3px 4px; border-radius: 4px; border: 1px solid var(--border); font-family: inherit;
+}
+.agenda-rotina-popover-horarios span { color: var(--text-muted); font-size: 11px; }
+.agenda-popover-atividade {
+  font-size: 12px; padding: 5px 7px; border-radius: 4px; border: 1px solid var(--border); width: 100%; box-sizing: border-box; font-family: inherit;
+}
+.agenda-rotina-popover-tipo { display: flex; gap: 4px; }
+.tag-btn-sm { padding: 3px 9px; font-size: 13px; }
+.agenda-rotina-popover-acoes { display: flex; justify-content: flex-end; gap: 6px; margin-top: 2px; }
+.btn-sm { padding: 4px 9px; font-size: 11.5px; }
 .tabela-simples { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tabela-simples th {
   text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
