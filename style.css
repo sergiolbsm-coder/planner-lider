@@ -413,20 +413,6 @@ select { cursor: pointer; }
    vez de dividir espaço no grid de 2 colunas, que deixava o campo apertado. */
 .input-largo { width: 100%; box-sizing: border-box; padding: 10px 12px; font-size: 14px; }
 
-/* Inserção Direta — cadastro rápido de liderados em tabela */
-.tabela-insercao-direta-wrap { overflow-x: auto; }
-.tabela-insercao-direta { width: 100%; border-collapse: collapse; margin-top: 8px; }
-.tabela-insercao-direta th {
-  text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .4px;
-  color: var(--text-muted); padding: 6px 8px; border-bottom: 2px solid var(--border);
-}
-.tabela-insercao-direta td { padding: 6px 8px; border-bottom: 1px solid var(--border); }
-.tabela-insercao-direta input {
-  width: 100%; box-sizing: border-box; padding: 7px 9px; font-size: 13px;
-  border-radius: 6px; border: 1.5px solid var(--border); font-family: inherit; min-width: 110px;
-}
-.tabela-insercao-direta-acoes { display: flex; gap: 4px; white-space: nowrap; }
-
 /* ============================================================
    MÓDULO 2 — ATIVIDADES
 ============================================================ */
