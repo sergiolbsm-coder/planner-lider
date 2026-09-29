@@ -2431,6 +2431,7 @@ function renderTabelaRotina() {
 const AGENDA_ROTINA_HORA_INICIO = 6;
 const AGENDA_ROTINA_HORA_FIM = 21;
 const AGENDA_ROTINA_ALTURA_HORA = 48; // px
+const AGENDA_ROTINA_ALTURA_MIN_BLOCO = 34; // px — abaixo disso a hora+título ficam cortados
 
 function segundaFeiraDaSemana(dataISO) {
   const d = new Date(dataISO + 'T00:00:00');
@@ -2495,8 +2496,11 @@ function renderAgendaRotina() {
         ${itensDoDia.map(r => {
           const tc = TIPO_CONFIG[r.tipo] || {};
           const top = Math.max(0, minutosDesdeInicioAgenda(r.inicio)) / 60 * AGENDA_ROTINA_ALTURA_HORA;
-          const duracaoMin = Math.max(20, minutosDesdeInicioAgenda(r.fim) - minutosDesdeInicioAgenda(r.inicio));
-          const altura = Math.min(alturaTotal - top, duracaoMin / 60 * AGENDA_ROTINA_ALTURA_HORA);
+          const duracaoMin = Math.max(0, minutosDesdeInicioAgenda(r.fim) - minutosDesdeInicioAgenda(r.inicio));
+          // Piso em pixel (não em minutos): um compromisso de 15-20min renderizaria
+          // menor que a altura de "hora + título" e cortaria o texto — o bloco fica
+          // visualmente maior que a duração real, mas o nome continua legível.
+          const altura = Math.min(alturaTotal - top, Math.max(AGENDA_ROTINA_ALTURA_MIN_BLOCO, duracaoMin / 60 * AGENDA_ROTINA_ALTURA_HORA));
           return `
             <div class="agenda-rotina-bloco" style="top:${top}px;height:${altura}px;background:${tc.bg};border-left-color:${tc.cor}" title="${r.atividade} (${r.inicio}–${r.fim})">
               <button class="agenda-rotina-bloco-excluir" title="Excluir" onclick="excluirRotina('${r.id}')">🗑️</button>
@@ -3338,6 +3342,14 @@ function mesAtualISO() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
 }
 
+// #aa-mes é um <input type="date"> (o <input type="month"> antigo tinha
+// suporte ruim em vários navegadores/celulares) — a autoavaliação continua
+// mensal, então aqui é só pegar o "AAAA-MM" de qualquer data escolhida.
+function mesRefAutoavaliacao() {
+  const valor = document.getElementById('aa-mes').value;
+  return valor ? valor.slice(0, 7) : mesAtualISO();
+}
+
 function todosItensAutoavaliacao() {
   return [...ERROS_PLANEJAMENTO_ITENS, ...CHECKLIST_LIDER_ITENS];
 }
@@ -3371,7 +3383,7 @@ function lerRespostasAutoavaliacao() {
 }
 
 async function carregarAutoavaliacaoDoMes() {
-  const mes = document.getElementById('aa-mes').value || mesAtualISO();
+  const mes = mesRefAutoavaliacao();
   try {
     const dados = await Api.obterAutoavaliacao(mes);
     preencherRespostasAutoavaliacao(dados.respostas || {});
@@ -3384,7 +3396,7 @@ let autoavaliacaoSalvarTimeout = null;
 function agendarSalvarAutoavaliacao() {
   clearTimeout(autoavaliacaoSalvarTimeout);
   autoavaliacaoSalvarTimeout = setTimeout(async () => {
-    const mes = document.getElementById('aa-mes').value || mesAtualISO();
+    const mes = mesRefAutoavaliacao();
     try {
       await Api.salvarAutoavaliacao(mes, lerRespostasAutoavaliacao());
     } catch (err) { mostrarToast(err.message, 'error'); }
@@ -3393,7 +3405,7 @@ function agendarSalvarAutoavaliacao() {
 
 function initAutoavaliacao() {
   renderAutoavaliacaoItens();
-  document.getElementById('aa-mes').value = mesAtualISO();
+  document.getElementById('aa-mes').value = hojeISO();
   document.getElementById('aa-mes').addEventListener('change', carregarAutoavaliacaoDoMes);
   document.getElementById('autoavaliacao-itens').addEventListener('click', e => {
     if (e.target.closest('.tag-btn')) agendarSalvarAutoavaliacao();
@@ -3413,7 +3425,7 @@ function fecharModalAnalise() {
 let ANALISE_MELHORIA_ATUAL = null;
 
 async function gerarAnaliseMelhoria() {
-  const mes = document.getElementById('aa-mes').value || mesAtualISO();
+  const mes = mesRefAutoavaliacao();
   const respostas = lerRespostasAutoavaliacao();
 
   const pontosAtencao = [];

@@ -1297,7 +1297,7 @@ button:disabled { cursor: default; opacity: .85; }
 }
 .agenda-rotina-coluna.hoje { background-color: #fffaf9; }
 .agenda-rotina-bloco {
-  position: absolute; left: 3px; right: 3px; min-height: 18px; cursor: default;
+  position: absolute; left: 3px; right: 3px; min-height: 34px; cursor: default;
   border-left: 3px solid; border-radius: 4px; padding: 3px 5px;
   overflow: hidden; font-size: 10.5px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
 }
