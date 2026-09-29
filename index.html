@@ -10,7 +10,7 @@
        vendo a versão antiga por até 4h mesmo depois do deploy. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Cormorant+Garamond:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260927p" />
+  <link rel="stylesheet" href="style.css?v=20260927q" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@9.7.2/dist/index.iife.js"></script>
 </head>
@@ -817,20 +817,20 @@
         <form id="form-meta" novalidate>
           <input type="hidden" id="me-id" value="" />
 
-          <p class="label-hint">Passo 1 — Direção e Objetivo</p>
+          <p class="label-hint">Passo 1 — Direção e Objetivo <span class="label-hint-inline">(S e R do SMART)</span></p>
           <div class="form-group">
-            <label for="me-nome">Qual resultado precisa melhorar? *</label>
+            <label for="me-nome"><span class="smart-tag smart-s">S</span> Específica — Qual resultado precisa melhorar? *</label>
             <input type="text" id="me-nome" placeholder="Ex: Reduzir retrabalho na linha 2" required />
           </div>
           <div class="form-group">
-            <label for="me-porque">Por que isso é importante pra área/negócio?</label>
+            <label for="me-porque"><span class="smart-tag smart-r">R</span> Relevante — Por que isso é importante pra área/negócio?</label>
             <textarea id="me-porque" rows="2" placeholder="O que essa meta destrava se for alcançada..."></textarea>
           </div>
 
-          <p class="label-hint">Passo 2 — Meta e Medição</p>
+          <p class="label-hint">Passo 2 — Meta e Medição <span class="label-hint-inline">(M, A e T do SMART)</span></p>
           <div class="form-grid-2">
             <div class="form-group">
-              <label for="me-indicador">Indicador (KPI)</label>
+              <label for="me-indicador"><span class="smart-tag smart-m">M</span> Mensurável — Indicador (KPI)</label>
               <input type="text" id="me-indicador" placeholder="Ex: % de retrabalho, NPS, prazo médio..." />
             </div>
             <div class="form-group">
@@ -844,21 +844,22 @@
           </div>
           <div class="form-grid-2">
             <div class="form-group">
-              <label for="me-ponto-partida">Ponto de partida</label>
+              <label for="me-ponto-partida"><span class="smart-tag smart-m">M</span> Ponto de partida</label>
               <input type="text" id="me-ponto-partida" placeholder="Ex: 42 pts, 12 dias, R$ 30 mil..." />
             </div>
             <div class="form-group">
-              <label for="me-valor">Resultado esperado</label>
+              <label for="me-valor"><span class="smart-tag smart-m">M</span> Resultado esperado</label>
               <input type="text" id="me-valor" placeholder="Ex: 95%, 10 dias, R$ 50 mil..." />
             </div>
           </div>
+          <p class="label-hint"><span class="smart-tag smart-a">A</span> Atingível — o salto do ponto de partida até o resultado esperado precisa ser realista pro prazo e frequência definidos abaixo.</p>
           <div class="form-grid-2">
             <div class="form-group">
-              <label for="me-prazo">Prazo final</label>
+              <label for="me-prazo"><span class="smart-tag smart-t">T</span> Temporal — Prazo final</label>
               <input type="date" id="me-prazo" />
             </div>
             <div class="form-group">
-              <label>Frequência de acompanhamento</label>
+              <label><span class="smart-tag smart-t">T</span> Frequência de acompanhamento</label>
               <div class="btn-group" id="grupo-me-frequencia">
                 <button type="button" class="tag-btn" data-group="me-frequencia" data-value="semanal">Semanal</button>
                 <button type="button" class="tag-btn" data-group="me-frequencia" data-value="quinzenal">Quinzenal</button>
@@ -1602,6 +1603,6 @@
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <script src="app.js?v=20260927p"></script>
+  <script src="app.js?v=20260927q"></script>
 </body>
 </html>
