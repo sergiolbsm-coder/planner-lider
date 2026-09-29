@@ -1261,6 +1261,48 @@ button:disabled { cursor: default; opacity: .85; }
 }
 
 .tabela-rotina { margin-top: 8px; }
+
+/* ============================================================
+   AGENDA DA SEMANA (Rotina Diária) — grade visual Seg-Sex
+============================================================ */
+.agenda-rotina-nav { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+.agenda-rotina-periodo { font-weight: 700; font-size: 14px; color: var(--text); min-width: 160px; text-align: center; }
+.agenda-rotina-legenda { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; }
+.agenda-rotina-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.agenda-rotina-cabecalho, .agenda-rotina-corpo {
+  display: grid; grid-template-columns: 52px repeat(5, minmax(120px, 1fr)); min-width: 700px;
+}
+.agenda-rotina-cabecalho { border-bottom: 1.5px solid var(--border); background: var(--bg); }
+.agenda-rotina-canto { border-right: 1px solid var(--border); }
+.agenda-rotina-dia-titulo {
+  text-align: center; font-weight: 700; font-size: 12.5px; color: var(--text);
+  padding: 8px 4px; border-left: 1px solid var(--border);
+}
+.agenda-rotina-dia-titulo.hoje { background: #fff3f0; color: var(--accent); }
+.agenda-rotina-coluna-horas {
+  border-right: 1px solid var(--border); position: relative;
+}
+.agenda-rotina-hora-label {
+  font-size: 10.5px; color: var(--text-muted); text-align: right; padding-right: 6px;
+  border-bottom: 1px dashed var(--border); box-sizing: border-box; transform: translateY(-6px);
+}
+.agenda-rotina-coluna {
+  position: relative; border-left: 1px solid var(--border);
+  background-image: repeating-linear-gradient(to bottom, var(--border) 0, var(--border) 1px, transparent 1px, transparent 100%);
+}
+.agenda-rotina-coluna.hoje { background-color: #fffaf9; }
+.agenda-rotina-bloco {
+  position: absolute; left: 3px; right: 3px; min-height: 18px;
+  border-left: 3px solid; border-radius: 4px; padding: 3px 5px;
+  overflow: hidden; font-size: 10.5px; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+}
+.agenda-rotina-bloco-hora { color: var(--text-muted); font-size: 9.5px; }
+.agenda-rotina-bloco-titulo { font-weight: 700; color: var(--text); line-height: 1.2; }
+.agenda-rotina-bloco-excluir {
+  position: absolute; top: 2px; right: 2px; border: none; background: none; cursor: pointer;
+  font-size: 10px; opacity: 0; transition: var(--transition); padding: 1px 3px;
+}
+.agenda-rotina-bloco:hover .agenda-rotina-bloco-excluir { opacity: 1; }
 .tabela-simples { width: 100%; border-collapse: collapse; font-size: 13px; }
 .tabela-simples th {
   text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .4px;

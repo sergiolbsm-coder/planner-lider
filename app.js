@@ -628,6 +628,7 @@ function sair() {
   STATE.planoGestao = null; STATE.diagnostico = [];
   STATE.meuPerfil = null; STATE.minhasAtividades = []; STATE.minhasMetas = []; STATE.meusFeedbacks = [];
   STATE.turmas = []; STATE.turmaSelecionadaId = null; STATE.turmaLideres = []; STATE.turmaDesafios = []; STATE.turmaArquivos = []; STATE.lideresSemTurma = [];
+  STATE.agendaRotinaSemana = null;
   document.getElementById('form-login').reset();
   document.getElementById('auth-erro').style.display = 'none';
   mostrarTela('auth');
@@ -2393,6 +2394,94 @@ function renderTabelaRotina() {
 }
 
 // ============================================================
+// AGENDA DA SEMANA — visão visual de Seg a Sex da Rotina Diária, como um
+// calendário: cada dia é uma coluna, cada registro vira um bloco
+// posicionado pela hora de início e com altura proporcional à duração.
+// Mesmo dado do STATE.rotina que já alimenta a Lista — só outra forma de
+// olhar, sem estado novo no servidor.
+// ============================================================
+const AGENDA_ROTINA_HORA_INICIO = 6;
+const AGENDA_ROTINA_HORA_FIM = 21;
+const AGENDA_ROTINA_ALTURA_HORA = 48; // px
+
+function segundaFeiraDaSemana(dataISO) {
+  const d = new Date(dataISO + 'T00:00:00');
+  const diaSemana = d.getDay(); // 0 = domingo ... 6 = sábado
+  const deslocamento = diaSemana === 0 ? -6 : 1 - diaSemana;
+  return somarDias(dataISO, deslocamento);
+}
+
+const NOMES_DIA_SEMANA_CURTO = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+function nomeDiaSemanaCurto(dataISO) {
+  return NOMES_DIA_SEMANA_CURTO[new Date(dataISO + 'T00:00:00').getDay()];
+}
+
+function minutosDesdeInicioAgenda(hhmm) {
+  const [h, m] = hhmm.split(':').map(Number);
+  return (h * 60 + m) - AGENDA_ROTINA_HORA_INICIO * 60;
+}
+
+function irParaSemanaAgenda(delta) {
+  const base = STATE.agendaRotinaSemana || segundaFeiraDaSemana(hojeISO());
+  STATE.agendaRotinaSemana = somarDias(base, delta * 7);
+  renderAgendaRotina();
+}
+
+function irParaSemanaAtualAgenda() {
+  STATE.agendaRotinaSemana = segundaFeiraDaSemana(hojeISO());
+  renderAgendaRotina();
+}
+
+function renderAgendaRotina() {
+  const cabecalhoEl = document.getElementById('agenda-rotina-cabecalho');
+  const corpoEl = document.getElementById('agenda-rotina-corpo');
+  if (!cabecalhoEl || !corpoEl) return; // seção só existe na visão do líder
+
+  if (!STATE.agendaRotinaSemana) STATE.agendaRotinaSemana = segundaFeiraDaSemana(hojeISO());
+  const segunda = STATE.agendaRotinaSemana;
+  const dias = [0, 1, 2, 3, 4].map(i => somarDias(segunda, i));
+  const hoje = hojeISO();
+
+  document.getElementById('agenda-rotina-periodo').textContent = `${formatarData(dias[0])} a ${formatarData(dias[4])}`;
+
+  const horas = [];
+  for (let h = AGENDA_ROTINA_HORA_INICIO; h <= AGENDA_ROTINA_HORA_FIM; h++) horas.push(h);
+  const alturaTotal = (horas.length - 1) * AGENDA_ROTINA_ALTURA_HORA;
+
+  cabecalhoEl.innerHTML = `
+    <div class="agenda-rotina-canto"></div>
+    ${dias.map(d => `
+      <div class="agenda-rotina-dia-titulo ${d === hoje ? 'hoje' : ''}">
+        ${nomeDiaSemanaCurto(d)}<br><span class="label-hint">${formatarData(d)}</span>
+      </div>`).join('')}
+  `;
+
+  corpoEl.innerHTML = `
+    <div class="agenda-rotina-coluna-horas" style="height:${alturaTotal}px">
+      ${horas.map(h => `<div class="agenda-rotina-hora-label" style="height:${AGENDA_ROTINA_ALTURA_HORA}px">${String(h).padStart(2, '0')}:00</div>`).join('')}
+    </div>
+    ${dias.map(d => {
+      const itensDoDia = STATE.rotina.filter(r => r.data === d).sort((a, b) => a.inicio.localeCompare(b.inicio));
+      return `
+      <div class="agenda-rotina-coluna ${d === hoje ? 'hoje' : ''}" style="height:${alturaTotal}px; background-size:100% ${AGENDA_ROTINA_ALTURA_HORA}px">
+        ${itensDoDia.map(r => {
+          const tc = TIPO_CONFIG[r.tipo] || {};
+          const top = Math.max(0, minutosDesdeInicioAgenda(r.inicio)) / 60 * AGENDA_ROTINA_ALTURA_HORA;
+          const duracaoMin = Math.max(20, minutosDesdeInicioAgenda(r.fim) - minutosDesdeInicioAgenda(r.inicio));
+          const altura = Math.min(alturaTotal - top, duracaoMin / 60 * AGENDA_ROTINA_ALTURA_HORA);
+          return `
+            <div class="agenda-rotina-bloco" style="top:${top}px;height:${altura}px;background:${tc.bg};border-left-color:${tc.cor}" title="${r.atividade} (${r.inicio}–${r.fim})">
+              <button class="agenda-rotina-bloco-excluir" title="Excluir" onclick="excluirRotina('${r.id}')">🗑️</button>
+              <div class="agenda-rotina-bloco-hora">${r.inicio}–${r.fim}</div>
+              <div class="agenda-rotina-bloco-titulo">${r.atividade}</div>
+            </div>`;
+        }).join('')}
+      </div>`;
+    }).join('')}
+  `;
+}
+
+// ============================================================
 // IMPORTAÇÃO DE PLANILHA (Excel) — Rotina Diária e Metas
 // ============================================================
 // Reaproveita os mesmos endpoints de criação (POST /rotina, POST /metas),
@@ -2648,6 +2737,10 @@ function initFormRotina() {
   document.getElementById('rt-data').value = hojeISO();
   document.getElementById('rt-data').addEventListener('change', renderTabelaRotina);
 
+  document.getElementById('btn-agenda-semana-anterior').addEventListener('click', () => irParaSemanaAgenda(-1));
+  document.getElementById('btn-agenda-semana-seguinte').addEventListener('click', () => irParaSemanaAgenda(1));
+  document.getElementById('btn-agenda-semana-hoje').addEventListener('click', irParaSemanaAtualAgenda);
+
   document.getElementById('form-rotina').addEventListener('submit', async e => {
     e.preventDefault();
     const inicio = document.getElementById('rt-inicio').value;
@@ -2885,6 +2978,7 @@ function initPlanoAcao() {
 
 function renderDashboardAll() {
   renderTabelaRotina();
+  renderAgendaRotina();
   renderGraficoDashAtual();
   renderGraficoDashIdeal();
   renderGargalos();
