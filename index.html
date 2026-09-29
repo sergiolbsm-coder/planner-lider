@@ -10,7 +10,7 @@
        vendo a versão antiga por até 4h mesmo depois do deploy. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Cormorant+Garamond:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260929a" />
+  <link rel="stylesheet" href="style.css?v=20260929b" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@9.7.2/dist/index.iife.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1009,9 +1009,22 @@
         <form id="form-matriz" novalidate>
           <input type="hidden" id="m-id" value="" />
           <div class="form-group">
-            <label for="m-atividade-existente">Puxar de uma atividade já cadastrada (opcional)</label>
+            <label for="m-responsavel">Responsável</label>
+            <select id="m-responsavel">
+              <option value="">— Não atribuído —</option>
+              <option value="eu">👤 Eu (Líder)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="m-atividade-existente">Puxar de uma atividade já cadastrada</label>
             <select id="m-atividade-existente">
               <option value="">— Escrever uma descrição nova —</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="m-projeto-planoacao-existente">Puxar de um projeto/plano de ação já cadastrado</label>
+            <select id="m-projeto-planoacao-existente">
+              <option value="">— Nenhum —</option>
             </select>
           </div>
           <div class="form-group">
@@ -1033,13 +1046,6 @@
                 <button type="button" class="tag-btn tag-large" data-group="m-esforco" data-value="dificil">🧱 Difícil de fazer</button>
               </div>
             </div>
-          </div>
-          <div class="form-group">
-            <label for="m-responsavel">Responsável</label>
-            <select id="m-responsavel">
-              <option value="">— Não atribuído —</option>
-              <option value="eu">👤 Eu (Líder)</option>
-            </select>
           </div>
           <div class="form-group">
             <label for="m-obs">Observação</label>
@@ -1744,6 +1750,6 @@
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <script src="app.js?v=20260929a"></script>
+  <script src="app.js?v=20260929b"></script>
 </body>
 </html>

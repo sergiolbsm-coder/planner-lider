@@ -347,12 +347,13 @@ function mapPlanoAcao(p) {
 }
 
 // Projetos/Iniciativas é o planejamento (Passo 5, item 1): nome, meta
-// vinculada, equipe/áreas, recursos e checkpoints — entidade própria,
+// vinculada, responsável, escopo e checkpoints — entidade própria,
 // separada do Plano de Ação.
 function mapProjeto(p) {
   return {
     id: p.id, nome: p.nome || '', metaId: p.meta_id || '',
-    equipeAreas: p.equipe_areas || '', recursos: p.recursos || '', checkpoints: p.checkpoints || '',
+    responsavelId: p.responsavel_eu ? 'eu' : (p.responsavel_id || ''),
+    recursos: p.recursos || '', checkpoints: p.checkpoints || '',
   };
 }
 function mapDesafio(d) {
@@ -2323,21 +2324,59 @@ function initFiltroMatrizResponsavel() {
   });
 }
 
+// As duas listas de "puxar de" só mostram itens do responsável selecionado
+// no topo do formulário — escolher o responsável primeiro é o que define o
+// que pode ser puxado, por isso este re-popula sempre que o responsável ou
+// as listas de origem (atividades/projetos/plano de ação) mudam.
 function popularSelectAtividadeMatriz() {
-  const select = document.getElementById('m-atividade-existente');
-  const atual = select.value;
-  select.innerHTML = '<option value="">— Escrever uma descrição nova —</option>' +
-    STATE.atividades.map(a => `<option value="${a.id}">${a.titulo}</option>`).join('');
-  select.value = atual;
+  const respAtual = document.getElementById('m-responsavel').value;
+
+  const selectAtividade = document.getElementById('m-atividade-existente');
+  const atualAtividade = selectAtividade.value;
+  const atividadesDoResponsavel = STATE.atividades.filter(a => (a.responsavelId || '') === respAtual);
+  selectAtividade.innerHTML = '<option value="">— Escrever uma descrição nova —</option>' +
+    atividadesDoResponsavel.map(a => `<option value="${a.id}">${a.titulo}</option>`).join('');
+  selectAtividade.value = atividadesDoResponsavel.some(a => a.id === atualAtividade) ? atualAtividade : '';
+
+  const selectProjPlano = document.getElementById('m-projeto-planoacao-existente');
+  const atualProjPlano = selectProjPlano.value;
+  const projetosDoResponsavel = STATE.projetos.filter(p => (p.responsavelId || '') === respAtual);
+  const planoAcaoDoResponsavel = STATE.planoAcao.filter(p => (p.responsavelId || '') === respAtual);
+  let html = '<option value="">— Nenhum —</option>';
+  if (projetosDoResponsavel.length) {
+    html += '<optgroup label="📋 Projetos / Iniciativas">' +
+      projetosDoResponsavel.map(p => `<option value="proj:${p.id}">${p.nome || '(sem nome)'}</option>`).join('') + '</optgroup>';
+  }
+  if (planoAcaoDoResponsavel.length) {
+    html += '<optgroup label="✅ Plano de Ação">' +
+      planoAcaoDoResponsavel.map(p => `<option value="plano:${p.id}">${p.acao || '(sem nome)'}</option>`).join('') + '</optgroup>';
+  }
+  selectProjPlano.innerHTML = html;
+  const idsValidos = [...projetosDoResponsavel.map(p => `proj:${p.id}`), ...planoAcaoDoResponsavel.map(p => `plano:${p.id}`)];
+  selectProjPlano.value = idsValidos.includes(atualProjPlano) ? atualProjPlano : '';
 }
 
 function initSelectAtividadeMatriz() {
+  document.getElementById('m-responsavel').addEventListener('change', popularSelectAtividadeMatriz);
+
   document.getElementById('m-atividade-existente').addEventListener('change', e => {
     const a = STATE.atividades.find(x => x.id === e.target.value);
     if (!a) return;
     document.getElementById('m-titulo').value = a.titulo;
     if (a.resultado === 'alto' || a.resultado === 'baixo') setTagValue('m-resultado', a.resultado);
     if (a.obs) document.getElementById('m-obs').value = a.obs;
+  });
+
+  document.getElementById('m-projeto-planoacao-existente').addEventListener('change', e => {
+    const [tipo, id] = e.target.value.split(':');
+    if (!tipo) return;
+    if (tipo === 'proj') {
+      const p = STATE.projetos.find(x => x.id === id);
+      if (p) document.getElementById('m-titulo').value = p.nome || '';
+    } else if (tipo === 'plano') {
+      const p = STATE.planoAcao.find(x => x.id === id);
+      if (p) document.getElementById('m-titulo').value = p.acao || '';
+    }
   });
 }
 
@@ -2384,6 +2423,7 @@ function resetFormMatriz() {
   document.getElementById('m-id').value = '';
   document.getElementById('form-matriz').reset();
   document.getElementById('m-responsavel').value = '';
+  popularSelectAtividadeMatriz();
   clearTagGroup('m-resultado');
   clearTagGroup('m-esforco');
   document.getElementById('matriz-form-title').textContent = 'Adicionar à Matriz';
@@ -2397,6 +2437,7 @@ function editarMatriz(id) {
   document.getElementById('m-titulo').value = m.titulo;
   document.getElementById('m-obs').value = m.obs || '';
   document.getElementById('m-responsavel').value = m.responsavelId || '';
+  popularSelectAtividadeMatriz();
   setTagValue('m-resultado', m.resultado);
   setTagValue('m-esforco', m.esforco);
   document.getElementById('matriz-form-title').textContent = 'Editar Item da Matriz';
@@ -3136,12 +3177,23 @@ function renderGargalos() {
 // PLANO DE AÇÃO / PROJETOS — tela própria (Passo 5 do material). Duas listas
 // INDEPENDENTES (cada uma com seu próprio cadastro, edição e exclusão):
 // - Projetos/Iniciativas (STATE.projetos): planejamento — nome, meta
-//   vinculada, equipe/áreas, recursos, checkpoints.
+//   vinculada, responsável, escopo, checkpoints.
 // - Plano de Ação (STATE.planoAcao): itens de ação — nome, responsável,
 //   início/fim, meta, status, lições aprendidas.
 // Não há vínculo 1:1 entre as duas — um item do Plano de Ação não "puxa"
 // nome nem nenhum outro campo de um Projeto.
 // ============================================================
+
+// Opções de responsável reutilizadas por Projetos, Plano de Ação e Matriz —
+// mesmo tri-estado 'eu'/liderado/não-atribuído usado em toda a tela.
+function opcoesResponsavel(respAtual) {
+  return `
+    <option value="">— Não atribuído —</option>
+    <option value="eu" ${respAtual === 'eu' ? 'selected' : ''}>👤 Eu (Líder)</option>
+    ${STATE.liderados.map(l => `<option value="${l.id}" ${l.id === respAtual ? 'selected' : ''}>${l.nome}</option>`).join('')}
+  `;
+}
+
 function renderProjetosIniciativas() {
   const container = document.getElementById('tabela-projetos-iniciativas');
   if (!container) return; // seção só existe na visão do líder
@@ -3156,14 +3208,14 @@ function renderProjetosIniciativas() {
 
   container.innerHTML = `
     <table class="tabela-simples tabela-plano">
-      <thead><tr><th>Projeto / Iniciativa</th><th>Meta vinculada</th><th>Equipe / Áreas</th><th>Recursos</th><th>Checkpoints</th><th></th></tr></thead>
+      <thead><tr><th>Projeto / Iniciativa</th><th>Meta vinculada</th><th>Responsável</th><th>Escopo</th><th>Checkpoints</th><th></th></tr></thead>
       <tbody>
         ${STATE.projetos.map(p => `
           <tr data-id="${p.id}">
             <td><input type="text" data-campo="nome" value="${p.nome || ''}" placeholder="Nome do projeto/iniciativa" /></td>
             <td><select data-campo="metaId">${opcoesMeta(p.metaId)}</select></td>
-            <td><input type="text" data-campo="equipeAreas" value="${p.equipeAreas || ''}" placeholder="Ex: Comercial, TI..." /></td>
-            <td><input type="text" data-campo="recursos" value="${p.recursos || ''}" placeholder="Orçamento, ferramentas..." /></td>
+            <td><select data-campo="responsavelId">${opcoesResponsavel(p.responsavelId)}</select></td>
+            <td><input type="text" data-campo="recursos" value="${p.recursos || ''}" placeholder="O que está incluído/fora do escopo..." /></td>
             <td><input type="text" data-campo="checkpoints" value="${p.checkpoints || ''}" placeholder="Marcos de revisão..." /></td>
             <td><button class="btn-icon btn-icon-sm btn-icon-danger" title="Remover" onclick="excluirLinhaProjeto('${p.id}')">🗑️</button></td>
           </tr>
@@ -3174,6 +3226,8 @@ function renderProjetosIniciativas() {
   container.querySelectorAll('input[data-campo], select[data-campo]').forEach(el => {
     el.addEventListener('change', () => salvarCampoProjeto(el));
   });
+
+  popularSelectAtividadeMatriz(); // nome/responsável do projeto podem ter mudado
 }
 
 async function salvarCampoProjeto(el) {
@@ -3183,6 +3237,7 @@ async function salvarCampoProjeto(el) {
   item[el.dataset.campo] = el.value;
   try {
     await Api.atualizarProjeto(id, { [el.dataset.campo]: el.value });
+    popularSelectAtividadeMatriz();
   } catch (err) {
     mostrarToast(err.message, 'error');
   }
@@ -3205,11 +3260,6 @@ function renderPlanoAcaoItens() {
   if (STATE.planoAcao.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><p>Nenhum item de ação cadastrado ainda.</p></div>`;
   } else {
-    const opcoesResponsavel = respAtual => `
-      <option value="">— Não atribuído —</option>
-      <option value="eu" ${respAtual === 'eu' ? 'selected' : ''}>👤 Eu (Líder)</option>
-      ${STATE.liderados.map(l => `<option value="${l.id}" ${l.id === respAtual ? 'selected' : ''}>${l.nome}</option>`).join('')}
-    `;
     const opcoesMeta = metaIdAtual => `<option value="">— Nenhuma —</option>` +
       STATE.metas.map(m => `<option value="${m.id}" ${m.id === metaIdAtual ? 'selected' : ''}>${m.nome}</option>`).join('');
     const opcoesStatus = statusAtual => STATUS_ORDEM.map(k => `<option value="${k}" ${k === statusAtual ? 'selected' : ''}>${STATUS_CONFIG[k].label}</option>`).join('');
@@ -3240,6 +3290,7 @@ function renderPlanoAcaoItens() {
 
   atualizarVinculoAtividade('a');
   atualizarVinculoAtividade('ma');
+  popularSelectAtividadeMatriz(); // nome/responsável do item podem ter mudado
 }
 
 // Salva só o campo que mudou (PUT parcial de verdade).
@@ -3256,6 +3307,7 @@ async function salvarCampoPlanoAcao(el) {
       atualizarVinculoAtividade('ma');
     }
     renderDashboardPlanoAcao();
+    popularSelectAtividadeMatriz();
   } catch (err) {
     mostrarToast(err.message, 'error');
   }
