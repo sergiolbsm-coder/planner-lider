@@ -10,7 +10,7 @@
        vendo a versão antiga por até 4h mesmo depois do deploy. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Cormorant+Garamond:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260927u" />
+  <link rel="stylesheet" href="style.css?v=20260927v" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@9.7.2/dist/index.iife.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -156,14 +156,16 @@
               <label for="l-cargo">Cargo / Função *</label>
               <input type="text" id="l-cargo" placeholder="Ex: Analista, Coordenador..." required />
             </div>
-            <div class="form-group">
-              <label for="l-email">E-mail de acesso *</label>
-              <input type="email" id="l-email" placeholder="liderado@empresa.com" required />
-            </div>
-            <div class="form-group" id="grupo-senha-liderado">
-              <label for="l-senha">Senha de acesso *</label>
-              <input type="password" id="l-senha" minlength="6" placeholder="Mínimo 6 caracteres — combine com o liderado" />
-            </div>
+          </div>
+          <div class="form-group">
+            <label for="l-email">E-mail de acesso <span class="label-hint-inline">(opcional — dá pra liberar o acesso depois)</span></label>
+            <input type="email" id="l-email" class="input-largo" placeholder="liderado@empresa.com" />
+          </div>
+          <div class="form-group" id="grupo-senha-liderado">
+            <label for="l-senha">Senha de acesso <span class="label-hint-inline">(opcional)</span></label>
+            <input type="password" id="l-senha" class="input-largo" minlength="6" placeholder="Mínimo 6 caracteres — combine com o liderado" />
+          </div>
+          <div class="form-grid-2">
             <div class="form-group">
               <label for="l-data-inicio">Data de início na empresa</label>
               <input type="date" id="l-data-inicio" />
@@ -205,6 +207,31 @@
             <button type="submit" class="btn-primary">💾 Salvar Liderado</button>
           </div>
         </form>
+      </div>
+
+      <!-- Inserção Direta: tabela rápida pra cadastrar vários liderados de uma vez,
+           sem abrir o formulário completo (o perfil detalhado dá pra completar depois). -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-icon">⚡</span>
+          <h2>Inserção Direta</h2>
+        </div>
+        <p class="label-hint">Cadastro rápido: preencha uma linha por liderado e clique em ✓ pra salvar. E-mail e senha são opcionais — dá pra liberar o acesso depois editando o cadastro.</p>
+        <div class="tabela-insercao-direta-wrap">
+          <table class="tabela-insercao-direta">
+            <thead>
+              <tr>
+                <th>Nome *</th>
+                <th>Cargo</th>
+                <th>E-mail de acesso (opcional)</th>
+                <th>Senha de acesso (opcional)</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tabela-insercao-direta-corpo"></tbody>
+          </table>
+        </div>
+        <button type="button" class="btn-secondary btn-add-linha" id="btn-add-linha-insercao-direta">➕ Adicionar linha</button>
       </div>
 
       <!-- Painel com cards dos liderados -->
@@ -1669,6 +1696,6 @@
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <script src="app.js?v=20260927u"></script>
+  <script src="app.js?v=20260927v"></script>
 </body>
 </html>

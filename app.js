@@ -12,6 +12,7 @@
 // ============================================================
 const STATE = {
   liderados: [],
+  insercaoDiretaLinhas: [], // linhas em edição da tabela de cadastro rápido de liderados
   atividades: [],
   matriz: [],
   metas: [],
@@ -629,6 +630,7 @@ function sair() {
   STATE.meuPerfil = null; STATE.minhasAtividades = []; STATE.minhasMetas = []; STATE.meusFeedbacks = [];
   STATE.turmas = []; STATE.turmaSelecionadaId = null; STATE.turmaLideres = []; STATE.turmaDesafios = []; STATE.turmaArquivos = []; STATE.lideresSemTurma = [];
   STATE.agendaRotinaSemana = null;
+  STATE.insercaoDiretaLinhas = [];
   document.getElementById('form-login').reset();
   document.getElementById('auth-erro').style.display = 'none';
   mostrarTela('auth');
@@ -874,6 +876,7 @@ function renderLiderados() {
           <div class="liderado-cargo">${l.cargo}</div>
           ${l.perfil ? `<span class="liderado-perfil-tag" style="background:${PERFIL_CORES[l.perfil]}20;color:${PERFIL_CORES[l.perfil]}">${l.perfil}</span>` : ''}
           ${l.dataInicio ? `<span class="liderado-tempo">⏱ ${tempoNaEmpresa(l.dataInicio)}</span>` : ''}
+          ${!l.email ? `<span class="liderado-sem-acesso" title="Cadastrado só com o perfil — edite pra liberar o acesso">🔒 Sem acesso ainda</span>` : ''}
         </div>
         <div class="liderado-acoes">
           <button class="btn-icon" title="Diário de Bordo" onclick="abrirDiarioDoLiderado('${l.id}')">📓</button>
@@ -898,7 +901,17 @@ function initFormLiderado() {
     const cargo = document.getElementById('l-cargo').value.trim();
     const email = document.getElementById('l-email').value.trim();
     const senha = document.getElementById('l-senha').value;
-    if (!nome || !cargo || !email) { mostrarToast('Preencha nome, cargo e e-mail.', 'error'); return; }
+    if (!nome || !cargo) { mostrarToast('Preencha nome e cargo.', 'error'); return; }
+
+    // E-mail e senha de acesso são opcionais — dá pra cadastrar só o perfil
+    // e liberar o acesso depois. Mas se um dos dois vier preenchido, os dois
+    // têm que vir juntos (senão fica um login pela metade).
+    const podeDefinirAcesso = document.getElementById('grupo-senha-liderado').style.display !== 'none';
+    const tentandoDefinirAcesso = podeDefinirAcesso && (email || senha);
+    if (tentandoDefinirAcesso) {
+      if (!email || !senha) { mostrarToast('Informe e-mail e senha juntos pra liberar o acesso, ou deixe os dois em branco.', 'error'); return; }
+      if (senha.length < 6) { mostrarToast('A senha precisa ter pelo menos 6 caracteres.', 'error'); return; }
+    }
 
     const dadosComuns = {
       nome, cargo,
@@ -910,6 +923,7 @@ function initFormLiderado() {
       desenvolvimento: document.getElementById('l-desenvolvimento').value.trim(),
       obs: document.getElementById('l-obs').value.trim(),
     };
+    if (tentandoDefinirAcesso) { dadosComuns.email = email; dadosComuns.senha = senha; }
 
     const id = document.getElementById('l-id').value;
     const restaurar = iniciarCarregamentoBotao(form.querySelector('button[type=submit]'), 'Salvando...');
@@ -920,10 +934,9 @@ function initFormLiderado() {
         STATE.liderados[idx] = atualizado;
         mostrarToast('Liderado atualizado com sucesso!');
       } else {
-        if (!senha || senha.length < 6) { mostrarToast('Defina uma senha de acesso com pelo menos 6 caracteres.', 'error'); return; }
-        const criado = mapLiderado(await Api.criarLiderado({ ...dadosComuns, email, senha }));
+        const criado = mapLiderado(await Api.criarLiderado(dadosComuns));
         STATE.liderados.push(criado);
-        mostrarToast('Liderado cadastrado! Combine o e-mail e a senha de acesso com ele(a).');
+        mostrarToast(tentandoDefinirAcesso ? 'Liderado cadastrado! Combine o e-mail e a senha de acesso com ele(a).' : 'Liderado cadastrado! Você pode liberar o acesso dele(a) quando quiser, editando o cadastro.');
       }
       renderLiderados();
       resetFormLiderado();
@@ -946,15 +959,112 @@ function resetFormLiderado() {
   document.getElementById('btn-cancelar-liderado').style.display = 'none';
 }
 
+// ============================================================
+// INSERÇÃO DIRETA — tabela de cadastro rápido de liderados (Nome, Cargo,
+// E-mail e Senha opcionais), pra quem tem vários nomes pra lançar de uma vez
+// sem abrir o formulário completo a cada um. Os inputs não são recriados a
+// cada tecla digitada (só quando uma linha é adicionada/removida/salva),
+// senão perderia o foco a cada letra — mesmo cuidado da tabela de Plano de
+// Ação.
+// ============================================================
+function gerarIdLinhaInsercaoDireta() {
+  return 'linha-' + Math.random().toString(36).slice(2, 9);
+}
+
+function renderInsercaoDiretaLiderados() {
+  const corpo = document.getElementById('tabela-insercao-direta-corpo');
+  if (!corpo) return;
+  if (STATE.insercaoDiretaLinhas.length === 0) {
+    STATE.insercaoDiretaLinhas = [gerarIdLinhaInsercaoDireta(), gerarIdLinhaInsercaoDireta(), gerarIdLinhaInsercaoDireta()];
+  }
+  corpo.innerHTML = STATE.insercaoDiretaLinhas.map(id => `
+    <tr data-linha-id="${id}">
+      <td><input type="text" class="id-linha-nome" placeholder="Nome completo" /></td>
+      <td><input type="text" class="id-linha-cargo" placeholder="Cargo" /></td>
+      <td><input type="email" class="id-linha-email" placeholder="opcional" /></td>
+      <td><input type="password" class="id-linha-senha" placeholder="opcional" minlength="6" /></td>
+      <td class="tabela-insercao-direta-acoes">
+        <button type="button" class="btn-icon btn-icon-sm btn-salvar-linha" title="Salvar liderado">✓</button>
+        <button type="button" class="btn-icon btn-icon-sm btn-icon-danger btn-remover-linha" title="Remover linha">🗑️</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function salvarLinhaInsercaoDireta(tr) {
+  const nome = tr.querySelector('.id-linha-nome').value.trim();
+  const cargo = tr.querySelector('.id-linha-cargo').value.trim();
+  const email = tr.querySelector('.id-linha-email').value.trim();
+  const senha = tr.querySelector('.id-linha-senha').value;
+
+  if (!nome) { mostrarToast('Informe o nome do liderado.', 'error'); return; }
+  if ((email && !senha) || (!email && senha)) {
+    mostrarToast('Informe e-mail e senha juntos, ou deixe os dois em branco pra liberar o acesso depois.', 'error');
+    return;
+  }
+  if (senha && senha.length < 6) { mostrarToast('A senha precisa ter pelo menos 6 caracteres.', 'error'); return; }
+
+  const dados = { nome, cargo };
+  if (email) { dados.email = email; dados.senha = senha; }
+
+  const linhaId = tr.dataset.linhaId;
+  const restaurar = iniciarCarregamentoBotao(tr.querySelector('.btn-salvar-linha'), '');
+  try {
+    const criado = mapLiderado(await Api.criarLiderado(dados));
+    STATE.liderados.push(criado);
+    renderLiderados();
+    STATE.insercaoDiretaLinhas = STATE.insercaoDiretaLinhas.filter(id => id !== linhaId);
+    if (STATE.insercaoDiretaLinhas.length === 0) STATE.insercaoDiretaLinhas.push(gerarIdLinhaInsercaoDireta());
+    renderInsercaoDiretaLiderados();
+    mostrarToast(`${nome} cadastrado!`);
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+    restaurar();
+  }
+}
+
+function initInsercaoDiretaLiderados() {
+  renderInsercaoDiretaLiderados();
+
+  document.getElementById('btn-add-linha-insercao-direta').addEventListener('click', () => {
+    STATE.insercaoDiretaLinhas.push(gerarIdLinhaInsercaoDireta());
+    renderInsercaoDiretaLiderados();
+  });
+
+  const corpo = document.getElementById('tabela-insercao-direta-corpo');
+  corpo.addEventListener('click', e => {
+    const tr = e.target.closest('tr');
+    if (!tr) return;
+    if (e.target.closest('.btn-salvar-linha')) { salvarLinhaInsercaoDireta(tr); return; }
+    if (e.target.closest('.btn-remover-linha')) {
+      const linhaId = tr.dataset.linhaId;
+      STATE.insercaoDiretaLinhas = STATE.insercaoDiretaLinhas.filter(id => id !== linhaId);
+      if (STATE.insercaoDiretaLinhas.length === 0) STATE.insercaoDiretaLinhas.push(gerarIdLinhaInsercaoDireta());
+      renderInsercaoDiretaLiderados();
+    }
+  });
+
+  corpo.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.target.tagName !== 'INPUT') return;
+    e.preventDefault();
+    const tr = e.target.closest('tr');
+    if (tr) salvarLinhaInsercaoDireta(tr);
+  });
+}
+
 function editarLiderado(id) {
   const l = STATE.liderados.find(x => x.id === id);
   if (!l) return;
   document.getElementById('l-id').value = l.id;
   document.getElementById('l-nome').value = l.nome;
   document.getElementById('l-cargo').value = l.cargo;
+  const temAcesso = !!l.email;
   document.getElementById('l-email').value = l.email || '';
-  document.getElementById('l-email').readOnly = true;
-  document.getElementById('grupo-senha-liderado').style.display = 'none';
+  document.getElementById('l-email').readOnly = temAcesso;
+  document.getElementById('l-senha').value = '';
+  // Se ainda não tem e-mail, deixa o campo de senha aberto pra liberar o
+  // acesso agora; se já tem, mantém escondido (trocar senha é outra tela).
+  document.getElementById('grupo-senha-liderado').style.display = temAcesso ? 'none' : 'block';
   document.getElementById('l-data-inicio').value = l.dataInicio || '';
   document.getElementById('l-perfil').value = l.perfil || '';
   document.getElementById('l-habilidades').value = l.habilidades || '';
@@ -4645,6 +4755,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Liderados
   initSeguro('formLiderado', initFormLiderado);
+  initSeguro('insercaoDiretaLiderados', initInsercaoDiretaLiderados);
   initSeguro('modalLiderado', initModalLiderado);
 
   // Diário de Bordo
