@@ -474,7 +474,10 @@ async function baixarArquivo(id, nome) {
     const res = await fetch(API_BASE + '/arquivos/' + id + '/download', {
       headers: { Authorization: 'Bearer ' + AUTH.token },
     });
-    if (!res.ok) throw new Error('Não foi possível baixar o arquivo.');
+    if (!res.ok) {
+      const corpo = await res.json().catch(() => null);
+      throw new Error((corpo && corpo.erro) || `Não foi possível baixar o arquivo (erro ${res.status}).`);
+    }
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
