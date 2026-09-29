@@ -322,7 +322,16 @@ function mapDiario(d) {
   };
 }
 function mapPlanoAcao(p) {
-  return { id: p.id, acao: p.acao || '', comoFazer: p.como_fazer || '', impacto: p.impacto || '', prazo: p.prazo || '' };
+  return {
+    id: p.id, acao: p.acao || '', comoFazer: p.como_fazer || '', impacto: p.impacto || '', prazo: p.prazo || '',
+    responsavelId: p.responsavel_eu ? 'eu' : (p.responsavel_id || ''),
+    metaId: p.meta_id || '',
+    equipeAreas: p.equipe_areas || '', recursos: p.recursos || '', checkpoints: p.checkpoints || '',
+    dataInicio: p.data_inicio ? String(p.data_inicio).slice(0, 10) : '',
+    dataFim: p.data_fim ? String(p.data_fim).slice(0, 10) : '',
+    status: p.status || 'novo',
+    licoesAprendidas: p.licoes_aprendidas || '',
+  };
 }
 function mapDesafio(d) {
   return {
@@ -889,6 +898,7 @@ function renderLiderados() {
   popularSelectsResponsavel();
   renderDiarioSeletor();
   renderDiarioEquipe();
+  renderAcompanhamentoPlanos(); // opções de responsável (liderados) podem ter mudado
 }
 
 function initFormLiderado() {
@@ -1520,6 +1530,9 @@ function popularSelectsMeta() {
   document.getElementById('filtro-meta').innerHTML = '<option value="todos">Todas</option>' +
     STATE.metas.map(m => `<option value="${m.id}">${m.nome}</option>`).join('');
   document.getElementById('filtro-meta').value = atualFiltro || 'todos';
+
+  renderProjetosIniciativas(); // opções de meta vinculável podem ter mudado
+  renderAcompanhamentoPlanos();
 }
 
 function nomeResponsavel(a) {
@@ -3075,44 +3088,108 @@ function renderGargalos() {
   `).join('');
 }
 
-function renderPlanoAcao() {
-  renderDesafios();
-  const container = document.getElementById('tabela-plano-acao');
+// ============================================================
+// PLANO DE AÇÃO / PROJETOS — tela própria (Passo 5 do material: Projetos/
+// Iniciativas + Acompanhamento de Planos por Equipe). As duas abas editam
+// a MESMA linha de STATE.planoAcao — só mostram campos diferentes: uma o
+// planejamento (equipe/áreas, recursos, checkpoints), outra o acompanhamento
+// (responsável, prazo, meta, status, lições aprendidas).
+// ============================================================
+function renderProjetosIniciativas() {
+  const container = document.getElementById('tabela-projetos-iniciativas');
+  if (!container) return; // seção só existe na visão do líder
+
   if (STATE.planoAcao.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><p>Nenhuma ação cadastrada.</p></div>`;
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>Nenhum projeto/iniciativa cadastrado ainda.</p></div>`;
+  } else {
+    const opcoesMeta = metaIdAtual => `<option value="">— Nenhuma —</option>` +
+      STATE.metas.map(m => `<option value="${m.id}" ${m.id === metaIdAtual ? 'selected' : ''}>${m.nome}</option>`).join('');
+
+    container.innerHTML = `
+      <table class="tabela-simples tabela-plano">
+        <thead><tr><th>Projeto / Iniciativa</th><th>Meta vinculada</th><th>Equipe / Áreas</th><th>Recursos</th><th>Checkpoints</th><th></th></tr></thead>
+        <tbody>
+          ${STATE.planoAcao.map(p => `
+            <tr data-id="${p.id}">
+              <td><input type="text" data-campo="acao" value="${p.acao || ''}" placeholder="Nome do projeto/iniciativa" /></td>
+              <td><select data-campo="metaId">${opcoesMeta(p.metaId)}</select></td>
+              <td><input type="text" data-campo="equipeAreas" value="${p.equipeAreas || ''}" placeholder="Ex: Comercial, TI..." /></td>
+              <td><input type="text" data-campo="recursos" value="${p.recursos || ''}" placeholder="Orçamento, ferramentas..." /></td>
+              <td><input type="text" data-campo="checkpoints" value="${p.checkpoints || ''}" placeholder="Marcos de revisão..." /></td>
+              <td><button class="btn-icon btn-icon-sm btn-icon-danger" title="Remover" onclick="excluirLinhaPlanoAcao('${p.id}')">🗑️</button></td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>`;
+
+    container.querySelectorAll('input[data-campo], select[data-campo]').forEach(el => {
+      el.addEventListener('change', () => salvarCampoPlanoAcao(el));
+    });
+  }
+
+  atualizarVinculoAtividade('a');
+  atualizarVinculoAtividade('ma');
+}
+
+function renderAcompanhamentoPlanos() {
+  const container = document.getElementById('tabela-acompanhamento-planos');
+  if (!container) return;
+
+  if (STATE.planoAcao.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><p>Cadastre um projeto/iniciativa na outra aba pra acompanhar aqui.</p></div>`;
     return;
   }
+
+  const opcoesResponsavel = respAtual => `
+    <option value="">— Não atribuído —</option>
+    <option value="eu" ${respAtual === 'eu' ? 'selected' : ''}>👤 Eu (Líder)</option>
+    ${STATE.liderados.map(l => `<option value="${l.id}" ${l.id === respAtual ? 'selected' : ''}>${l.nome}</option>`).join('')}
+  `;
+  const opcoesMeta = metaIdAtual => `<option value="">— Nenhuma —</option>` +
+    STATE.metas.map(m => `<option value="${m.id}" ${m.id === metaIdAtual ? 'selected' : ''}>${m.nome}</option>`).join('');
+  const opcoesStatus = statusAtual => STATUS_ORDEM.map(k => `<option value="${k}" ${k === statusAtual ? 'selected' : ''}>${STATUS_CONFIG[k].label}</option>`).join('');
+
   container.innerHTML = `
     <table class="tabela-simples tabela-plano">
-      <thead><tr><th>Ação</th><th>Como fazer</th><th>Impacto esperado</th><th>Prazo</th><th></th></tr></thead>
+      <thead><tr><th>Plano de Ação</th><th>Responsável</th><th>Início</th><th>Fim</th><th>Meta</th><th>Status</th><th>Lições Aprendidas</th></tr></thead>
       <tbody>
         ${STATE.planoAcao.map(p => `
           <tr data-id="${p.id}">
-            <td><input type="text" data-campo="acao" value="${p.acao || ''}" /></td>
-            <td><input type="text" data-campo="comoFazer" value="${p.comoFazer || ''}" /></td>
-            <td><input type="text" data-campo="impacto" value="${p.impacto || ''}" /></td>
-            <td><input type="text" data-campo="prazo" value="${p.prazo || ''}" /></td>
-            <td><button class="btn-icon btn-icon-sm btn-icon-danger" title="Remover" onclick="excluirLinhaPlanoAcao('${p.id}')">🗑️</button></td>
+            <td>${p.acao ? p.acao : '<span class="celula-vazia">(defina o nome na aba Projetos/Iniciativas)</span>'}</td>
+            <td><select data-campo="responsavelId">${opcoesResponsavel(p.responsavelId)}</select></td>
+            <td><input type="date" data-campo="dataInicio" value="${p.dataInicio || ''}" /></td>
+            <td><input type="date" data-campo="dataFim" value="${p.dataFim || ''}" /></td>
+            <td><select data-campo="metaId">${opcoesMeta(p.metaId)}</select></td>
+            <td><select data-campo="status">${opcoesStatus(p.status)}</select></td>
+            <td><input type="text" data-campo="licoesAprendidas" value="${p.licoesAprendidas || ''}" placeholder="O que aprendemos..." /></td>
           </tr>
         `).join('')}
       </tbody>
     </table>`;
 
-  container.querySelectorAll('input[data-campo]').forEach(input => {
-    input.addEventListener('change', async () => {
-      const id = input.closest('tr').dataset.id;
-      const item = STATE.planoAcao.find(p => p.id === id);
-      if (!item) return;
-      item[input.dataset.campo] = input.value;
-      try {
-        await Api.atualizarPlanoAcao(id, { acao: item.acao, comoFazer: item.comoFazer, impacto: item.impacto, prazo: item.prazo });
-        if (input.dataset.campo === 'acao') { atualizarVinculoAtividade('a'); atualizarVinculoAtividade('ma'); }
-      } catch (err) { mostrarToast(err.message, 'error'); }
-    });
+  container.querySelectorAll('input[data-campo], select[data-campo]').forEach(el => {
+    el.addEventListener('change', () => salvarCampoPlanoAcao(el));
   });
+}
 
-  atualizarVinculoAtividade('a');
-  atualizarVinculoAtividade('ma');
+// Salva só o campo que mudou (PUT parcial de verdade — cada aba manda um
+// conjunto de campos diferente, então não dá pra reenviar a linha toda).
+async function salvarCampoPlanoAcao(el) {
+  const tr = el.closest('tr');
+  const id = tr.dataset.id;
+  const item = STATE.planoAcao.find(p => p.id === id);
+  if (!item) return;
+  item[el.dataset.campo] = el.value;
+  try {
+    await Api.atualizarPlanoAcao(id, { [el.dataset.campo]: el.value });
+    if (el.dataset.campo === 'acao') {
+      renderAcompanhamentoPlanos(); // o nome do plano aparece só-leitura lá
+      atualizarVinculoAtividade('a');
+      atualizarVinculoAtividade('ma');
+    }
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
 }
 
 async function excluirLinhaPlanoAcao(id) {
@@ -3120,7 +3197,8 @@ async function excluirLinhaPlanoAcao(id) {
     await Api.excluirPlanoAcao(id);
     STATE.planoAcao = STATE.planoAcao.filter(p => p.id !== id);
     STATE.atividades.forEach(a => { if (a.planoAcaoId === id) { a.planoAcaoId = ''; a.tipoVinculo = ''; } });
-    renderPlanoAcao();
+    renderProjetosIniciativas();
+    renderAcompanhamentoPlanos();
     renderAtividades();
   } catch (err) {
     mostrarToast(err.message, 'error');
@@ -3128,11 +3206,12 @@ async function excluirLinhaPlanoAcao(id) {
 }
 
 function initPlanoAcao() {
-  document.getElementById('btn-add-plano-acao').addEventListener('click', async () => {
+  document.getElementById('btn-add-projeto').addEventListener('click', async () => {
     try {
-      const novo = mapPlanoAcao(await Api.criarPlanoAcao({ acao: '', comoFazer: '', impacto: '', prazo: '', ordem: STATE.planoAcao.length }));
+      const novo = mapPlanoAcao(await Api.criarPlanoAcao({ acao: '', ordem: STATE.planoAcao.length }));
       STATE.planoAcao.push(novo);
-      renderPlanoAcao();
+      renderProjetosIniciativas();
+      renderAcompanhamentoPlanos();
     } catch (err) { mostrarToast(err.message, 'error'); }
   });
 }
@@ -3143,7 +3222,6 @@ function renderDashboardAll() {
   renderGraficoDashAtual();
   renderGraficoDashIdeal();
   renderGargalos();
-  renderPlanoAcao();
   renderDashboardDesafios();
   renderDashboardMetas();
 }
@@ -4674,6 +4752,8 @@ function renderTudo() {
   renderAtividades();
   renderMetas();
   renderMatriz();
+  renderProjetosIniciativas();
+  renderAcompanhamentoPlanos();
   renderDashboardAll();
   renderPlanoGestao();
   renderDiagnostico();
