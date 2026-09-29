@@ -615,6 +615,8 @@ select { cursor: pointer; }
 .diagnostico-desafios .diagnostico-coluna-titulo { color: #e74c3c; }
 .diagnostico-oportunidades .diagnostico-coluna-titulo { color: #1a9e6e; }
 .diagnostico-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border-radius: var(--radius-sm); background: var(--bg); margin-bottom: 6px; font-size: 13.5px; }
+.campo-resposta-atual { align-items: flex-start; margin-bottom: 10px; }
+.campo-resposta-atual span { white-space: pre-wrap; }
 .diagnostico-form { display: flex; gap: 8px; margin-top: 10px; }
 .diagnostico-form input { flex: 1; }
 .lider-linha { margin-bottom: 6px; }
