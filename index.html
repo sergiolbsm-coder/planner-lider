@@ -10,7 +10,7 @@
        vendo a versão antiga por até 4h mesmo depois do deploy. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Cormorant+Garamond:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260927s" />
+  <link rel="stylesheet" href="style.css?v=20260927t" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@9.7.2/dist/index.iife.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1199,7 +1199,32 @@
             <button type="submit" class="btn-primary">➕ Adicionar ao Registro</button>
           </div>
         </form>
-        <div id="tabela-rotina" class="tabela-rotina"></div>
+        <div class="subtabs">
+          <button class="subtab-btn active" data-subview="rotina-lista">📋 Lista do dia</button>
+          <button class="subtab-btn" data-subview="rotina-agenda">📅 Agenda da semana</button>
+        </div>
+
+        <div id="view-rotina-lista" class="subview active">
+          <div id="tabela-rotina" class="tabela-rotina"></div>
+        </div>
+
+        <div id="view-rotina-agenda" class="subview">
+          <div class="agenda-rotina-nav">
+            <button type="button" class="btn-icon" id="btn-agenda-semana-anterior" title="Semana anterior">◀</button>
+            <span class="agenda-rotina-periodo" id="agenda-rotina-periodo">—</span>
+            <button type="button" class="btn-icon" id="btn-agenda-semana-seguinte" title="Semana seguinte">▶</button>
+            <button type="button" class="btn-secondary" id="btn-agenda-semana-hoje">Hoje</button>
+          </div>
+          <div class="agenda-rotina-legenda">
+            <span class="tag-pill" style="background:#f5eef8;color:#9b59b6">🏆 Estratégico</span>
+            <span class="tag-pill" style="background:#eaf4fb;color:#2980b9">⚙️ Tático</span>
+            <span class="tag-pill" style="background:#eafaf1;color:#27ae60">🔧 Operacional</span>
+          </div>
+          <div class="agenda-rotina-wrap">
+            <div class="agenda-rotina-cabecalho" id="agenda-rotina-cabecalho"></div>
+            <div class="agenda-rotina-corpo" id="agenda-rotina-corpo"></div>
+          </div>
+        </div>
       </div>
 
       <div class="dashboard-grid-3">
@@ -1643,6 +1668,6 @@
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <script src="app.js?v=20260927s"></script>
+  <script src="app.js?v=20260927t"></script>
 </body>
 </html>
