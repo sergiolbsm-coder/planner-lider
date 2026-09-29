@@ -10,7 +10,7 @@
        vendo a versão antiga por até 4h mesmo depois do deploy. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Cormorant+Garamond:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260927z" />
+  <link rel="stylesheet" href="style.css?v=20260929a" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@9.7.2/dist/index.iife.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -1035,6 +1035,13 @@
             </div>
           </div>
           <div class="form-group">
+            <label for="m-responsavel">Responsável</label>
+            <select id="m-responsavel">
+              <option value="">— Não atribuído —</option>
+              <option value="eu">👤 Eu (Líder)</option>
+            </select>
+          </div>
+          <div class="form-group">
             <label for="m-obs">Observação</label>
             <input type="text" id="m-obs" placeholder="Contexto ou próximo passo..." />
           </div>
@@ -1043,6 +1050,17 @@
             <button type="submit" class="btn-primary">💾 Adicionar à Matriz</button>
           </div>
         </form>
+      </div>
+
+      <!-- Filtro de visão: toda a área (gestão) ou de uma pessoa específica -->
+      <div class="card matriz-filtro-card">
+        <div class="form-group" style="margin:0">
+          <label for="filtro-matriz-responsavel">Ver matriz de</label>
+          <select id="filtro-matriz-responsavel">
+            <option value="todos">👥 Toda a área (gestão)</option>
+            <option value="eu">👤 Eu (Líder)</option>
+          </select>
+        </div>
       </div>
 
       <!-- Matriz visual 2x2 -->
@@ -1140,7 +1158,7 @@
 
       <div class="subtabs">
         <button class="subtab-btn active" data-subview="plano-projetos">📋 Projetos / Iniciativas</button>
-        <button class="subtab-btn" data-subview="plano-acompanhamento">📊 Acompanhamento por Equipe</button>
+        <button class="subtab-btn" data-subview="plano-acompanhamento">✅ Plano de Ação</button>
       </div>
 
       <div id="view-plano-projetos" class="subview active">
@@ -1154,9 +1172,10 @@
 
       <div id="view-plano-acompanhamento" class="subview">
         <div class="card">
-          <div class="card-header"><span class="card-icon">📊</span><h2>Acompanhamento de Planos por Equipe</h2></div>
-          <p class="label-hint">O acompanhamento: quem é o responsável, prazo, status e o que já foi aprendido. Cadastre o projeto na aba ao lado antes de acompanhar aqui.</p>
+          <div class="card-header"><span class="card-icon">✅</span><h2>Plano de Ação</h2></div>
+          <p class="label-hint">Os itens de ação, com responsável, prazo, status e o que já foi aprendido — cadastrados de forma independente dos projetos/iniciativas.</p>
           <div id="tabela-acompanhamento-planos" class="tabela-plano"></div>
+          <button type="button" class="btn-secondary btn-add-linha" id="btn-add-item-plano-acao">➕ Adicionar item</button>
         </div>
       </div>
 
@@ -1199,9 +1218,18 @@
       </div>
 
       <div class="card">
-        <div class="card-header"><span class="card-icon">✅</span><h2>Plano de Ação / Projetos</h2></div>
-        <p class="label-hint">O cadastro de projetos, iniciativas e acompanhamento por equipe agora tem uma tela própria.</p>
-        <button type="button" class="btn-primary" onclick="irParaSecao('plano-acao')">📋 Ir para Plano de Ação / Projetos</button>
+        <div class="card-header">
+          <span class="card-icon">✅</span>
+          <h2>Plano de Ação — Status</h2>
+          <span class="badge" id="dash-plano-acao-badge">0</span>
+          <button type="button" class="btn-secondary" onclick="irParaSecao('plano-acao')">📋 Ir para Plano de Ação / Projetos</button>
+        </div>
+        <div id="dash-plano-acao-vazio" class="empty-state" style="display:none"><div class="empty-icon">✅</div><p>Nenhum item de plano de ação cadastrado ainda.</p></div>
+        <div id="dash-plano-acao-conteudo">
+          <div class="stats-grid-4col" id="dash-plano-acao-status"></div>
+          <div class="dash-metas-bsc-titulo">Próximas entregas</div>
+          <div id="dash-plano-acao-proximas" class="dash-plano-acao-lista"></div>
+        </div>
       </div>
 
       <div class="card form-card">
@@ -1716,6 +1744,6 @@
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <script src="app.js?v=20260927z"></script>
+  <script src="app.js?v=20260929a"></script>
 </body>
 </html>

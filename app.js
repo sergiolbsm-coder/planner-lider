@@ -21,6 +21,7 @@ const STATE = {
   diarioSelecionadoId: null,
   metaIdeal: { operacional: 30, tatico: 40, estrategico: 30 },
   planoAcao: [],
+  projetos: [],
   estatisticasDiario: null,
   arquivos: [],        // arquivos da aula que o líder subiu
   arquivosTurma: [],   // (visão do liderado) arquivos disponibilizados pelo seu líder
@@ -30,6 +31,7 @@ const STATE = {
   filtroResultado: 'todos',
   filtroTipo: 'todos',
   filtroResponsavel: 'todos',
+  filtroMatrizResponsavel: 'todos',
   filtroMeta: 'todos',
   lideradoSelecionado: null,
   // Visão do liderado (papel "liderado")
@@ -223,6 +225,11 @@ const Api = {
   atualizarPlanoAcao: (id, dados) => api('/plano-acao/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
   excluirPlanoAcao: id => api('/plano-acao/' + id, { method: 'DELETE' }),
 
+  listarProjetos: () => api('/projetos'),
+  criarProjeto: dados => api('/projetos', { method: 'POST', body: JSON.stringify(dados) }),
+  atualizarProjeto: (id, dados) => api('/projetos/' + id, { method: 'PUT', body: JSON.stringify(dados) }),
+  excluirProjeto: id => api('/projetos/' + id, { method: 'DELETE' }),
+
   getDashboardConfig: () => api('/dashboard-config'),
   atualizarDashboardConfig: dados => api('/dashboard-config', { method: 'PUT', body: JSON.stringify(dados) }),
 
@@ -305,7 +312,10 @@ function mapMeta(m) {
   };
 }
 function mapMatriz(m) {
-  return { id: m.id, titulo: m.titulo, resultado: m.resultado, esforco: m.esforco, obs: m.obs || '', criadoEm: m.criado_em };
+  return {
+    id: m.id, titulo: m.titulo, resultado: m.resultado, esforco: m.esforco, obs: m.obs || '', criadoEm: m.criado_em,
+    responsavelId: m.responsavel_eu ? 'eu' : (m.responsavel_id || ''),
+  };
 }
 function mapRotina(r) {
   return { id: r.id, data: String(r.data).slice(0, 10), inicio: r.inicio.slice(0, 5), fim: r.fim.slice(0, 5), atividade: r.atividade, tipo: r.tipo, impacto: r.impacto || '', energia: r.energia || '', criadoEm: r.criado_em };
@@ -321,16 +331,28 @@ function mapDiario(d) {
     fbCpcComece: d.fb_cpc_comece || '', fbCpcPare: d.fb_cpc_pare || '', fbCpcContinue: d.fb_cpc_continue || '',
   };
 }
+// Plano de Ação é uma lista independente de itens de ação (Passo 5, item 2
+// do material) — não é mais "puxada" dos Projetos/Iniciativas: cada item
+// tem seu próprio nome (acao), responsável, meta, datas, status e lições.
 function mapPlanoAcao(p) {
   return {
-    id: p.id, acao: p.acao || '', comoFazer: p.como_fazer || '', impacto: p.impacto || '', prazo: p.prazo || '',
+    id: p.id, acao: p.acao || '',
     responsavelId: p.responsavel_eu ? 'eu' : (p.responsavel_id || ''),
     metaId: p.meta_id || '',
-    equipeAreas: p.equipe_areas || '', recursos: p.recursos || '', checkpoints: p.checkpoints || '',
     dataInicio: p.data_inicio ? String(p.data_inicio).slice(0, 10) : '',
     dataFim: p.data_fim ? String(p.data_fim).slice(0, 10) : '',
     status: p.status || 'novo',
     licoesAprendidas: p.licoes_aprendidas || '',
+  };
+}
+
+// Projetos/Iniciativas é o planejamento (Passo 5, item 1): nome, meta
+// vinculada, equipe/áreas, recursos e checkpoints — entidade própria,
+// separada do Plano de Ação.
+function mapProjeto(p) {
+  return {
+    id: p.id, nome: p.nome || '', metaId: p.meta_id || '',
+    equipeAreas: p.equipe_areas || '', recursos: p.recursos || '', checkpoints: p.checkpoints || '',
   };
 }
 function mapDesafio(d) {
@@ -630,7 +652,7 @@ function renderHeaderLider() {
 function sair() {
   limparAuth();
   STATE.liderados = []; STATE.atividades = []; STATE.matriz = []; STATE.metas = [];
-  STATE.diario = []; STATE.diarioResumoEquipe = []; STATE.rotina = []; STATE.planoAcao = [];
+  STATE.diario = []; STATE.diarioResumoEquipe = []; STATE.rotina = []; STATE.planoAcao = []; STATE.projetos = [];
   STATE.estatisticasDiario = null;
   STATE.arquivos = []; STATE.arquivosTurma = [];
   STATE.desafios = [];
@@ -645,9 +667,9 @@ function sair() {
 
 async function carregarTudoLider() {
   try {
-    const [liderados, atividades, metas, matriz, rotina, planoAcao, config] = await Promise.all([
+    const [liderados, atividades, metas, matriz, rotina, planoAcao, projetos, config] = await Promise.all([
       Api.listarLiderados(), Api.listarAtividades(), Api.listarMetas(), Api.listarMatriz(),
-      Api.listarRotina(), Api.listarPlanoAcao(), Api.getDashboardConfig(),
+      Api.listarRotina(), Api.listarPlanoAcao(), Api.listarProjetos(), Api.getDashboardConfig(),
     ]);
     STATE.liderados = liderados.map(mapLiderado);
     STATE.atividades = atividades.map(mapAtividade);
@@ -655,6 +677,7 @@ async function carregarTudoLider() {
     STATE.matriz = matriz.map(mapMatriz);
     STATE.rotina = rotina.map(mapRotina);
     STATE.planoAcao = planoAcao.map(mapPlanoAcao);
+    STATE.projetos = projetos.map(mapProjeto);
     STATE.metaIdeal = { operacional: config.ideal_operacional, tatico: config.ideal_tatico, estrategico: config.ideal_estrategico };
     STATE.diario = [];
     STATE.diarioSelecionadoId = null;
@@ -898,7 +921,7 @@ function renderLiderados() {
   popularSelectsResponsavel();
   renderDiarioSeletor();
   renderDiarioEquipe();
-  renderAcompanhamentoPlanos(); // opções de responsável (liderados) podem ter mudado
+  renderPlanoAcaoItens(); // opções de responsável (liderados) podem ter mudado
 }
 
 function initFormLiderado() {
@@ -1465,7 +1488,7 @@ const STATUS_ORDEM = ['novo', 'andamento', 'bloqueado', 'concluido'];
 function popularSelectsResponsavel() {
   const opcoes = '<option value="">— Não atribuído —</option><option value="eu">👤 Eu (Líder)</option>' +
     STATE.liderados.map(l => `<option value="${l.id}">${l.nome}</option>`).join('');
-  ['a-responsavel', 'ma-responsavel'].forEach(id => {
+  ['a-responsavel', 'ma-responsavel', 'm-responsavel'].forEach(id => {
     const atual = document.getElementById(id).value;
     document.getElementById(id).innerHTML = opcoes;
     document.getElementById(id).value = atual;
@@ -1474,6 +1497,11 @@ function popularSelectsResponsavel() {
   document.getElementById('filtro-responsavel').innerHTML = '<option value="todos">Todos</option><option value="eu">👤 Eu (Líder)</option>' +
     STATE.liderados.map(l => `<option value="${l.id}">${l.nome}</option>`).join('');
   document.getElementById('filtro-responsavel').value = atualFiltro || 'todos';
+
+  const atualFiltroMatriz = document.getElementById('filtro-matriz-responsavel').value;
+  document.getElementById('filtro-matriz-responsavel').innerHTML = '<option value="todos">👥 Toda a área (gestão)</option><option value="eu">👤 Eu (Líder)</option>' +
+    STATE.liderados.map(l => `<option value="${l.id}">${l.nome}</option>`).join('');
+  document.getElementById('filtro-matriz-responsavel').value = atualFiltroMatriz || 'todos';
 }
 
 // A atividade pode se vincular a uma Meta/Indicador, ao OKR ou à perspectiva
@@ -1532,7 +1560,7 @@ function popularSelectsMeta() {
   document.getElementById('filtro-meta').value = atualFiltro || 'todos';
 
   renderProjetosIniciativas(); // opções de meta vinculável podem ter mudado
-  renderAcompanhamentoPlanos();
+  renderPlanoAcaoItens();
 }
 
 function nomeResponsavel(a) {
@@ -2260,8 +2288,10 @@ const QUADRANTE_CONFIG = {
 
 function renderMatriz() {
   renderDesafios();
+  const filtro = STATE.filtroMatrizResponsavel;
+  const itensFiltrados = filtro === 'todos' ? STATE.matriz : STATE.matriz.filter(m => (m.responsavelId || '') === filtro);
   ['q1','q2','q3','q4'].forEach(q => {
-    const items = STATE.matriz.filter(m => getQuadrante(m.resultado, m.esforco) === q);
+    const items = itensFiltrados.filter(m => getQuadrante(m.resultado, m.esforco) === q);
     const container = document.getElementById(q + '-items');
     const badge = document.getElementById('badge-' + q);
     badge.textContent = items.length;
@@ -2276,12 +2306,20 @@ function renderMatriz() {
       <div class="q-item" style="border-left:3px solid ${cfg.cor}">
         <div class="q-item-titulo">${m.titulo}</div>
         ${m.obs ? `<div class="q-item-obs">${m.obs}</div>` : ''}
+        ${filtro === 'todos' && nomeResponsavel(m) ? `<div class="q-item-responsavel">${nomeResponsavel(m)}</div>` : ''}
         <div class="q-item-acoes">
           <button class="btn-icon btn-icon-sm" title="Editar" onclick="editarMatriz('${m.id}')">✏️</button>
           <button class="btn-icon btn-icon-sm btn-icon-danger" title="Excluir" onclick="excluirMatriz('${m.id}')">🗑️</button>
         </div>
       </div>
     `).join('');
+  });
+}
+
+function initFiltroMatrizResponsavel() {
+  document.getElementById('filtro-matriz-responsavel').addEventListener('change', e => {
+    STATE.filtroMatrizResponsavel = e.target.value;
+    renderMatriz();
   });
 }
 
@@ -2315,7 +2353,7 @@ function initFormMatriz() {
     if (!resultado) { mostrarToast('Selecione o nível de resultado.', 'error'); return; }
     if (!esforco) { mostrarToast('Selecione o nível de esforço.', 'error'); return; }
 
-    const dados = { titulo, resultado, esforco, obs: document.getElementById('m-obs').value.trim() };
+    const dados = { titulo, resultado, esforco, obs: document.getElementById('m-obs').value.trim(), responsavelId: document.getElementById('m-responsavel').value };
     const id = document.getElementById('m-id').value;
     const restaurar = iniciarCarregamentoBotao(form.querySelector('button[type=submit]'), 'Salvando...');
     try {
@@ -2345,6 +2383,7 @@ function initFormMatriz() {
 function resetFormMatriz() {
   document.getElementById('m-id').value = '';
   document.getElementById('form-matriz').reset();
+  document.getElementById('m-responsavel').value = '';
   clearTagGroup('m-resultado');
   clearTagGroup('m-esforco');
   document.getElementById('matriz-form-title').textContent = 'Adicionar à Matriz';
@@ -2357,6 +2396,7 @@ function editarMatriz(id) {
   document.getElementById('m-id').value = m.id;
   document.getElementById('m-titulo').value = m.titulo;
   document.getElementById('m-obs').value = m.obs || '';
+  document.getElementById('m-responsavel').value = m.responsavelId || '';
   setTagValue('m-resultado', m.resultado);
   setTagValue('m-esforco', m.esforco);
   document.getElementById('matriz-form-title').textContent = 'Editar Item da Matriz';
@@ -3093,33 +3133,100 @@ function renderGargalos() {
 }
 
 // ============================================================
-// PLANO DE AÇÃO / PROJETOS — tela própria (Passo 5 do material: Projetos/
-// Iniciativas + Acompanhamento de Planos por Equipe). As duas abas editam
-// a MESMA linha de STATE.planoAcao — só mostram campos diferentes: uma o
-// planejamento (equipe/áreas, recursos, checkpoints), outra o acompanhamento
-// (responsável, prazo, meta, status, lições aprendidas).
+// PLANO DE AÇÃO / PROJETOS — tela própria (Passo 5 do material). Duas listas
+// INDEPENDENTES (cada uma com seu próprio cadastro, edição e exclusão):
+// - Projetos/Iniciativas (STATE.projetos): planejamento — nome, meta
+//   vinculada, equipe/áreas, recursos, checkpoints.
+// - Plano de Ação (STATE.planoAcao): itens de ação — nome, responsável,
+//   início/fim, meta, status, lições aprendidas.
+// Não há vínculo 1:1 entre as duas — um item do Plano de Ação não "puxa"
+// nome nem nenhum outro campo de um Projeto.
 // ============================================================
 function renderProjetosIniciativas() {
   const container = document.getElementById('tabela-projetos-iniciativas');
   if (!container) return; // seção só existe na visão do líder
 
-  if (STATE.planoAcao.length === 0) {
+  if (STATE.projetos.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><p>Nenhum projeto/iniciativa cadastrado ainda.</p></div>`;
+    return;
+  }
+
+  const opcoesMeta = metaIdAtual => `<option value="">— Nenhuma —</option>` +
+    STATE.metas.map(m => `<option value="${m.id}" ${m.id === metaIdAtual ? 'selected' : ''}>${m.nome}</option>`).join('');
+
+  container.innerHTML = `
+    <table class="tabela-simples tabela-plano">
+      <thead><tr><th>Projeto / Iniciativa</th><th>Meta vinculada</th><th>Equipe / Áreas</th><th>Recursos</th><th>Checkpoints</th><th></th></tr></thead>
+      <tbody>
+        ${STATE.projetos.map(p => `
+          <tr data-id="${p.id}">
+            <td><input type="text" data-campo="nome" value="${p.nome || ''}" placeholder="Nome do projeto/iniciativa" /></td>
+            <td><select data-campo="metaId">${opcoesMeta(p.metaId)}</select></td>
+            <td><input type="text" data-campo="equipeAreas" value="${p.equipeAreas || ''}" placeholder="Ex: Comercial, TI..." /></td>
+            <td><input type="text" data-campo="recursos" value="${p.recursos || ''}" placeholder="Orçamento, ferramentas..." /></td>
+            <td><input type="text" data-campo="checkpoints" value="${p.checkpoints || ''}" placeholder="Marcos de revisão..." /></td>
+            <td><button class="btn-icon btn-icon-sm btn-icon-danger" title="Remover" onclick="excluirLinhaProjeto('${p.id}')">🗑️</button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table>`;
+
+  container.querySelectorAll('input[data-campo], select[data-campo]').forEach(el => {
+    el.addEventListener('change', () => salvarCampoProjeto(el));
+  });
+}
+
+async function salvarCampoProjeto(el) {
+  const id = el.closest('tr').dataset.id;
+  const item = STATE.projetos.find(p => p.id === id);
+  if (!item) return;
+  item[el.dataset.campo] = el.value;
+  try {
+    await Api.atualizarProjeto(id, { [el.dataset.campo]: el.value });
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
+}
+
+async function excluirLinhaProjeto(id) {
+  try {
+    await Api.excluirProjeto(id);
+    STATE.projetos = STATE.projetos.filter(p => p.id !== id);
+    renderProjetosIniciativas();
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  }
+}
+
+function renderPlanoAcaoItens() {
+  const container = document.getElementById('tabela-acompanhamento-planos');
+  if (!container) return;
+
+  if (STATE.planoAcao.length === 0) {
+    container.innerHTML = `<div class="empty-state"><div class="empty-icon">✅</div><p>Nenhum item de ação cadastrado ainda.</p></div>`;
   } else {
+    const opcoesResponsavel = respAtual => `
+      <option value="">— Não atribuído —</option>
+      <option value="eu" ${respAtual === 'eu' ? 'selected' : ''}>👤 Eu (Líder)</option>
+      ${STATE.liderados.map(l => `<option value="${l.id}" ${l.id === respAtual ? 'selected' : ''}>${l.nome}</option>`).join('')}
+    `;
     const opcoesMeta = metaIdAtual => `<option value="">— Nenhuma —</option>` +
       STATE.metas.map(m => `<option value="${m.id}" ${m.id === metaIdAtual ? 'selected' : ''}>${m.nome}</option>`).join('');
+    const opcoesStatus = statusAtual => STATUS_ORDEM.map(k => `<option value="${k}" ${k === statusAtual ? 'selected' : ''}>${STATUS_CONFIG[k].label}</option>`).join('');
 
     container.innerHTML = `
       <table class="tabela-simples tabela-plano">
-        <thead><tr><th>Projeto / Iniciativa</th><th>Meta vinculada</th><th>Equipe / Áreas</th><th>Recursos</th><th>Checkpoints</th><th></th></tr></thead>
+        <thead><tr><th>Plano de Ação</th><th>Responsável</th><th>Início</th><th>Fim</th><th>Meta</th><th>Status</th><th>Lições Aprendidas</th><th></th></tr></thead>
         <tbody>
           ${STATE.planoAcao.map(p => `
             <tr data-id="${p.id}">
-              <td><input type="text" data-campo="acao" value="${p.acao || ''}" placeholder="Nome do projeto/iniciativa" /></td>
+              <td><input type="text" data-campo="acao" value="${p.acao || ''}" placeholder="O que precisa ser feito?" /></td>
+              <td><select data-campo="responsavelId">${opcoesResponsavel(p.responsavelId)}</select></td>
+              <td><input type="date" data-campo="dataInicio" value="${p.dataInicio || ''}" /></td>
+              <td><input type="date" data-campo="dataFim" value="${p.dataFim || ''}" /></td>
               <td><select data-campo="metaId">${opcoesMeta(p.metaId)}</select></td>
-              <td><input type="text" data-campo="equipeAreas" value="${p.equipeAreas || ''}" placeholder="Ex: Comercial, TI..." /></td>
-              <td><input type="text" data-campo="recursos" value="${p.recursos || ''}" placeholder="Orçamento, ferramentas..." /></td>
-              <td><input type="text" data-campo="checkpoints" value="${p.checkpoints || ''}" placeholder="Marcos de revisão..." /></td>
+              <td><select data-campo="status">${opcoesStatus(p.status)}</select></td>
+              <td><input type="text" data-campo="licoesAprendidas" value="${p.licoesAprendidas || ''}" placeholder="O que aprendemos..." /></td>
               <td><button class="btn-icon btn-icon-sm btn-icon-danger" title="Remover" onclick="excluirLinhaPlanoAcao('${p.id}')">🗑️</button></td>
             </tr>
           `).join('')}
@@ -3135,49 +3242,7 @@ function renderProjetosIniciativas() {
   atualizarVinculoAtividade('ma');
 }
 
-function renderAcompanhamentoPlanos() {
-  const container = document.getElementById('tabela-acompanhamento-planos');
-  if (!container) return;
-
-  if (STATE.planoAcao.length === 0) {
-    container.innerHTML = `<div class="empty-state"><div class="empty-icon">📊</div><p>Cadastre um projeto/iniciativa na outra aba pra acompanhar aqui.</p></div>`;
-    return;
-  }
-
-  const opcoesResponsavel = respAtual => `
-    <option value="">— Não atribuído —</option>
-    <option value="eu" ${respAtual === 'eu' ? 'selected' : ''}>👤 Eu (Líder)</option>
-    ${STATE.liderados.map(l => `<option value="${l.id}" ${l.id === respAtual ? 'selected' : ''}>${l.nome}</option>`).join('')}
-  `;
-  const opcoesMeta = metaIdAtual => `<option value="">— Nenhuma —</option>` +
-    STATE.metas.map(m => `<option value="${m.id}" ${m.id === metaIdAtual ? 'selected' : ''}>${m.nome}</option>`).join('');
-  const opcoesStatus = statusAtual => STATUS_ORDEM.map(k => `<option value="${k}" ${k === statusAtual ? 'selected' : ''}>${STATUS_CONFIG[k].label}</option>`).join('');
-
-  container.innerHTML = `
-    <table class="tabela-simples tabela-plano">
-      <thead><tr><th>Plano de Ação</th><th>Responsável</th><th>Início</th><th>Fim</th><th>Meta</th><th>Status</th><th>Lições Aprendidas</th></tr></thead>
-      <tbody>
-        ${STATE.planoAcao.map(p => `
-          <tr data-id="${p.id}">
-            <td>${p.acao ? p.acao : '<span class="celula-vazia">(defina o nome na aba Projetos/Iniciativas)</span>'}</td>
-            <td><select data-campo="responsavelId">${opcoesResponsavel(p.responsavelId)}</select></td>
-            <td><input type="date" data-campo="dataInicio" value="${p.dataInicio || ''}" /></td>
-            <td><input type="date" data-campo="dataFim" value="${p.dataFim || ''}" /></td>
-            <td><select data-campo="metaId">${opcoesMeta(p.metaId)}</select></td>
-            <td><select data-campo="status">${opcoesStatus(p.status)}</select></td>
-            <td><input type="text" data-campo="licoesAprendidas" value="${p.licoesAprendidas || ''}" placeholder="O que aprendemos..." /></td>
-          </tr>
-        `).join('')}
-      </tbody>
-    </table>`;
-
-  container.querySelectorAll('input[data-campo], select[data-campo]').forEach(el => {
-    el.addEventListener('change', () => salvarCampoPlanoAcao(el));
-  });
-}
-
-// Salva só o campo que mudou (PUT parcial de verdade — cada aba manda um
-// conjunto de campos diferente, então não dá pra reenviar a linha toda).
+// Salva só o campo que mudou (PUT parcial de verdade).
 async function salvarCampoPlanoAcao(el) {
   const tr = el.closest('tr');
   const id = tr.dataset.id;
@@ -3187,10 +3252,10 @@ async function salvarCampoPlanoAcao(el) {
   try {
     await Api.atualizarPlanoAcao(id, { [el.dataset.campo]: el.value });
     if (el.dataset.campo === 'acao') {
-      renderAcompanhamentoPlanos(); // o nome do plano aparece só-leitura lá
       atualizarVinculoAtividade('a');
       atualizarVinculoAtividade('ma');
     }
+    renderDashboardPlanoAcao();
   } catch (err) {
     mostrarToast(err.message, 'error');
   }
@@ -3201,9 +3266,9 @@ async function excluirLinhaPlanoAcao(id) {
     await Api.excluirPlanoAcao(id);
     STATE.planoAcao = STATE.planoAcao.filter(p => p.id !== id);
     STATE.atividades.forEach(a => { if (a.planoAcaoId === id) { a.planoAcaoId = ''; a.tipoVinculo = ''; } });
-    renderProjetosIniciativas();
-    renderAcompanhamentoPlanos();
+    renderPlanoAcaoItens();
     renderAtividades();
+    renderDashboardPlanoAcao();
   } catch (err) {
     mostrarToast(err.message, 'error');
   }
@@ -3212,10 +3277,18 @@ async function excluirLinhaPlanoAcao(id) {
 function initPlanoAcao() {
   document.getElementById('btn-add-projeto').addEventListener('click', async () => {
     try {
+      const novo = mapProjeto(await Api.criarProjeto({ nome: '', ordem: STATE.projetos.length }));
+      STATE.projetos.push(novo);
+      renderProjetosIniciativas();
+    } catch (err) { mostrarToast(err.message, 'error'); }
+  });
+
+  document.getElementById('btn-add-item-plano-acao').addEventListener('click', async () => {
+    try {
       const novo = mapPlanoAcao(await Api.criarPlanoAcao({ acao: '', ordem: STATE.planoAcao.length }));
       STATE.planoAcao.push(novo);
-      renderProjetosIniciativas();
-      renderAcompanhamentoPlanos();
+      renderPlanoAcaoItens();
+      renderDashboardPlanoAcao();
     } catch (err) { mostrarToast(err.message, 'error'); }
   });
 }
@@ -3228,6 +3301,7 @@ function renderDashboardAll() {
   renderGargalos();
   renderDashboardDesafios();
   renderDashboardMetas();
+  renderDashboardPlanoAcao();
 }
 
 // Espelha as Metas & Indicadores no Dashboard: status de execução (item 5 —
@@ -3262,6 +3336,55 @@ function renderDashboardMetas() {
           : `<p class="label-hint">Nenhuma meta marcada ainda.</p>`}
       </div>`;
   }).join('');
+}
+
+// "Atrasado" não é um status gravado — é calculado (prazo passou e o item
+// não foi concluído) — mesma ideia de estaAtrasada() já usada em Atividades.
+function planoAcaoAtrasado(p) {
+  return !!p.dataFim && p.dataFim < hojeISO() && p.status !== 'concluido';
+}
+
+// Resumo do Plano de Ação no Dashboard: quantos itens em cada status (com
+// "Atrasado" calculado por cima do prazo), mais os próximos vencimentos —
+// lido direto de STATE.planoAcao, sem duplicar dado.
+function renderDashboardPlanoAcao() {
+  const badge = document.getElementById('dash-plano-acao-badge');
+  const vazio = document.getElementById('dash-plano-acao-vazio');
+  const conteudo = document.getElementById('dash-plano-acao-conteudo');
+  if (!badge) return;
+
+  badge.textContent = STATE.planoAcao.length;
+  vazio.style.display = STATE.planoAcao.length === 0 ? '' : 'none';
+  conteudo.style.display = STATE.planoAcao.length === 0 ? 'none' : '';
+  if (STATE.planoAcao.length === 0) return;
+
+  const atrasados = STATE.planoAcao.filter(planoAcaoAtrasado);
+  const statusEl = document.getElementById('dash-plano-acao-status');
+  const statusHtml = STATUS_ORDEM.map(k => {
+    const qtd = STATE.planoAcao.filter(p => p.status === k && !planoAcaoAtrasado(p)).length;
+    return `<div class="stat-card"><div class="stat-num" style="color:${STATUS_CONFIG[k].cor}">${qtd}</div><div class="stat-label">${STATUS_CONFIG[k].label}</div></div>`;
+  }).join('');
+  statusEl.innerHTML = statusHtml +
+    `<div class="stat-card"><div class="stat-num" style="color:#e74c3c">${atrasados.length}</div><div class="stat-label">🔴 Atrasado</div></div>`;
+
+  const proximasEl = document.getElementById('dash-plano-acao-proximas');
+  const proximas = STATE.planoAcao
+    .filter(p => p.dataFim && p.status !== 'concluido')
+    .sort((a, b) => a.dataFim.localeCompare(b.dataFim))
+    .slice(0, 5);
+
+  proximasEl.innerHTML = proximas.length === 0
+    ? `<p class="label-hint">Nenhuma entrega com prazo definido ainda.</p>`
+    : proximas.map(p => {
+        const atrasado = planoAcaoAtrasado(p);
+        const resp = p.responsavelId === 'eu' ? 'Eu (Líder)' : (STATE.liderados.find(l => l.id === p.responsavelId)?.nome || '—');
+        return `
+          <div class="dash-plano-acao-item ${atrasado ? 'atrasado' : ''}">
+            <span class="dash-plano-acao-item-nome">${p.acao || '(sem nome)'}</span>
+            <span class="dash-plano-acao-item-resp">${resp}</span>
+            <span class="dash-plano-acao-item-data">${atrasado ? '🔴' : '📅'} ${formatarData(p.dataFim)}</span>
+          </div>`;
+      }).join('');
 }
 
 // Espelha o progresso e a pontuação da trilha de Desafios direto no
@@ -4765,7 +4888,7 @@ function renderTudo() {
   renderMetas();
   renderMatriz();
   renderProjetosIniciativas();
-  renderAcompanhamentoPlanos();
+  renderPlanoAcaoItens();
   renderDashboardAll();
   renderPlanoGestao();
   renderDiagnostico();
@@ -4815,6 +4938,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Matriz
   initSeguro('formMatriz', initFormMatriz);
   initSeguro('selectAtividadeMatriz', initSelectAtividadeMatriz);
+  initSeguro('filtroMatrizResponsavel', initFiltroMatrizResponsavel);
 
   // Dashboard
   initSeguro('formRotina', initFormRotina);
