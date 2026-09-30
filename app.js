@@ -204,6 +204,27 @@ async function visualizarLider(id, nome, botao) {
   }
 }
 
+// Chamado pelo botão 📧 — não dá pra reenviar a MESMA senha (só o hash é
+// guardado), então o backend gera uma nova e já atualiza o acesso. Se o
+// e-mail não sair (não configurado ou falha do Resend), mostra a senha nova
+// num alert pra o admin ter tempo de copiar e repassar por outro canal —
+// um toast de 3s sumiria rápido demais pra isso.
+async function reenviarConviteLider(id, nome, botao) {
+  const restaurar = iniciarCarregamentoBotao(botao, '');
+  try {
+    const resp = await Api.reenviarConviteLider(id);
+    if (resp.enviado) {
+      mostrarToast(`Convite reenviado para ${nome}!`);
+    } else {
+      alert(`Não foi possível enviar o e-mail para ${nome}.\n\nUma nova senha foi gerada — repasse manualmente:\n\n${resp.senha}`);
+    }
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+  } finally {
+    restaurar();
+  }
+}
+
 async function api(caminho, opcoes = {}) {
   const headers = { 'Content-Type': 'application/json', ...(opcoes.headers || {}) };
   if (AUTH.token) headers.Authorization = 'Bearer ' + AUTH.token;
@@ -241,6 +262,7 @@ const Api = {
   criarLiderNaTurma: (turmaId, dados) => api(`/admin/turmas/${turmaId}/lideres`, { method: 'POST', body: JSON.stringify(dados) }),
   moverLiderDeTurma: (liderId, turmaId) => api(`/admin/lideres/${liderId}`, { method: 'PUT', body: JSON.stringify({ turmaId }) }),
   redefinirSenhaLider: (liderId, senha) => api(`/admin/lideres/${liderId}/senha`, { method: 'PUT', body: JSON.stringify({ senha }) }),
+  reenviarConviteLider: liderId => api(`/admin/lideres/${liderId}/reenviar-convite`, { method: 'POST' }),
   visualizarLider: liderId => api(`/admin/lideres/${liderId}/visualizar`, { method: 'POST' }),
   listarDesafiosDaTurma: turmaId => api(`/admin/turmas/${turmaId}/desafios`),
   criarDesafioAdmin: (turmaId, dados) => api(`/admin/turmas/${turmaId}/desafios`, { method: 'POST', body: JSON.stringify(dados) }),
@@ -4661,6 +4683,7 @@ function renderTurmaLideres() {
         <div class="diagnostico-item">
           <span><strong>${l.nome}</strong>${l.cargo ? ' · ' + l.cargo : ''} — ${l.email}</span>
           <button type="button" class="btn-icon btn-icon-sm btn-visualizar-lider" data-id="${l.id}" data-nome="${escapeAtributo(l.nome)}" title="Visualizar o painel dele (somente leitura)">👁️</button>
+          <button type="button" class="btn-icon btn-icon-sm btn-reenviar-convite" data-id="${l.id}" data-nome="${escapeAtributo(l.nome)}" title="Reenviar convite por e-mail">📧</button>
           <button type="button" class="btn-icon btn-icon-sm btn-toggle-senha-lider" data-id="${l.id}" title="Redefinir senha">🔑</button>
         </div>
         <form class="diagnostico-form form-senha-lider" data-id="${l.id}" style="display:none">
@@ -4672,6 +4695,10 @@ function renderTurmaLideres() {
 
   container.querySelectorAll('.btn-visualizar-lider').forEach(btn => {
     btn.addEventListener('click', () => visualizarLider(btn.dataset.id, btn.dataset.nome, btn));
+  });
+
+  container.querySelectorAll('.btn-reenviar-convite').forEach(btn => {
+    btn.addEventListener('click', () => reenviarConviteLider(btn.dataset.id, btn.dataset.nome, btn));
   });
 
   container.querySelectorAll('.btn-toggle-senha-lider').forEach(btn => {
