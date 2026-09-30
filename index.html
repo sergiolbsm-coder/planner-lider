@@ -10,7 +10,7 @@
        vendo a versão antiga por até 4h mesmo depois do deploy. -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300..800;1,9..40,300..800&family=Cormorant+Garamond:wght@400;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="style.css?v=20260929e" />
+  <link rel="stylesheet" href="style.css?v=20260930a" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/docx@9.7.2/dist/index.iife.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
@@ -94,6 +94,10 @@
     </aside>
 
     <div class="app-main">
+  <div id="faixa-modo-visualizacao" class="faixa-modo-visualizacao" style="display:none">
+    <span>👁️ Visualizando <strong id="faixa-modo-visualizacao-nome">—</strong> — modo somente leitura</span>
+    <button type="button" class="btn-secondary" id="btn-sair-modo-visualizacao">⬅️ Voltar para administração</button>
+  </div>
   <main class="main-content">
 
     <!-- ============================================
@@ -1750,6 +1754,6 @@
   <!-- Toast de notificação -->
   <div id="toast" class="toast" style="display:none"></div>
 
-  <script src="app.js?v=20260929e"></script>
+  <script src="app.js?v=20260930a"></script>
 </body>
 </html>

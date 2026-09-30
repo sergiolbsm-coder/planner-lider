@@ -144,6 +144,66 @@ function limparAuth() {
   localStorage.removeItem('pl_user');
 }
 
+// "Visualizar como" (admin): guarda a sessão do admin de lado (sobrevive a
+// um F5 sem perder o caminho de volta) e entra com o token somenteLeitura do
+// líder escolhido — reaproveita entrarNaSessao() inteiro, então a tela do
+// líder carrega normal, só que travada pra edição (ver ativarModoSomenteLeitura).
+function entrarModoVisualizacao(token, user) {
+  localStorage.setItem('pl_admin_stash', JSON.stringify({ token: AUTH.token, user: AUTH.user }));
+  salvarAuth(token, user);
+}
+
+async function sairModoVisualizacao() {
+  const bruto = localStorage.getItem('pl_admin_stash');
+  localStorage.removeItem('pl_admin_stash');
+  if (!bruto) { sair(); return; }
+  try {
+    const stash = JSON.parse(bruto);
+    salvarAuth(stash.token, stash.user);
+    await entrarNaSessao();
+  } catch (e) { sair(); }
+}
+
+// Trava toda a edição do painel do líder por cima do bloqueio que já existe
+// no backend (ver requireAuth) — evita que o admin clique em algo, tente
+// salvar e só descubra pelo erro 403 que aquilo não ia funcionar mesmo.
+// bloquear=false desfaz tudo — chamado sempre que um líder de verdade loga
+// nesse mesmo navegador depois, pra garantir que nada fica travado por engano.
+function aplicarBloqueioEdicao(bloquear) {
+  document.querySelectorAll('#app-shell .main-content input, #app-shell .main-content select, #app-shell .main-content textarea').forEach(el => {
+    el.disabled = bloquear;
+  });
+  document.querySelectorAll('#app-shell .main-content button').forEach(btn => {
+    if (btn.classList.contains('subtab-btn') || btn.classList.contains('btn-baixar-arquivo')) return;
+    btn.disabled = bloquear;
+  });
+  document.querySelectorAll('#app-shell .main-content [draggable="true"]').forEach(el => el.removeAttribute('draggable'));
+}
+
+function ativarModoSomenteLeitura(nomeLider) {
+  document.getElementById('faixa-modo-visualizacao-nome').textContent = nomeLider || '';
+  document.getElementById('faixa-modo-visualizacao').style.display = '';
+  aplicarBloqueioEdicao(true);
+}
+
+function desativarModoSomenteLeitura() {
+  document.getElementById('faixa-modo-visualizacao').style.display = 'none';
+  aplicarBloqueioEdicao(false);
+}
+
+// Chamado pelo botão 👁️ na lista de líderes do admin.
+async function visualizarLider(id, nome, botao) {
+  const restaurar = iniciarCarregamentoBotao(botao, '');
+  try {
+    const resp = await Api.visualizarLider(id);
+    entrarModoVisualizacao(resp.token, resp.user);
+    await entrarNaSessao();
+  } catch (err) {
+    mostrarToast(err.message, 'error');
+    restaurar();
+  }
+}
+
 async function api(caminho, opcoes = {}) {
   const headers = { 'Content-Type': 'application/json', ...(opcoes.headers || {}) };
   if (AUTH.token) headers.Authorization = 'Bearer ' + AUTH.token;
@@ -181,6 +241,7 @@ const Api = {
   criarLiderNaTurma: (turmaId, dados) => api(`/admin/turmas/${turmaId}/lideres`, { method: 'POST', body: JSON.stringify(dados) }),
   moverLiderDeTurma: (liderId, turmaId) => api(`/admin/lideres/${liderId}`, { method: 'PUT', body: JSON.stringify({ turmaId }) }),
   redefinirSenhaLider: (liderId, senha) => api(`/admin/lideres/${liderId}/senha`, { method: 'PUT', body: JSON.stringify({ senha }) }),
+  visualizarLider: liderId => api(`/admin/lideres/${liderId}/visualizar`, { method: 'POST' }),
   listarDesafiosDaTurma: turmaId => api(`/admin/turmas/${turmaId}/desafios`),
   criarDesafioAdmin: (turmaId, dados) => api(`/admin/turmas/${turmaId}/desafios`, { method: 'POST', body: JSON.stringify(dados) }),
   atualizarDesafioAdmin: (id, dados) => api(`/admin/desafios/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
@@ -557,6 +618,7 @@ function initTelaAuth() {
   document.getElementById('btn-sair').addEventListener('click', sair);
   document.getElementById('btn-sair-liderado').addEventListener('click', sair);
   document.getElementById('btn-sair-admin').addEventListener('click', sair);
+  document.getElementById('btn-sair-modo-visualizacao').addEventListener('click', sairModoVisualizacao);
 
   document.getElementById('lider-conta-trocar').addEventListener('change', e => trocarParaConta(e.target.value));
   document.getElementById('admin-conta-trocar').addEventListener('change', e => trocarParaConta(e.target.value));
@@ -650,6 +712,8 @@ async function entrarNaSessao() {
     await carregarTudoLider();
     mostrarTela('lider');
     irParaSecao('desafios');
+    if (AUTH.user.somenteLeitura) ativarModoSomenteLeitura(AUTH.user.nome);
+    else desativarModoSomenteLeitura();
   } else {
     await carregarTudoLiderado();
     mostrarTela('liderado');
@@ -663,6 +727,8 @@ function renderHeaderLider() {
 
 function sair() {
   limparAuth();
+  localStorage.removeItem('pl_admin_stash'); // sair de vez encerra também uma "Visualizar como" pendente
+  desativarModoSomenteLeitura();
   STATE.liderados = []; STATE.atividades = []; STATE.matriz = []; STATE.metas = [];
   STATE.diario = []; STATE.diarioResumoEquipe = []; STATE.rotina = []; STATE.planoAcao = []; STATE.projetos = [];
   STATE.estatisticasDiario = null;
@@ -4594,6 +4660,7 @@ function renderTurmaLideres() {
       <div class="lider-linha" data-lider-linha="${l.id}">
         <div class="diagnostico-item">
           <span><strong>${l.nome}</strong>${l.cargo ? ' · ' + l.cargo : ''} — ${l.email}</span>
+          <button type="button" class="btn-icon btn-icon-sm btn-visualizar-lider" data-id="${l.id}" data-nome="${escapeAtributo(l.nome)}" title="Visualizar o painel dele (somente leitura)">👁️</button>
           <button type="button" class="btn-icon btn-icon-sm btn-toggle-senha-lider" data-id="${l.id}" title="Redefinir senha">🔑</button>
         </div>
         <form class="diagnostico-form form-senha-lider" data-id="${l.id}" style="display:none">
@@ -4602,6 +4669,10 @@ function renderTurmaLideres() {
         </form>
       </div>
     `).join('');
+
+  container.querySelectorAll('.btn-visualizar-lider').forEach(btn => {
+    btn.addEventListener('click', () => visualizarLider(btn.dataset.id, btn.dataset.nome, btn));
+  });
 
   container.querySelectorAll('.btn-toggle-senha-lider').forEach(btn => {
     btn.addEventListener('click', () => {
