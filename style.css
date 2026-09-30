@@ -135,6 +135,17 @@ body {
 
 .app-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 
+/* Faixa fixa do modo "Visualizar como" (admin) — fica grudada no topo do
+   conteúdo pra deixar claro, em toda tela, que os dados são de outra pessoa
+   e que a edição está bloqueada (o backend também bloqueia, isso é só UX). */
+.faixa-modo-visualizacao {
+  position: sticky; top: 0; z-index: 50;
+  display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap;
+  background: #fff3cd; color: #7a5b00; border-bottom: 2px solid #f0c14b;
+  padding: 10px 20px; font-size: 13.5px; font-weight: 600; text-align: center;
+}
+.faixa-modo-visualizacao .btn-secondary { font-weight: 700; }
+
 /* ---- Main Content ---- */
 .main-content { max-width: 1200px; margin: 0 auto; padding: 28px 24px 60px; width: 100%; }
 
