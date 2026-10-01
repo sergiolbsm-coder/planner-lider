@@ -4900,8 +4900,8 @@ function renderAreaIndividualAdmin(liderId) {
       <h4>📁 Arquivos</h4>
       ${arquivosHtml}
       <div class="area-individual-upload">
-        <input type="file" class="input-arquivo-individual" />
-        <button type="button" class="btn-secondary btn-enviar-arquivo-individual">Enviar arquivo</button>
+        <input type="file" class="input-arquivo-individual" multiple />
+        <button type="button" class="btn-secondary btn-enviar-arquivo-individual">Enviar arquivo(s)</button>
       </div>
     </div>
   `;
@@ -4938,15 +4938,18 @@ function renderAreaIndividualAdmin(liderId) {
 
   painel.querySelector('.btn-enviar-arquivo-individual').addEventListener('click', async () => {
     const input = painel.querySelector('.input-arquivo-individual');
-    const file = input.files[0];
-    if (!file) { mostrarToast('Escolha um arquivo.', 'error'); return; }
-    const formData = new FormData();
-    formData.append('arquivo', file);
+    const arquivos = Array.from(input.files);
+    if (arquivos.length === 0) { mostrarToast('Escolha ao menos um arquivo.', 'error'); return; }
     const btn = painel.querySelector('.btn-enviar-arquivo-individual');
-    const restaurar = iniciarCarregamentoBotao(btn, 'Enviando...');
+    const restaurar = iniciarCarregamentoBotao(btn, arquivos.length > 1 ? `Enviando 1/${arquivos.length}...` : 'Enviando...');
     try {
-      await Api.enviarArquivoIndividual(liderId, formData);
-      mostrarToast('Arquivo enviado!');
+      for (let i = 0; i < arquivos.length; i++) {
+        if (arquivos.length > 1) btn.innerHTML = `<span class="spinner-inline"></span> Enviando ${i + 1}/${arquivos.length}...`;
+        const formData = new FormData();
+        formData.append('arquivo', arquivos[i]);
+        await Api.enviarArquivoIndividual(liderId, formData);
+      }
+      mostrarToast(arquivos.length > 1 ? `${arquivos.length} arquivos enviados!` : 'Arquivo enviado!');
       STATE.areaIndividualArquivos = (await Api.listarArquivosIndividuaisAdmin(liderId)).map(mapArquivo);
       renderAreaIndividualAdmin(liderId);
     } catch (err) {
