@@ -3913,7 +3913,7 @@ async function carregarArquivos() {
 
 // Agrupa por pasta preservando a ordem de chegada (mais recente primeiro,
 // já que a API devolve ORDER BY criado_em DESC) — "Sem pasta" sempre por último.
-function agruparPorPasta(lista) {
+function agruparPorPasta(lista, rotuloSemPasta = 'Sem pasta') {
   const grupos = new Map();
   lista.forEach(a => {
     const chave = a.pasta || '';
@@ -3922,7 +3922,7 @@ function agruparPorPasta(lista) {
   });
   const nomeadas = [...grupos.keys()].filter(k => k).sort((x, y) => x.localeCompare(y, 'pt-BR'));
   const ordem = grupos.has('') ? [...nomeadas, ''] : nomeadas;
-  return ordem.map(chave => ({ pasta: chave || 'Sem pasta', itens: grupos.get(chave) }));
+  return ordem.map(chave => ({ pasta: chave || rotuloSemPasta, itens: grupos.get(chave) }));
 }
 
 // Escapa texto pra caber com segurança dentro de um atributo HTML
@@ -3960,7 +3960,7 @@ function htmlItemArquivo(a, comAcoesAdmin, opcoesVincularTurma) {
 
 // comAcoesAdmin habilita editar/remover/vincular a outra turma — só faz
 // sentido na visão do administrador, dentro de uma turma selecionada.
-function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin, baseDownload = '/arquivos') {
+function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin, baseDownload = '/arquivos', rotuloSemPasta = 'Sem pasta') {
   const container = document.getElementById(containerId);
   if (lista.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><p>${comAcoesAdmin ? 'Nenhum arquivo enviado ainda.' : 'Nenhum material disponível ainda.'}</p></div>`;
@@ -3969,7 +3969,7 @@ function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin, baseDown
   const opcoesVincularTurma = comAcoesAdmin
     ? STATE.turmas.filter(t => t.id !== STATE.turmaSelecionadaId).map(t => `<option value="${t.id}">${t.nome}</option>`).join('')
     : '';
-  const grupos = agruparPorPasta(lista);
+  const grupos = agruparPorPasta(lista, rotuloSemPasta);
   container.innerHTML = grupos.map((g, i) => {
     const pastaReal = g.itens[0].pasta || '';
     return `
@@ -4061,7 +4061,7 @@ function renderMensagensIndividuais() {
       </div>
     `).join('');
 
-  renderListaArquivosAgrupada('lista-arquivos-individuais', STATE.arquivosIndividuais, false, '/individual/arquivos');
+  renderListaArquivosAgrupada('lista-arquivos-individuais', STATE.arquivosIndividuais, false, '/individual/arquivos', 'Arquivos restritos ao Líder');
 }
 
 // ============================================================
