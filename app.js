@@ -4758,10 +4758,12 @@ function renderTurmaLideres() {
       <div class="lider-linha" data-lider-linha="${l.id}">
         <div class="diagnostico-item">
           <span><strong>${l.nome}</strong>${l.cargo ? ' · ' + l.cargo : ''} — ${l.email}</span>
-          <button type="button" class="btn-icon btn-icon-sm btn-visualizar-lider" data-id="${l.id}" data-nome="${escapeAtributo(l.nome)}" title="Visualizar o painel dele (somente leitura)">👁️</button>
-          <button type="button" class="btn-icon btn-icon-sm btn-area-individual" data-id="${l.id}" title="Área Individual — mensagens e arquivos só pra essa conta">💬</button>
-          <button type="button" class="btn-icon btn-icon-sm btn-reenviar-convite" data-id="${l.id}" data-nome="${escapeAtributo(l.nome)}" title="Reenviar convite por e-mail">📧</button>
-          <button type="button" class="btn-icon btn-icon-sm btn-toggle-senha-lider" data-id="${l.id}" title="Redefinir senha">🔑</button>
+          <div class="lider-acoes">
+            <button type="button" class="btn-icon btn-icon-sm btn-visualizar-lider" data-id="${l.id}" data-nome="${escapeAtributo(l.nome)}" title="Visualizar o painel dele (somente leitura)">👁️</button>
+            <button type="button" class="btn-icon btn-icon-sm btn-area-individual" data-id="${l.id}" title="Área Individual — mensagens e arquivos só pra essa conta">💬</button>
+            <button type="button" class="btn-icon btn-icon-sm btn-reenviar-convite" data-id="${l.id}" data-nome="${escapeAtributo(l.nome)}" title="Reenviar convite por e-mail">📧</button>
+            <button type="button" class="btn-icon btn-icon-sm btn-toggle-senha-lider" data-id="${l.id}" title="Redefinir senha">🔑</button>
+          </div>
         </div>
         <form class="diagnostico-form form-senha-lider" data-id="${l.id}" style="display:none">
           <input type="password" class="input-senha-lider" placeholder="Nova senha (mín. 6 caracteres)" minlength="6" required />
