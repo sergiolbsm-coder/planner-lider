@@ -25,6 +25,8 @@ const STATE = {
   estatisticasDiario: null,
   arquivos: [],        // arquivos da aula que o líder subiu
   arquivosTurma: [],   // (visão do liderado) arquivos disponibilizados pelo seu líder
+  mensagensIndividuais: [],  // (visão do líder) mensagens que o Trainer mandou só pra ele
+  arquivosIndividuais: [],   // (visão do líder) arquivos que o Trainer mandou só pra ele
   desafios: [],        // trilha de passo a passo da turma do líder, com o progresso dele
   planoGestao: null,   // Passo 1 — Criação do Plano (visão, metas do ano, combinados)
   diagnostico: [],     // brainstorm de Desafios e Oportunidades da equipe/área
@@ -46,6 +48,9 @@ const STATE = {
   turmaDesafios: [],   // trilha (template) da turma selecionada, sem progresso individual
   turmaArquivos: [],   // arquivos da aula da turma selecionada
   lideresSemTurma: [],
+  areaIndividualLiderId: null,   // qual líder está com o painel de Área Individual aberto (um por vez)
+  areaIndividualMensagens: [],
+  areaIndividualArquivos: [],
 };
 
 // ============================================================
@@ -355,6 +360,29 @@ const Api = {
     if (!res.ok) throw new Error((corpo && corpo.erro) || `Erro ${res.status}.`);
     return corpo;
   },
+
+  // Área Individual (Trainer → um líder específico): mensagens e arquivos
+  // que não aparecem em Arquivos da Aula, só na conta daquele líder.
+  listarMensagensIndividuais: liderId => api(`/admin/lideres/${liderId}/mensagens`),
+  criarMensagemIndividual: (liderId, dados) => api(`/admin/lideres/${liderId}/mensagens`, { method: 'POST', body: JSON.stringify(dados) }),
+  atualizarMensagemIndividual: (id, dados) => api(`/admin/mensagens/${id}`, { method: 'PUT', body: JSON.stringify(dados) }),
+  excluirMensagemIndividual: id => api(`/admin/mensagens/${id}`, { method: 'DELETE' }),
+  listarArquivosIndividuaisAdmin: liderId => api(`/admin/lideres/${liderId}/arquivos-individuais`),
+  excluirArquivoIndividualAdmin: (liderId, id) => api(`/admin/lideres/${liderId}/arquivos-individuais/${id}`, { method: 'DELETE' }),
+  enviarArquivoIndividual: async (liderId, formData) => {
+    const res = await fetch(API_BASE + `/admin/lideres/${liderId}/arquivos-individuais`, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + AUTH.token },
+      body: formData,
+    });
+    const corpo = await res.json().catch(() => null);
+    if (!res.ok) throw new Error((corpo && corpo.erro) || `Erro ${res.status}.`);
+    return corpo;
+  },
+  // Visão do líder: o que o Trainer mandou só pra ele.
+  listarMensagensRecebidas: () => api('/individual/mensagens'),
+  marcarMensagemLida: id => api(`/individual/mensagens/${id}/lida`, { method: 'PUT' }),
+  listarArquivosIndividuaisRecebidos: () => api('/individual/arquivos'),
 };
 
 // ---- mapeia linhas da API (snake_case) pro formato usado nas telas ----
@@ -489,6 +517,9 @@ function mapFeedback(f) {
 function mapArquivo(a) {
   return { id: a.id, nome: a.nome, descricao: a.descricao || '', pasta: a.pasta || '', tipoMime: a.tipo_mime, tamanhoBytes: Number(a.tamanho_bytes), criadoEm: a.criado_em };
 }
+function mapMensagemIndividual(m) {
+  return { id: m.id, titulo: m.titulo, mensagem: m.mensagem, lida: !!m.lida, criadoEm: m.criado_em };
+}
 
 // ============================================================
 // UTILITÁRIOS
@@ -555,10 +586,10 @@ function iconeArquivo(tipoMime) {
 // Arquivos grandes demoram pra vir do servidor, então o botão troca pra um
 // spinner nesse meio tempo (mesmo padrão de iniciarCarregamentoBotao),
 // evitando a impressão de que o clique não fez nada.
-async function baixarArquivo(id, nome, botao) {
+async function baixarArquivo(id, nome, botao, base = '/arquivos') {
   const restaurar = botao ? iniciarCarregamentoBotao(botao, 'Baixando...') : () => {};
   try {
-    const res = await fetch(API_BASE + '/arquivos/' + id + '/download', {
+    const res = await fetch(API_BASE + base + '/' + id + '/download', {
       headers: { Authorization: 'Bearer ' + AUTH.token },
     });
     if (!res.ok) {
@@ -755,10 +786,12 @@ function sair() {
   STATE.diario = []; STATE.diarioResumoEquipe = []; STATE.rotina = []; STATE.planoAcao = []; STATE.projetos = [];
   STATE.estatisticasDiario = null;
   STATE.arquivos = []; STATE.arquivosTurma = [];
+  STATE.mensagensIndividuais = []; STATE.arquivosIndividuais = [];
   STATE.desafios = [];
   STATE.planoGestao = null; STATE.diagnostico = [];
   STATE.meuPerfil = null; STATE.minhasAtividades = []; STATE.minhasMetas = []; STATE.meusFeedbacks = [];
   STATE.turmas = []; STATE.turmaSelecionadaId = null; STATE.turmaLideres = []; STATE.turmaDesafios = []; STATE.turmaArquivos = []; STATE.lideresSemTurma = [];
+  STATE.areaIndividualLiderId = null; STATE.areaIndividualMensagens = []; STATE.areaIndividualArquivos = [];
   STATE.agendaRotinaSemana = null;
   document.getElementById('form-login').reset();
   document.getElementById('auth-erro').style.display = 'none';
@@ -798,6 +831,7 @@ async function carregarTudoLider() {
     await carregarEstatisticasDiario();
     await carregarAutoavaliacaoDoMes();
     await carregarArquivos();
+    await carregarMensagensIndividuais();
   } catch (err) {
     mostrarToast(err.message, 'error');
   }
@@ -3926,7 +3960,7 @@ function htmlItemArquivo(a, comAcoesAdmin, opcoesVincularTurma) {
 
 // comAcoesAdmin habilita editar/remover/vincular a outra turma — só faz
 // sentido na visão do administrador, dentro de uma turma selecionada.
-function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin) {
+function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin, baseDownload = '/arquivos') {
   const container = document.getElementById(containerId);
   if (lista.length === 0) {
     container.innerHTML = `<div class="empty-state"><div class="empty-icon">📚</div><p>${comAcoesAdmin ? 'Nenhum arquivo enviado ainda.' : 'Nenhum material disponível ainda.'}</p></div>`;
@@ -3959,7 +3993,7 @@ function renderListaArquivosAgrupada(containerId, lista, comAcoesAdmin) {
   }).join('');
 
   container.querySelectorAll('.btn-baixar-arquivo').forEach(btn => {
-    btn.addEventListener('click', () => baixarArquivo(btn.dataset.id, btn.dataset.nome, btn));
+    btn.addEventListener('click', () => baixarArquivo(btn.dataset.id, btn.dataset.nome, btn, baseDownload));
   });
   container.querySelectorAll('.select-vincular-pasta').forEach(sel => {
     sel.addEventListener('change', () => { vincularPasta(sel.dataset.pasta, sel.value); sel.value = ''; });
@@ -3986,6 +4020,48 @@ async function carregarArquivosTurma() {
 function renderArquivosTurma() {
   document.getElementById('badge-arquivos-turma').textContent = STATE.arquivosTurma.length;
   renderListaArquivosAgrupada('lista-arquivos-turma', STATE.arquivosTurma, false);
+}
+
+// ============================================================
+// ÁREA INDIVIDUAL (visão do líder) — o que o Trainer mandou só pra ele,
+// separado dos Arquivos da Aula (abertos pra turma toda).
+// ============================================================
+async function carregarMensagensIndividuais() {
+  try {
+    STATE.mensagensIndividuais = (await Api.listarMensagensRecebidas()).map(mapMensagemIndividual);
+  } catch (err) {
+    STATE.mensagensIndividuais = [];
+  }
+  try {
+    STATE.arquivosIndividuais = (await Api.listarArquivosIndividuaisRecebidos()).map(mapArquivo);
+  } catch (err) {
+    STATE.arquivosIndividuais = [];
+  }
+  renderMensagensIndividuais();
+
+  // Ver a lista já conta como "ler" — marca em segundo plano, sem travar a tela.
+  STATE.mensagensIndividuais.filter(m => !m.lida).forEach(m => {
+    Api.marcarMensagemLida(m.id).then(() => { m.lida = true; }).catch(() => {});
+  });
+}
+
+function renderMensagensIndividuais() {
+  document.getElementById('badge-individual').textContent = STATE.mensagensIndividuais.length + STATE.arquivosIndividuais.length;
+
+  const listaMsg = document.getElementById('lista-mensagens-individuais');
+  listaMsg.innerHTML = STATE.mensagensIndividuais.length === 0
+    ? `<div class="empty-state"><div class="empty-icon">💬</div><p>Nenhuma mensagem do Trainer ainda.</p></div>`
+    : STATE.mensagensIndividuais.map(m => `
+      <div class="mensagem-individual-item ${m.lida ? '' : 'nao-lida'}">
+        <div class="mensagem-individual-topo">
+          <strong>${m.titulo}</strong>
+          <span class="mensagem-individual-data">${formatarData(m.criadoEm?.split('T')[0])}</span>
+        </div>
+        <p>${m.mensagem}</p>
+      </div>
+    `).join('');
+
+  renderListaArquivosAgrupada('lista-arquivos-individuais', STATE.arquivosIndividuais, false, '/individual/arquivos');
 }
 
 // ============================================================
@@ -4683,6 +4759,7 @@ function renderTurmaLideres() {
         <div class="diagnostico-item">
           <span><strong>${l.nome}</strong>${l.cargo ? ' · ' + l.cargo : ''} — ${l.email}</span>
           <button type="button" class="btn-icon btn-icon-sm btn-visualizar-lider" data-id="${l.id}" data-nome="${escapeAtributo(l.nome)}" title="Visualizar o painel dele (somente leitura)">👁️</button>
+          <button type="button" class="btn-icon btn-icon-sm btn-area-individual" data-id="${l.id}" title="Área Individual — mensagens e arquivos só pra essa conta">💬</button>
           <button type="button" class="btn-icon btn-icon-sm btn-reenviar-convite" data-id="${l.id}" data-nome="${escapeAtributo(l.nome)}" title="Reenviar convite por e-mail">📧</button>
           <button type="button" class="btn-icon btn-icon-sm btn-toggle-senha-lider" data-id="${l.id}" title="Redefinir senha">🔑</button>
         </div>
@@ -4690,6 +4767,7 @@ function renderTurmaLideres() {
           <input type="password" class="input-senha-lider" placeholder="Nova senha (mín. 6 caracteres)" minlength="6" required />
           <button type="submit" class="btn-secondary">Salvar senha</button>
         </form>
+        <div class="area-individual-painel" id="painel-individual-${l.id}" style="display:none"></div>
       </div>
     `).join('');
 
@@ -4699,6 +4777,10 @@ function renderTurmaLideres() {
 
   container.querySelectorAll('.btn-reenviar-convite').forEach(btn => {
     btn.addEventListener('click', () => reenviarConviteLider(btn.dataset.id, btn.dataset.nome, btn));
+  });
+
+  container.querySelectorAll('.btn-area-individual').forEach(btn => {
+    btn.addEventListener('click', () => toggleAreaIndividual(btn.dataset.id));
   });
 
   container.querySelectorAll('.btn-toggle-senha-lider').forEach(btn => {
@@ -4727,6 +4809,159 @@ function renderTurmaLideres() {
       } finally {
         restaurar();
       }
+    });
+  });
+}
+
+// ============================================================
+// ÁREA INDIVIDUAL (visão do admin/Trainer) — mensagens e arquivos que só
+// aquele líder específico vê, diferente dos Arquivos da Aula (turma toda).
+// Um painel aberto por vez, carregado sob demanda ao clicar no 💬.
+// ============================================================
+async function toggleAreaIndividual(liderId) {
+  if (STATE.areaIndividualLiderId && STATE.areaIndividualLiderId !== liderId) {
+    const outroPainel = document.getElementById(`painel-individual-${STATE.areaIndividualLiderId}`);
+    if (outroPainel) { outroPainel.style.display = 'none'; outroPainel.innerHTML = ''; }
+  }
+
+  const painel = document.getElementById(`painel-individual-${liderId}`);
+  if (!painel) return;
+
+  if (STATE.areaIndividualLiderId === liderId) {
+    painel.style.display = 'none';
+    painel.innerHTML = '';
+    STATE.areaIndividualLiderId = null;
+    return;
+  }
+
+  STATE.areaIndividualLiderId = liderId;
+  painel.style.display = '';
+  painel.innerHTML = `<p class="label-hint">Carregando...</p>`;
+  try {
+    const [mensagens, arquivos] = await Promise.all([
+      Api.listarMensagensIndividuais(liderId),
+      Api.listarArquivosIndividuaisAdmin(liderId),
+    ]);
+    STATE.areaIndividualMensagens = mensagens.map(mapMensagemIndividual);
+    STATE.areaIndividualArquivos = arquivos.map(mapArquivo);
+    renderAreaIndividualAdmin(liderId);
+  } catch (err) {
+    painel.innerHTML = `<p class="label-hint">Erro ao carregar: ${err.message}</p>`;
+  }
+}
+
+function renderAreaIndividualAdmin(liderId) {
+  const painel = document.getElementById(`painel-individual-${liderId}`);
+  if (!painel) return;
+
+  const mensagensHtml = STATE.areaIndividualMensagens.length === 0
+    ? `<p class="label-hint">Nenhuma mensagem enviada ainda.</p>`
+    : STATE.areaIndividualMensagens.map(m => `
+        <div class="mensagem-individual-item">
+          <div class="mensagem-individual-topo">
+            <strong>${m.titulo}</strong>
+            <span class="mensagem-individual-data">${formatarData(m.criadoEm?.split('T')[0])} · ${m.lida ? 'lida' : 'não lida'}</span>
+          </div>
+          <p>${m.mensagem}</p>
+          <div class="arquivo-acoes">
+            <button type="button" class="btn-icon btn-icon-sm btn-icon-danger btn-excluir-mensagem" data-msg-id="${m.id}" title="Excluir">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+
+  const arquivosHtml = STATE.areaIndividualArquivos.length === 0
+    ? `<p class="label-hint">Nenhum arquivo enviado ainda.</p>`
+    : STATE.areaIndividualArquivos.map(a => `
+        <div class="arquivo-item">
+          <span class="arquivo-icone">${iconeArquivo(a.tipoMime)}</span>
+          <div class="arquivo-info">
+            <div class="arquivo-nome">${a.nome}</div>
+            <div class="arquivo-meta">${formatarTamanho(a.tamanhoBytes)} · ${formatarData(a.criadoEm?.split('T')[0])}</div>
+          </div>
+          <div class="arquivo-acoes">
+            <button type="button" class="btn-icon btn-icon-sm btn-icon-danger btn-excluir-arquivo-individual" data-arq-id="${a.id}" title="Excluir">🗑️</button>
+          </div>
+        </div>
+      `).join('');
+
+  painel.innerHTML = `
+    <div class="area-individual-bloco">
+      <h4>💬 Mensagens</h4>
+      ${mensagensHtml}
+      <form class="form-nova-mensagem-individual">
+        <input type="text" class="input-titulo-mensagem" placeholder="Título" required />
+        <textarea class="input-texto-mensagem" placeholder="Mensagem..." rows="2" required></textarea>
+        <button type="submit" class="btn-secondary">Enviar mensagem</button>
+      </form>
+    </div>
+    <div class="area-individual-bloco">
+      <h4>📁 Arquivos</h4>
+      ${arquivosHtml}
+      <div class="area-individual-upload">
+        <input type="file" class="input-arquivo-individual" />
+        <button type="button" class="btn-secondary btn-enviar-arquivo-individual">Enviar arquivo</button>
+      </div>
+    </div>
+  `;
+
+  painel.querySelector('.form-nova-mensagem-individual').addEventListener('submit', async e => {
+    e.preventDefault();
+    const form = e.target;
+    const titulo = form.querySelector('.input-titulo-mensagem').value.trim();
+    const mensagem = form.querySelector('.input-texto-mensagem').value.trim();
+    if (!titulo || !mensagem) return;
+    const restaurar = iniciarCarregamentoBotao(form.querySelector('button[type=submit]'), 'Enviando...');
+    try {
+      await Api.criarMensagemIndividual(liderId, { titulo, mensagem });
+      mostrarToast('Mensagem enviada!');
+      STATE.areaIndividualMensagens = (await Api.listarMensagensIndividuais(liderId)).map(mapMensagemIndividual);
+      renderAreaIndividualAdmin(liderId);
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
+    }
+  });
+
+  painel.querySelectorAll('.btn-excluir-mensagem').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Excluir esta mensagem?')) return;
+      try {
+        await Api.excluirMensagemIndividual(btn.dataset.msgId);
+        STATE.areaIndividualMensagens = STATE.areaIndividualMensagens.filter(m => m.id !== btn.dataset.msgId);
+        renderAreaIndividualAdmin(liderId);
+      } catch (err) { mostrarToast(err.message, 'error'); }
+    });
+  });
+
+  painel.querySelector('.btn-enviar-arquivo-individual').addEventListener('click', async () => {
+    const input = painel.querySelector('.input-arquivo-individual');
+    const file = input.files[0];
+    if (!file) { mostrarToast('Escolha um arquivo.', 'error'); return; }
+    const formData = new FormData();
+    formData.append('arquivo', file);
+    const btn = painel.querySelector('.btn-enviar-arquivo-individual');
+    const restaurar = iniciarCarregamentoBotao(btn, 'Enviando...');
+    try {
+      await Api.enviarArquivoIndividual(liderId, formData);
+      mostrarToast('Arquivo enviado!');
+      STATE.areaIndividualArquivos = (await Api.listarArquivosIndividuaisAdmin(liderId)).map(mapArquivo);
+      renderAreaIndividualAdmin(liderId);
+    } catch (err) {
+      mostrarToast(err.message, 'error');
+    } finally {
+      restaurar();
+    }
+  });
+
+  painel.querySelectorAll('.btn-excluir-arquivo-individual').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      if (!confirm('Excluir este arquivo?')) return;
+      try {
+        await Api.excluirArquivoIndividualAdmin(liderId, btn.dataset.arqId);
+        STATE.areaIndividualArquivos = STATE.areaIndividualArquivos.filter(a => a.id !== btn.dataset.arqId);
+        renderAreaIndividualAdmin(liderId);
+      } catch (err) { mostrarToast(err.message, 'error'); }
     });
   });
 }
