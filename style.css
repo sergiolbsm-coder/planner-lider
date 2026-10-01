@@ -655,6 +655,7 @@ select { cursor: pointer; }
 .diagnostico-form { display: flex; gap: 8px; margin-top: 10px; }
 .diagnostico-form input { flex: 1; }
 .lider-linha { margin-bottom: 6px; }
+.lider-acoes { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
 .lider-linha .diagnostico-item { margin-bottom: 0; }
 .lider-linha .form-senha-lider { margin-top: 6px; margin-bottom: 6px; }
 
