@@ -658,6 +658,21 @@ select { cursor: pointer; }
 .lider-linha .diagnostico-item { margin-bottom: 0; }
 .lider-linha .form-senha-lider { margin-top: 6px; margin-bottom: 6px; }
 
+/* Área Individual (admin) — painel inline por líder, com mensagens e
+   arquivos vistos só por aquela conta (ver btn-area-individual). */
+.area-individual-painel {
+  margin-top: 10px; margin-bottom: 10px; padding: 14px; border-radius: var(--radius-sm);
+  background: var(--bg); border: 1.5px solid var(--border);
+  display: flex; flex-direction: column; gap: 18px;
+}
+@media (min-width: 720px) { .area-individual-painel { flex-direction: row; } }
+.area-individual-bloco { flex: 1; min-width: 0; }
+.area-individual-bloco h4 { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.form-nova-mensagem-individual { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.form-nova-mensagem-individual textarea { resize: vertical; font-family: inherit; }
+.area-individual-upload { display: flex; align-items: center; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+.area-individual-upload input[type="file"] { flex: 1; min-width: 160px; font-size: 12.5px; }
+
 /* Campo com salvamento próprio (Criação do Plano / Ferramenta Avião) — mesma
    ideia do diagnóstico: cada resposta tem seu botão, sem formulário gigante. */
 .campo-avulso { margin-bottom: 20px; }
@@ -1481,6 +1496,17 @@ button:disabled { cursor: default; opacity: .85; }
 .arquivo-meta { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
 .arquivo-desc { font-size: 12.5px; color: var(--text-muted); margin-top: 4px; }
 .arquivo-acoes { display: flex; gap: 6px; flex-shrink: 0; }
+
+/* Área Individual — mensagens do Trainer pra um líder específico. */
+.mensagem-individual-item {
+  padding: 12px 14px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  margin-bottom: 10px; background: #fafbff;
+}
+.mensagem-individual-item.nao-lida { border-color: var(--accent); background: #fff3f0; }
+.mensagem-individual-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 4px; }
+.mensagem-individual-topo strong { font-size: 14px; color: var(--text); }
+.mensagem-individual-data { font-size: 12px; color: var(--text-muted); white-space: nowrap; }
+.mensagem-individual-item p { font-size: 13.5px; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
 
 .pasta-grupo { margin-bottom: 18px; }
 .pasta-grupo:last-child { margin-bottom: 0; }
