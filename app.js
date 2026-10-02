@@ -518,7 +518,15 @@ function mapArquivo(a) {
   return { id: a.id, nome: a.nome, descricao: a.descricao || '', pasta: a.pasta || '', tipoMime: a.tipo_mime, tamanhoBytes: Number(a.tamanho_bytes), criadoEm: a.criado_em };
 }
 function mapMensagemIndividual(m) {
-  return { id: m.id, titulo: m.titulo, mensagem: m.mensagem, lida: !!m.lida, criadoEm: m.criado_em };
+  return { id: m.id, titulo: m.titulo, mensagem: m.mensagem, link: m.link || '', lida: !!m.lida, criadoEm: m.criado_em };
+}
+
+// Encurta um link pra exibição (sem perder o href real) — ex:
+// "https://meet.google.com/abc-defg-hij" vira "meet.google.com/abc-defg-h…".
+function encurtarLink(url, tamanho = 32) {
+  let texto = String(url || '').replace(/^https?:\/\//, '').replace(/\/$/, '');
+  if (texto.length > tamanho) texto = texto.slice(0, tamanho - 1) + '…';
+  return texto;
 }
 
 // ============================================================
@@ -4058,6 +4066,7 @@ function renderMensagensIndividuais() {
           <span class="mensagem-individual-data">${formatarData(m.criadoEm?.split('T')[0])}</span>
         </div>
         <p>${m.mensagem}</p>
+        ${m.link ? `<a class="mensagem-individual-link" href="${escapeAtributo(m.link)}" target="_blank" rel="noopener">🔗 ${encurtarLink(m.link)}</a>` : ''}
       </div>
     `).join('');
 
@@ -4865,6 +4874,7 @@ function renderAreaIndividualAdmin(liderId) {
             <span class="mensagem-individual-data">${formatarData(m.criadoEm?.split('T')[0])} · ${m.lida ? 'lida' : 'não lida'}</span>
           </div>
           <p>${m.mensagem}</p>
+          ${m.link ? `<a class="mensagem-individual-link" href="${escapeAtributo(m.link)}" target="_blank" rel="noopener">🔗 ${encurtarLink(m.link)}</a>` : ''}
           <div class="arquivo-acoes">
             <button type="button" class="btn-icon btn-icon-sm btn-icon-danger btn-excluir-mensagem" data-msg-id="${m.id}" title="Excluir">🗑️</button>
           </div>
@@ -4893,6 +4903,7 @@ function renderAreaIndividualAdmin(liderId) {
       <form class="form-nova-mensagem-individual">
         <input type="text" class="input-titulo-mensagem" placeholder="Título" required />
         <textarea class="input-texto-mensagem" placeholder="Mensagem..." rows="2" required></textarea>
+        <input type="url" class="input-link-mensagem" placeholder="Link (opcional) — ex: reunião, material..." />
         <button type="submit" class="btn-secondary">Enviar mensagem</button>
       </form>
     </div>
@@ -4911,10 +4922,11 @@ function renderAreaIndividualAdmin(liderId) {
     const form = e.target;
     const titulo = form.querySelector('.input-titulo-mensagem').value.trim();
     const mensagem = form.querySelector('.input-texto-mensagem').value.trim();
+    const link = form.querySelector('.input-link-mensagem').value.trim();
     if (!titulo || !mensagem) return;
     const restaurar = iniciarCarregamentoBotao(form.querySelector('button[type=submit]'), 'Enviando...');
     try {
-      await Api.criarMensagemIndividual(liderId, { titulo, mensagem });
+      await Api.criarMensagemIndividual(liderId, { titulo, mensagem, link });
       mostrarToast('Mensagem enviada!');
       STATE.areaIndividualMensagens = (await Api.listarMensagensIndividuais(liderId)).map(mapMensagemIndividual);
       renderAreaIndividualAdmin(liderId);
