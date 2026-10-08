@@ -2213,14 +2213,14 @@ async function refrescarMetas() {
 // manuais: só aponta o que falta pra meta ficar completa.
 // Checklist SMART — cada letra checada a partir do que já foi preenchido no
 // formulário, sem exigir mais nenhum checkbox manual. "Atingível" não tem
-// como ser verificado automaticamente (é um julgamento de quem está
-// definindo a meta), então fica como "não avaliável" em vez de forçar uma
-// resposta certa/errada.
+// campo próprio: é o salto entre ponto de partida e resultado esperado no
+// prazo definido — então fica ✅ quando esses três estão preenchidos (o
+// sistema não julga se o salto é realista, só que há o que avaliar).
 function checklistSmart(m) {
   return [
     { letra: 'S', rotulo: 'Específica', ok: !!m.nome },
     { letra: 'M', rotulo: 'Mensurável', ok: !!(m.indicador && m.pontoPartida && m.valor) },
-    { letra: 'A', rotulo: 'Atingível', ok: null },
+    { letra: 'A', rotulo: 'Atingível', ok: !!(m.pontoPartida && m.valor && m.prazo) },
     { letra: 'R', rotulo: 'Relevante', ok: !!m.porqueImporta },
     { letra: 'T', rotulo: 'Temporal', ok: !!(m.prazo && m.frequenciaAcompanhamento) },
   ];
