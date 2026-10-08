@@ -412,7 +412,7 @@ function mapMeta(m) {
     prazo: m.prazo ? String(m.prazo).slice(0, 10) : '', descricao: m.descricao || '',
     criadoEm: m.criado_em,
     // Painel do Líder — Direção/Objetivo, Meta e Medição completa, Mini-BSC, OKR e Execução.
-    porqueImporta: m.porque_importa || '', pontoPartida: m.ponto_partida || '',
+    porqueImporta: m.porque_importa || '', atingivel: m.atingivel || '', pontoPartida: m.ponto_partida || '',
     frequenciaAcompanhamento: m.frequencia_acompanhamento || '', perspectivaBsc: m.perspectiva_bsc || '',
     okrObjetivo: m.okr_objetivo || '', okrKr1: m.okr_kr1 || '', okrKr2: m.okr_kr2 || '', okrKr3: m.okr_kr3 || '',
     acaoPrioritaria: m.acao_prioritaria || '', responsavelAcao: m.responsavel_acao || '',
@@ -2212,15 +2212,14 @@ async function refrescarMetas() {
 // partir do que já foi preenchido, em vez de mais uma lista de checkboxes
 // manuais: só aponta o que falta pra meta ficar completa.
 // Checklist SMART — cada letra checada a partir do que já foi preenchido no
-// formulário, sem exigir mais nenhum checkbox manual. "Atingível" não tem
-// como ser verificado automaticamente (é um julgamento de quem está
-// definindo a meta), então fica como "não avaliável" em vez de forçar uma
-// resposta certa/errada.
+// formulário, sem exigir mais nenhum checkbox manual. "Atingível" é um
+// julgamento de quem define a meta — o sistema não valida se é realista,
+// só se a justificativa foi preenchida.
 function checklistSmart(m) {
   return [
     { letra: 'S', rotulo: 'Específica', ok: !!m.nome },
     { letra: 'M', rotulo: 'Mensurável', ok: !!(m.indicador && m.pontoPartida && m.valor) },
-    { letra: 'A', rotulo: 'Atingível', ok: null },
+    { letra: 'A', rotulo: 'Atingível', ok: !!m.atingivel },
     { letra: 'R', rotulo: 'Relevante', ok: !!m.porqueImporta },
     { letra: 'T', rotulo: 'Temporal', ok: !!(m.prazo && m.frequenciaAcompanhamento) },
   ];
@@ -2254,6 +2253,7 @@ function renderMetas() {
         </div>
         <div class="meta-card-nome">${m.nome}</div>
         ${m.porqueImporta ? `<div class="meta-card-porque">💭 ${m.porqueImporta}</div>` : ''}
+        ${m.atingivel ? `<div class="meta-card-porque">🎯 <strong>Atingível:</strong> ${m.atingivel}</div>` : ''}
         ${(m.indicador || m.pontoPartida || m.valor) ? `
           <div class="meta-card-indicador">
             ${m.indicador ? `📈 ${m.indicador}` : ''}${(m.pontoPartida || m.valor) ? `${m.indicador ? ' · ' : ''}${m.pontoPartida || '?'} → ${m.valor || '?'}` : ''}
@@ -2280,7 +2280,7 @@ function renderMetas() {
           ${smart.map(s => {
             const icone = s.ok === null ? '➖' : (s.ok ? '✅' : '⚠️');
             const classe = s.ok === null ? 'smart-pill-na' : (s.ok ? 'smart-pill-ok' : 'smart-pill-falta');
-            return `<span class="smart-pill ${classe}" title="${s.rotulo}${s.ok === null ? ' — julgamento de quem definiu a meta, não dá pra checar sozinho' : ''}">${icone} ${s.letra}</span>`;
+            return `<span class="smart-pill ${classe}" title="${s.rotulo}${s.ok === null ? ' — não avaliável' : ''}">${icone} ${s.letra}</span>`;
           }).join('')}
         </div>
       </div>`;
@@ -2305,6 +2305,7 @@ function initFormMeta() {
       prazo: document.getElementById('me-prazo').value,
       descricao: document.getElementById('me-desc').value.trim(),
       porqueImporta: document.getElementById('me-porque').value.trim(),
+      atingivel: document.getElementById('me-atingivel').value.trim(),
       pontoPartida: document.getElementById('me-ponto-partida').value.trim(),
       frequenciaAcompanhamento: getTagValue('me-frequencia'),
       perspectivaBsc: getTagValue('me-bsc'),
@@ -2366,6 +2367,7 @@ function editarMeta(id) {
   document.getElementById('me-prazo').value = m.prazo || '';
   document.getElementById('me-desc').value = m.descricao || '';
   document.getElementById('me-porque').value = m.porqueImporta || '';
+  document.getElementById('me-atingivel').value = m.atingivel || '';
   document.getElementById('me-ponto-partida').value = m.pontoPartida || '';
   document.getElementById('me-okr-objetivo').value = m.okrObjetivo || '';
   document.getElementById('me-okr-kr1').value = m.okrKr1 || '';
@@ -2937,6 +2939,7 @@ const IMPORTACOES = {
       { header: 'Prazo (dd/mm/aaaa)', campo: 'prazo', tipo: 'data' },
       { header: 'Frequência (Semanal/Quinzenal/Mensal/Trimestral)', campo: 'frequenciaAcompanhamento', tipo: 'opcao', mapa: OPCOES_FREQUENCIA_PLANILHA },
       { header: 'Por que é importante', campo: 'porqueImporta', tipo: 'texto' },
+      { header: 'Atingível (por que é realista?)', campo: 'atingivel', tipo: 'texto' },
       { header: 'Perspectiva BSC (Aprendizado/Processos/Clientes/Financeira)', campo: 'perspectivaBsc', tipo: 'opcao', mapa: OPCOES_BSC_PLANILHA },
       { header: 'Descrição', campo: 'descricao', tipo: 'texto' },
       { header: 'OKR - Objetivo', campo: 'okrObjetivo', tipo: 'texto' },
@@ -2951,7 +2954,8 @@ const IMPORTACOES = {
     ],
     linhaExemplo: [
       'Aumentar NPS da área', 'Estratégico', 'NPS', '42', '60', '31/12/2026', 'Mensal',
-      'NPS baixo está gerando churn de clientes internos.', 'Clientes', '',
+      'NPS baixo está gerando churn de clientes internos.',
+      'Subir 18 pts em 6 meses é viável: já tivemos +12 no semestre passado.', 'Clientes', '',
       'Elevar a satisfação percebida pelos clientes internos', 'NPS de 42 para 60', 'Reduzir tempo de resposta em 30%', '',
       'Mapear os 3 principais motivos de detração', 'Carla Mendes', '', '01/11/2026', 'Atenção',
     ],
