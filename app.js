@@ -2873,6 +2873,11 @@ const OPCOES_BSC_PLANILHA = {
   clientes: 'clientes',
   financeira: 'financeira', 'financeira / resultado': 'financeira', financeiro: 'financeira',
 };
+const OPCOES_RESULTADO_PLANILHA = { alto: 'alto', medio: 'medio', baixo: 'baixo', delegavel: 'delegavel', eliminavel: 'eliminavel' };
+const OPCOES_STATUS_ATIVIDADE_PLANILHA = {
+  'a fazer': 'novo', novo: 'novo', 'em andamento': 'andamento', andamento: 'andamento',
+  bloqueado: 'bloqueado', concluido: 'concluido',
+};
 const OPCOES_STATUS_EXEC_PLANILHA = { 'no prazo': 'no_prazo', atencao: 'atencao', atrasado: 'atrasado', concluido: 'concluido' };
 
 // Datas/horas do Excel chegam como objeto Date (quando a célula tem formato
@@ -2896,6 +2901,22 @@ function excelParaHora(valor) {
   if (valor instanceof Date) return `${String(valor.getUTCHours()).padStart(2, '0')}:${String(valor.getUTCMinutes()).padStart(2, '0')}`;
   const m = String(valor).trim().match(/^(\d{1,2}):(\d{2})/);
   return m ? `${m[1].padStart(2, '0')}:${m[2]}` : '';
+}
+
+// Responsável/Meta vêm como texto na planilha — casa com o que já está
+// cadastrado (sem diferenciar maiúsculas/acentos). "Eu" = o próprio líder.
+function resolverResponsavelPlanilha(nome) {
+  const chave = normalizarTexto(nome);
+  if (!chave) return { id: '', achou: true };
+  if (['eu', 'eu (lider)', 'lider'].includes(chave)) return { id: 'eu', achou: true };
+  const l = STATE.liderados.find(x => normalizarTexto(x.nome) === chave);
+  return l ? { id: l.id, achou: true } : { id: '', achou: false };
+}
+function resolverMetaPlanilha(nome) {
+  const chave = normalizarTexto(nome);
+  if (!chave) return { id: '', achou: true };
+  const m = STATE.metas.find(x => normalizarTexto(x.nome) === chave);
+  return m ? { id: m.id, achou: true } : { id: '', achou: false };
 }
 
 const IMPORTACOES = {
@@ -2970,6 +2991,53 @@ const IMPORTACOES = {
     aoImportarTudo(novos) {
       STATE.metas.push(...novos);
       renderMetas();
+    },
+  },
+  atividades: {
+    titulo: 'Gestão de Atividades',
+    colunas: [
+      { header: 'Descrição da atividade', campo: 'titulo', tipo: 'texto' },
+      { header: 'Resultado (Alto/Médio/Baixo/Delegável/Eliminável)', campo: 'resultado', tipo: 'opcao', mapa: OPCOES_RESULTADO_PLANILHA },
+      { header: 'Tipo (Estratégico/Tático/Operacional)', campo: 'tipo', tipo: 'opcao', mapa: OPCOES_TIPO_PLANILHA },
+      { header: 'Status (A Fazer/Em Andamento/Bloqueado/Concluído)', campo: 'status', tipo: 'opcao', mapa: OPCOES_STATUS_ATIVIDADE_PLANILHA },
+      { header: 'Prazo (dd/mm/aaaa)', campo: 'prazo', tipo: 'data' },
+      { header: 'Responsável (nome do liderado ou Eu)', campo: 'responsavel', tipo: 'texto' },
+      { header: 'Meta vinculada (nome da meta)', campo: 'meta', tipo: 'texto' },
+      { header: 'Observações', campo: 'obs', tipo: 'texto' },
+    ],
+    linhaExemplo: [
+      'Revisar o fluxo de atendimento', 'Alto', 'Estratégico', 'Em Andamento', '30/11/2026',
+      'Eu', 'Aumentar NPS da área', 'Começar pelos 3 principais motivos de detração.',
+    ],
+    validar(dados) {
+      const erros = [];
+      if (!dados.titulo) erros.push('descrição em branco');
+      if (!dados.resultado) erros.push('resultado inválido (Alto/Médio/Baixo/Delegável/Eliminável)');
+      if (!dados.tipo) erros.push('tipo inválido (Estratégico/Tático/Operacional)');
+      return erros;
+    },
+    // Não bloqueiam a linha: a atividade entra sem esse vínculo e dá pra
+    // completar depois pelo lápis ✏️.
+    avisos(dados) {
+      const avisos = [];
+      if (!resolverResponsavelPlanilha(dados.responsavel).achou) avisos.push(`responsável "${dados.responsavel}" não encontrado — entra sem responsável`);
+      if (!resolverMetaPlanilha(dados.meta).achou) avisos.push(`meta "${dados.meta}" não encontrada — entra sem vínculo`);
+      return avisos;
+    },
+    resumo: d => d.titulo || '(sem descrição)',
+    importar(dados) {
+      const payload = {
+        titulo: dados.titulo, resultado: dados.resultado, tipo: dados.tipo,
+        status: dados.status || 'novo', prazo: dados.prazo, obs: dados.obs,
+        responsavelId: resolverResponsavelPlanilha(dados.responsavel).id,
+        metaId: resolverMetaPlanilha(dados.meta).id,
+      };
+      return Api.criarAtividade(payload).then(mapAtividade);
+    },
+    async aoImportarTudo(novos) {
+      STATE.atividades.push(...novos);
+      renderAtividades();
+      await refrescarMetas();
     },
   },
   liderados: {
@@ -3059,7 +3127,7 @@ function processarArquivoImportado(tipoImportacao, file) {
           else if (c.tipo === 'opcao') dados[c.campo] = mapearOpcao(bruto, c.mapa);
           else dados[c.campo] = String(bruto == null ? '' : bruto).trim();
         });
-        return { numero: i + 2, dados, erros: cfg.validar(dados) };
+        return { numero: i + 2, dados, erros: cfg.validar(dados), avisos: cfg.avisos ? cfg.avisos(dados) : [] };
       });
 
     IMPORTACAO_EM_ANDAMENTO = { tipoImportacao, linhas: linhasProcessadas };
@@ -3088,7 +3156,7 @@ function mostrarPreviewImportacao() {
             <tr class="${l.erros.length ? 'linha-invalida' : ''}">
               <td>${l.numero}</td>
               <td>${cfg.resumo(l.dados)}</td>
-              <td>${l.erros.length ? `<span class="erro-linha">⚠️ ${l.erros.join('; ')}</span>` : '<span class="ok-linha">✅ pronta</span>'}</td>
+              <td>${l.erros.length ? `<span class="erro-linha">⚠️ ${l.erros.join('; ')}</span>` : `<span class="ok-linha">✅ pronta</span>${l.avisos && l.avisos.length ? `<br><span class="erro-linha">⚠️ ${l.avisos.join('; ')}</span>` : ''}`}</td>
             </tr>
           `).join('')}
         </tbody>

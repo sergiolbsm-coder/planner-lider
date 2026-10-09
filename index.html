@@ -603,6 +603,15 @@
           <span class="card-icon">➕</span>
           <h2 id="atividade-form-title">Nova Atividade</h2>
         </div>
+
+        <div class="importar-planilha-sugestao">
+          <span>💡 Muitas atividades pra cadastrar? Baixe o modelo, preencha e importe de uma vez.</span>
+          <div class="importar-planilha-acoes">
+            <button type="button" class="btn-secondary" onclick="baixarModeloPlanilha('atividades')">📥 Baixar modelo (Excel)</button>
+            <button type="button" class="btn-secondary" onclick="document.getElementById('input-importar-atividades').click()">📤 Importar planilha</button>
+            <input type="file" id="input-importar-atividades" accept=".xlsx,.xls" style="display:none" onchange="processarArquivoImportado('atividades', this.files[0]); this.value='';" />
+          </div>
+        </div>
         <form id="form-atividade" novalidate>
           <input type="hidden" id="a-id" value="" />
           <div class="form-group">
