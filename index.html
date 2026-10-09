@@ -37,8 +37,8 @@
       <div id="auth-erro" class="auth-erro" style="display:none"></div>
 
       <form id="form-login" novalidate>
-        <div class="form-group"><label for="lg-email">E-mail</label><input type="email" id="lg-email" placeholder="voce@empresa.com" required /></div>
-        <div class="form-group"><label for="lg-senha">Senha</label><input type="password" id="lg-senha" required /></div>
+        <div class="form-group"><label for="lg-email">E-mail</label><input type="email" id="lg-email" autocomplete="username" placeholder="voce@empresa.com" required /></div>
+        <div class="form-group"><label for="lg-senha">Senha</label><input type="password" id="lg-senha" autocomplete="current-password" required /></div>
         <div class="form-actions" style="justify-content:stretch">
           <button type="submit" class="btn-primary" style="width:100%;justify-content:center">Entrar</button>
         </div>
@@ -174,11 +174,11 @@
           </div>
           <div class="form-group">
             <label for="l-email">E-mail de acesso <span class="label-hint-inline">(opcional — dá pra liberar o acesso depois)</span></label>
-            <input type="email" id="l-email" class="input-largo" placeholder="liderado@empresa.com" />
+            <input type="email" id="l-email" class="input-largo" autocomplete="off" placeholder="liderado@empresa.com" />
           </div>
           <div class="form-group" id="grupo-senha-liderado">
             <label for="l-senha">Senha de acesso <span class="label-hint-inline">(opcional)</span></label>
-            <input type="password" id="l-senha" class="input-largo" minlength="6" placeholder="Mínimo 6 caracteres — combine com o liderado" />
+            <input type="password" id="l-senha" class="input-largo" autocomplete="new-password" minlength="6" placeholder="Mínimo 6 caracteres — combine com o liderado" />
           </div>
           <div class="form-grid-2">
             <div class="form-group">
@@ -1516,8 +1516,8 @@
             <input type="text" id="nl-nome" placeholder="Nome *" required />
             <input type="text" id="nl-cargo" placeholder="Cargo" />
             <input type="text" id="nl-area" placeholder="Área / Equipe" />
-            <input type="email" id="nl-email" placeholder="E-mail *" required />
-            <input type="password" id="nl-senha" placeholder="Senha * (mín. 6)" minlength="6" required />
+            <input type="email" id="nl-email" autocomplete="off" placeholder="E-mail *" required />
+            <input type="password" id="nl-senha" autocomplete="new-password" placeholder="Senha * (mín. 6)" minlength="6" required />
             <button type="submit" class="btn-primary">➕ Cadastrar Líder</button>
           </form>
         </div>
