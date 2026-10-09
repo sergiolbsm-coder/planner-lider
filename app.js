@@ -4847,7 +4847,7 @@ function renderTurmaLideres() {
           </div>
         </div>
         <form class="diagnostico-form form-senha-lider" data-id="${l.id}" style="display:none">
-          <input type="password" class="input-senha-lider" placeholder="Nova senha (mín. 6 caracteres)" minlength="6" required />
+          <input type="password" class="input-senha-lider" autocomplete="new-password" placeholder="Nova senha (mín. 6 caracteres)" minlength="6" required />
           <button type="submit" class="btn-secondary">Salvar senha</button>
         </form>
         <div class="area-individual-painel" id="painel-individual-${l.id}" style="display:none"></div>
